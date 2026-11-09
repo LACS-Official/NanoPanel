@@ -15,10 +15,13 @@
 - **一键安装**：自动探测最优镜像源、自动生成随机初始密码、安装后直接打印访问地址与账号
 - **`npctl` 管理工具**：查看账号、重置密码、启停服务、查看镜像源、卸载
 - **WSL / systemd 自适应**：WSL2 Ubuntu 可直接安装；无 systemd 时自动回退为进程守护
-- 系统概览、服务启停、进程管理、日志中心、Ping、应用商店、系统重启、修改密码
-- **应用商店**：内置 CUPS、AdGuard Home、Tailscale、Mihomo、PicoClaw 五个真实应用，面板内可视化配置常用参数（端口、订阅链接、AuthKey、模型密钥等）
+- 系统概览、服务启停、进程管理、日志中心、Ping、磁盘管理、应用商店、系统重启、修改密码
+- **磁盘管理**：块设备与挂载点总览（容量 / 用量 / 文件系统），面板内一键挂载、卸载，可选写入 `/etc/fstab` 开机自动挂载
+- **应用商店**：内置 CUPS、AdGuard Home、Tailscale、Mihomo、PicoClaw、WebDAV、Samba 七个真实应用，面板内可视化配置常用参数（端口、订阅链接、AuthKey、模型密钥等）
+- **文件共享**：WebDAV 与 Samba 应用让 Windows 直接管理设备文件（映射网络驱动器 / `\\IP\共享名`）
+- **实时安装输出**：应用安装/卸载过程在弹窗中实时滚动显示脚本输出，可随时关闭弹窗不中断任务
 - **Mihomo 管理面板**：面板内切换代理节点、测速、切换运行模式、查看与断开活跃连接，无需单独部署前端
-- **Webhook 通知**：支持企业微信、钉钉、飞书、Server酱与通用 JSON 五种格式，按事件类别订阅推送
+- **Webhook 通知**：支持企业微信、钉钉、飞书、Server酱与通用 JSON 五种格式，按事件类别订阅推送（登录/服务/进程/应用/设置/系统/掉线/磁盘）
 - **应用健康检测**：定时检查已安装应用的 systemd 单元，掉线或恢复时自动推送 Webhook 并写入面板日志
 - **日志中心**：系统日志可按服务与已安装应用筛选，面板操作全程留痕可审计
 - 用户名 + 密码登录、PBKDF2 加盐哈希、登录限速、输入白名单、安全响应头
@@ -189,7 +192,11 @@ make build-all    # 交叉编译三个 Linux 架构
 | GET | `/logs?unit=&n=` | journalctl 日志，可按服务/应用单元筛选 |
 | GET | `/panel-logs` | 面板操作审计日志（最近 300 条，新在前） |
 | GET | `/apps` | 应用列表（含安装与运行状态） |
-| POST | `/app/action?id=&action=` | 安装 / 卸载应用 |
+| POST | `/app/action?id=&action=` | 安装 / 卸载应用（同步，结束后返回全部输出） |
+| POST | `/app/action/stream?id=&action=` | 安装 / 卸载应用（SSE 流，实时回传脚本输出；断连不中断任务；同一应用并发返回 409） |
+| GET | `/disks` | 块设备与挂载点列表（lsblk + /proc/mounts 合并） |
+| POST | `/disks/mount` | 挂载块设备 `{"device":"/dev/sdb1","mountpoint":"/mnt/data","fstab":true}` |
+| POST | `/disks/umount` | 卸载 `{"target":"/mnt/data"}`（目标可以是挂载点或设备路径） |
 | GET | `/apps/config?id=` | 读取应用配置项与当前值 |
 | POST | `/apps/config?id=` | 保存应用配置并调用 `config.sh` 应用 |
 | GET | `/apps/health` | 所有应用的运行状态快照与监控配置 |
@@ -220,6 +227,23 @@ make build-all    # 交叉编译三个 Linux 架构
 | Tailscale | 官方一键脚本 | AuthKey 自动入网、出口节点、DNS 设置 |
 | Mihomo (Clash.Meta) | GitHub 官方二进制 | 混合代理端口、局域网开关、控制端口与密钥、订阅链接 |
 | PicoClaw | GitHub 官方预编译包 | Gateway 端口/地址、模型与 API Key、Telegram Bot、日志级别 |
+| WebDAV | GitHub 官方二进制（多源回退） | 端口、共享目录、账号密码、只读 |
+| Samba | apt | 共享名、共享目录、账号密码、访客模式、只读 |
+
+### 磁盘管理
+
+左侧「磁盘」页展示块设备（整盘/分区，含容量、文件系统、挂载点、用量）与非块设备挂载（WSL 的 Windows 盘、NFS 等）：
+
+- 未挂载的可挂载文件系统一键挂载，可选写入 `/etc/fstab`（按 UUID，`nofail`）开机自动挂载
+- 已挂载设备可从面板卸载；挂载点仅允许位于 `/mnt`、`/media`、`/opt`、`/srv`、`/home`、`/data` 之下，防止误挂系统目录
+- 挂载/卸载会写入面板日志并按需推送 `disk` 事件 Webhook
+
+### 文件共享（Windows 管理设备文件）
+
+- **WebDAV**：安装后在配置里设置访问密码（留空仅本机监听，不暴露局域网），Windows 资源管理器「此电脑 → 映射网络驱动器」填 `http://<主机IP>:<端口>/`
+- **Samba**：配置共享名、目录与账号密码（或访客模式），Windows 直接访问 `\\<主机IP>\<共享名>`；卸载保留共享目录中的数据
+
+> WSL2 环境注意：WebDAV 走 HTTP 端口，Windows 用 `http://localhost:<端口>` 即可；SMB 的 445 端口被 Windows 自身占用，请使用 `\\<WSL IP>\共享名` 访问。
 
 ### 应用健康检测
 

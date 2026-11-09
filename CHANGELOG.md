@@ -6,16 +6,23 @@
 
 ### 新增
 
+- **磁盘管理**：左侧「磁盘」页展示块设备与挂载点（容量/文件系统/用量），支持面板内挂载、卸载，可选写入 `/etc/fstab`（UUID + nofail）开机自动挂载；挂载点限制在 `/mnt` `/media` `/opt` `/srv` `/home` `/data` 白名单下；挂载/卸载写入面板日志并按需推送 `disk` 事件 Webhook
+- **实时安装输出**：应用安装/卸载改为 SSE 流式端点 `POST /app/action/stream`，前端弹窗实时滚动脚本输出；关闭弹窗不中断任务（`context.WithoutCancel`）；同一应用并发操作返回 409
+- **WebDAV 应用**：hacdias/webdav 官方二进制（多源回退下载），面板内配置端口、共享目录、账号密码、只读；未设置密码前仅监听 127.0.0.1，Windows「映射网络驱动器」即可管理文件
+- **Samba 应用**：apt 安装，面板内配置共享名、目录、账号密码、访客模式、只读；`smb.conf` 受管段幂等生成并经 `testparm` 校验；卸载保留共享数据
 - **应用掉线通知**：后台定时检测已安装应用的 systemd 单元，掉线/恢复时推送 `health` 事件 Webhook 并写入面板日志；检测间隔可在设置页调整或关闭，支持手动体检（`POST /apps/check`）
 - **Mihomo 管理面板**：左侧「代理管理」页，支持内核版本/模式/流量、代理组节点切换与测速、活跃连接管理；后端提供路径白名单的安全转发代理，自动携带控制密钥，不泄漏面板 token
 - **PicoClaw 应用**：从官方 release 下载预编译包并以 systemd 托管 Gateway，面板内配置模型/API Key、Gateway 端口与地址、Telegram Bot、日志级别；生成的 `config.json` 权限 0600
-- 新增端点：`GET /apps/health`、`POST /apps/check`、`GET|POST /settings/monitor`、`GET /mihomo/status`、`/mihomo` 转发代理
+- 新增端点：`GET /apps/health`、`POST /apps/check`、`GET|POST /settings/monitor`、`GET /mihomo/status`、`/mihomo` 转发代理、`GET /disks`、`POST /disks/mount`、`POST /disks/umount`
 - 应用列表与应用卡片显示运行状态（运行中 / 已掉线 / 未监控），Mihomo 卡片增加「管理」入口
 - Mihomo 应用配置新增「控制接口密钥」；`config.sh` 会同步 `secret` 到内核配置
-- 新增 6 个单元测试（掉线/恢复告警、强制体检、监控设置、代理白名单与转发、中文路径、内核状态），共 51 项
+- 新增 9 个单元测试（磁盘列表/挂载校验/卸载校验、挂载点规范化、SSE 流成功/失败/参数拒绝/并发锁、disk 事件），共 60 项
 
 ### 修复
 
+- samba/cups 安装脚本对 `apt-get update` 失败不再致命（部分镜像源临时 403 时仍可从缓存安装）
+- samba 卸载不再执行 `apt-get autoremove`，避免误删其他应用依赖的软件包
+- 磁盘列表过滤 lsblk 对 swap 的 `[SWAP]` 伪挂载点；还原 `/proc/self/mounts` 的 `\040` `\134` 等八进制转义
 - 放宽 Mihomo 转发路径白名单以兼容中文代理组与节点名，同时保留路径穿越与任意路径访问防护
 
 ## [0.1.0] - 2026-11-09

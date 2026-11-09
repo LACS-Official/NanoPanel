@@ -36,6 +36,10 @@ type Server struct {
 
 	// unitProbe 仅用于测试注入，为空时通过 systemctl 查询单元状态。
 	unitProbe func(context.Context, string) string
+
+	// actionMu 与 runningActions 防止同一应用并发执行安装/卸载脚本。
+	actionMu       sync.Mutex
+	runningActions map[string]bool
 }
 
 // NewServer 创建 API 服务容器。

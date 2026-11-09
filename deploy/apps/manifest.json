@@ -207,6 +207,110 @@
       ]
     },
     {
+      "id": "webdav",
+      "name": "WebDAV 文件服务",
+      "description": "轻量 WebDAV 服务器（hacdias/webdav 单二进制），Windows 资源管理器「映射网络驱动器」即可管理设备文件",
+      "version": "5.x",
+      "icon": "",
+      "category": "文件共享",
+      "unit": "webdav",
+      "config": [
+        {
+          "name": "port",
+          "label": "监听端口",
+          "type": "number",
+          "default": "6065",
+          "description": "WebDAV 服务端口"
+        },
+        {
+          "name": "share_dir",
+          "label": "共享目录",
+          "type": "text",
+          "default": "/opt/webdav/data",
+          "description": "对外共享的目录，不存在会自动创建"
+        },
+        {
+          "name": "username",
+          "label": "访问用户名",
+          "type": "text",
+          "default": "admin",
+          "description": "Windows 映射驱动器时输入的账号"
+        },
+        {
+          "name": "password",
+          "label": "访问密码",
+          "type": "password",
+          "default": "",
+          "placeholder": "设置密码后开放局域网访问",
+          "description": "留空时仅本机 (127.0.0.1) 可访问，设置后开放给局域网"
+        },
+        {
+          "name": "read_only",
+          "label": "只读共享",
+          "type": "select",
+          "default": "no",
+          "options": ["yes", "no"],
+          "description": "开启后只能浏览与下载，不能修改文件"
+        }
+      ]
+    },
+    {
+      "id": "samba",
+      "name": "Samba 文件共享",
+      "description": "SMB/CIFS 文件共享服务，Windows 直接通过 \\\\主机IP\\共享名 管理设备文件，兼容性最好",
+      "version": "1.0.0",
+      "icon": "",
+      "category": "文件共享",
+      "unit": "smbd",
+      "config": [
+        {
+          "name": "share_name",
+          "label": "共享名",
+          "type": "text",
+          "default": "nanoshare",
+          "description": "Windows 里以 \\\\主机IP\\共享名 访问；仅字母、数字、下划线、短横线"
+        },
+        {
+          "name": "share_dir",
+          "label": "共享目录",
+          "type": "text",
+          "default": "/opt/samba/share",
+          "description": "对外共享的目录，不存在会自动创建"
+        },
+        {
+          "name": "username",
+          "label": "访问用户名",
+          "type": "text",
+          "default": "nanofile",
+          "description": "Windows 弹窗认证时输入的账号"
+        },
+        {
+          "name": "password",
+          "label": "访问密码",
+          "type": "password",
+          "default": "",
+          "placeholder": "访客模式可留空",
+          "description": "访客模式开启时留空；否则必填"
+        },
+        {
+          "name": "guest",
+          "label": "允许访客（无密码）",
+          "type": "select",
+          "default": "no",
+          "options": ["yes", "no"],
+          "description": "开启后局域网内无需账号即可访问，仅建议在可信内网使用"
+        },
+        {
+          "name": "read_only",
+          "label": "只读共享",
+          "type": "select",
+          "default": "no",
+          "options": ["yes", "no"],
+          "description": "开启后只能浏览与下载，不能修改文件"
+        }
+      ]
+    },
+    {
       "id": "hello",
       "name": "示例应用",
       "description": "演示应用商店的安装、卸载、状态脚本约定，安装后写一个标记文件",

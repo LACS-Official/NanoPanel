@@ -14,3 +14,8 @@ func diskUsage(path string) (total, avail uint64) {
 	avail = fs.Bavail * uint64(fs.Bsize)
 	return
 }
+
+// DiskUsage 是 diskUsage 的对外导出，供磁盘管理页使用。
+func DiskUsage(path string) (total, avail uint64) {
+	return diskUsage(path)
+}

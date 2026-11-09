@@ -12,7 +12,8 @@ command -v apt-get >/dev/null 2>&1 || { say "仅支持 Debian/Ubuntu（缺少 ap
 
 export DEBIAN_FRONTEND=noninteractive
 say "安装 CUPS…"
-apt-get update -qq
+# 部分镜像源可能临时 403，索引刷新失败不致命：包缓存通常仍可用
+apt-get update -qq || say "软件源刷新失败（镜像可能临时不可用），继续尝试安装"
 apt-get install -y -qq cups
 
 if have_systemd; then

@@ -198,6 +198,7 @@
         <button data-view="processes"><span class="ic">☰</span>进程</button>
         <button data-view="logs"><span class="ic">▤</span>日志</button>
         <button data-view="network"><span class="ic">◎</span>网络</button>
+        <button data-view="disks"><span class="ic">▣</span>磁盘</button>
         <button data-view="apps"><span class="ic">⊞</span>应用商店</button>
         <button data-view="mihomo"><span class="ic">⇄</span>代理管理</button>
         <button data-view="settings"><span class="ic">✎</span>设置</button>
@@ -281,6 +282,24 @@
             <button class="btn" onclick="doPing()">Ping</button>
           </div>
           <pre id="pingOutput">等待测试…</pre>
+        </div>
+      </div>
+
+      <div class="view" id="view-disks">
+        <div class="card">
+          <h2>磁盘与挂载</h2>
+          <div class="row-flex" style="margin-bottom:14px">
+            <button class="btn sm" onclick="loadDisks()">刷新</button>
+            <span class="state-tag" id="diskHint"></span>
+          </div>
+          <div class="app-grid" id="diskGrid"></div>
+        </div>
+        <div class="card">
+          <h2>其他挂载点</h2>
+          <div style="font-size:12px;color:var(--gray);margin-bottom:12px">
+            以下挂载不属于块设备（如 WSL 的 Windows 磁盘、NFS 网络挂载），仅展示用量。
+          </div>
+          <div class="app-grid" id="mountGrid"></div>
         </div>
       </div>
 
@@ -400,6 +419,35 @@
   </div>
 </div>
 
+<div class="modal-mask hidden" id="mountMask" onclick="if(event.target===this)closeMountDlg()">
+  <div class="modal">
+    <h2 id="mountTitle">挂载磁盘</h2>
+    <div class="field"><div class="fl">设备</div><input id="mntDevice" readonly></div>
+    <div class="field"><div class="fl">挂载到（绝对路径）</div>
+      <input id="mntPoint" placeholder="/mnt/data">
+      <div class="fd">目录不存在会自动创建</div></div>
+    <div class="field"><label class="mh-auto"><input type="checkbox" id="mntFstab"> 开机自动挂载（写入 /etc/fstab）</label></div>
+    <div class="modal-actions">
+      <button class="btn" id="mntGo" onclick="doMount()">挂载</button>
+      <button class="btn gray" onclick="closeMountDlg()">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask hidden" id="actMask">
+  <div class="modal">
+    <h2 id="actTitle">操作</h2>
+    <div class="row-flex" style="margin-bottom:10px">
+      <span class="state-tag" id="actState">正在执行…</span>
+      <button class="btn sm gray" id="actClose" onclick="closeActDlg()" disabled>关闭</button>
+    </div>
+    <div style="font-size:12px;color:var(--gray);margin-bottom:8px">
+      执行中可以关闭弹窗，任务会在后台继续完成。
+    </div>
+    <pre id="actOutput" style="max-height:380px"></pre>
+  </div>
+</div>
+
 <script>
 'use strict';
 const API = '/api/v1';
@@ -477,6 +525,7 @@ function switchView(v){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
   if (v==='mihomo') loadMihomoAll();
+  if (v==='disks') loadDisks();
   syncMihomoTimer();
 }
 function syncMihomoTimer(){
@@ -595,7 +644,7 @@ async function loadLogs(){
   } catch(e){ document.getElementById('logOutput').textContent = e.message; }
 }
 
-const catLabels = {login:'登录', service:'服务', process:'进程', app:'应用', settings:'设置', system:'系统', health:'健康检测'};
+const catLabels = {login:'登录', service:'服务', process:'进程', app:'应用', settings:'设置', system:'系统', health:'健康检测', disk:'磁盘'};
 async function loadPanelLogs(){
   try {
     const list = await call('GET','/panel-logs');
@@ -836,9 +885,141 @@ document.getElementById('appGrid').addEventListener('click', async e=>{
   const cfgBtn = e.target.closest('button[data-cfg]');
   if (cfgBtn) return openAppCfg(cfgBtn.dataset.cfg);
   const b = e.target.closest('button[data-id]'); if(!b) return;
-  toast(b.dataset.act==='install'?'正在安装…':'正在卸载…');
-  try { await call('POST','/app/action?id='+encodeURIComponent(b.dataset.id)+'&action='+b.dataset.act);
-    toast('操作完成'); loadApps();
+  runAppAction(b.dataset.id, b.dataset.act);
+});
+
+// ===== 应用安装 / 卸载实时输出 =====
+let actDone = false;
+function closeActDlg(){ document.getElementById('actMask').classList.add('hidden'); }
+function actAppend(line){
+  const pre = document.getElementById('actOutput');
+  pre.textContent += line + '\n';
+  pre.scrollTop = pre.scrollHeight;
+}
+function finishAct(ok, label){
+  if (actDone) return;
+  actDone = true;
+  const st = document.getElementById('actState');
+  st.textContent = (ok ? '✔ ' : '✖ ') + label;
+  st.style.color = ok ? '#1a9e44' : '#d70015';
+  document.getElementById('actClose').disabled = false;
+  toast(ok ? '操作完成' : '操作失败');
+}
+async function runAppAction(id, action){
+  const app = (appData||[]).find(a=>a.id===id);
+  const name = app ? app.name : id;
+  actDone = false;
+  document.getElementById('actTitle').textContent = (action==='install'?'安装':'卸载') + ' · ' + name;
+  const st = document.getElementById('actState');
+  st.textContent = '正在执行…'; st.style.color = 'var(--gray)';
+  document.getElementById('actOutput').textContent = '';
+  document.getElementById('actClose').disabled = true;
+  document.getElementById('actMask').classList.remove('hidden');
+  actAppend('[' + new Date().toLocaleTimeString() + '] 开始' + (action==='install'?'安装':'卸载') + ' ' + name);
+  try {
+    const res = await fetch(API+'/app/action/stream?id='+encodeURIComponent(id)+'&action='+action,
+      { method:'POST', headers:{'Authorization':'Bearer '+token} });
+    if (res.status === 401){ token=''; localStorage.removeItem('np_token'); showLogin(); return; }
+    const ct = res.headers.get('Content-Type') || '';
+    if (ct.indexOf('text/event-stream') < 0){
+      let d = {}; try { d = await res.json(); } catch(e){}
+      actAppend(d.err || ('HTTP ' + res.status));
+      finishAct(false, '失败');
+      return;
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    for(;;){
+      const r = await reader.read();
+      if (r.done) break;
+      buf += dec.decode(r.value, {stream:true});
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) >= 0){
+        const chunk = buf.slice(0, idx); buf = buf.slice(idx+2);
+        const line = chunk.split('\n').find(l=>l.indexOf('data:')===0);
+        if (!line) continue;
+        let m; try { m = JSON.parse(line.slice(5).trim()); } catch(e){ continue; }
+        if (m.event === 'out') actAppend(m.line);
+        else if (m.event === 'done'){
+          if (m.ok) finishAct(true, '完成');
+          else { if (m.err) actAppend('退出: ' + m.err); finishAct(false, '失败'); }
+          if (m.state) actAppend('应用状态: ' + m.state);
+          loadApps();
+          return;
+        }
+      }
+    }
+    finishAct(false, '连接中断');
+  } catch(e){
+    actAppend(e.message);
+    finishAct(false, '失败');
+  }
+}
+
+// ===== 磁盘管理 =====
+async function loadDisks(){
+  const grid = document.getElementById('diskGrid'), mgrid = document.getElementById('mountGrid');
+  grid.textContent = '加载中…';
+  try {
+    const d = await call('GET','/disks');
+    document.getElementById('diskHint').textContent = d.lsblk ? '' : '（当前环境未发现 lsblk 块设备信息）';
+    grid.innerHTML = (d.devices||[]).length ? d.devices.map(dev=>{
+      const mounts = (dev.mounts||[]).map(m=>{
+        const u = m.usage;
+        return '<div class="mh-group"><div class="row-flex" style="justify-content:space-between">'+
+          '<h3 style="font-size:13px">'+esc(m.mountpoint)+'</h3>'+
+          '<button class="btn sm danger" data-umount="'+esc(m.mountpoint)+'">卸载</button></div>'+
+          (u?bar('用量', u.used_pct, u.used_mb+' / '+u.total_mb+' MB'):'')+'</div>';
+      }).join('');
+      const stTag = (dev.mounts||[]).length ? '已挂载' : (dev.fstype==='swap' ? 'swap 分区' : '未挂载');
+      return '<div class="app-card"><div class="app-head"><div class="app-icon">'+esc((dev.name||'?')[0])+'</div>'+
+        '<div><div class="name">'+esc(dev.name)+(dev.model?' <span class="ver">'+esc(dev.model)+'</span>':'')+'</div>'+
+        '<div class="ver">'+esc(dev.path)+' · '+esc(dev.size)+(dev.fstype?' · '+esc(dev.fstype):'')+'</div></div></div>'+
+        (dev.removable?'<div class="app-desc" style="min-height:0">可移动设备</div>':'')+
+        (mounts || '<div class="app-desc" style="min-height:0">'+stTag+'</div>')+
+        '<div class="app-foot"><span class="state-tag">'+esc(stTag)+'</span>'+
+        (dev.mountable?'<button class="btn sm" data-mountdev="'+esc(dev.path)+'" data-mountname="'+esc(dev.name)+'">挂载</button>':'')+
+        '</div></div>';
+    }).join('') : '<div style="color:var(--gray);font-size:13px">未发现可管理的块设备</div>';
+    mgrid.innerHTML = (d.mounts||[]).length ? d.mounts.map(m=>{
+      const u = m.usage;
+      return '<div class="app-card"><div class="app-head"><div class="app-icon">▪</div>'+
+        '<div><div class="name">'+esc(m.mountpoint)+'</div>'+
+        '<div class="ver">'+esc(m.device)+' · '+esc(m.fstype)+(m.read_only?' · 只读':'')+'</div></div></div>'+
+        (u?bar('用量', u.used_pct, u.used_mb+' / '+u.total_mb+' MB'):'')+'</div>';
+    }).join('') : '<div style="color:var(--gray);font-size:13px">暂无</div>';
+  } catch(e){ grid.textContent = e.message; }
+}
+let mountDevicePath = '';
+function closeMountDlg(){ document.getElementById('mountMask').classList.add('hidden'); }
+function openMountDlg(path, name){
+  mountDevicePath = path;
+  document.getElementById('mountTitle').textContent = '挂载 ' + name;
+  document.getElementById('mntDevice').value = path;
+  document.getElementById('mntPoint').value = '/mnt/' + name;
+  document.getElementById('mntFstab').checked = false;
+  document.getElementById('mountMask').classList.remove('hidden');
+}
+async function doMount(){
+  const btn = document.getElementById('mntGo');
+  btn.disabled = true;
+  try {
+    const d = await call('POST','/disks/mount',{device:mountDevicePath,
+      mountpoint:document.getElementById('mntPoint').value.trim(),
+      fstab:document.getElementById('mntFstab').checked});
+    toast(d.msg || '已挂载'); closeMountDlg(); loadDisks();
+  } catch(e){ toast(e.message); }
+  btn.disabled = false;
+}
+document.getElementById('diskGrid').addEventListener('click', async e=>{
+  const mb = e.target.closest('button[data-mountdev]');
+  if (mb) return openMountDlg(mb.dataset.mountdev, mb.dataset.mountname);
+  const ub = e.target.closest('button[data-umount]');
+  if (!ub) return;
+  if (!confirm('确定卸载 '+ub.dataset.umount+'？请先确保没有程序正在使用该挂载点。')) return;
+  try { const d = await call('POST','/disks/umount',{target:ub.dataset.umount});
+    toast(d.msg || '已卸载'); loadDisks();
   } catch(err){ toast(err.message); }
 });
 

@@ -421,5 +421,6 @@ func notifyEventOptions() []map[string]string {
 		{"key": "settings", "label": "面板设置"},
 		{"key": "system", "label": "系统操作"},
 		{"key": "health", "label": "应用掉线 / 恢复"},
+		{"key": "disk", "label": "磁盘挂载"},
 	}
 }
