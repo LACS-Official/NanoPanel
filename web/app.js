@@ -1023,25 +1023,7 @@ async function loadHealth(){
 }
 
 // ===== 关于页 =====
-const ABOUT_FEATURES = [
-  { icon:'📊', title:'概览监控', desc:'系统信息、CPU/内存/磁盘占用、温度与频率一目了然' },
-  { icon:'⚙️', title:'进程管理', desc:'实时进程列表、按内存排序、一键结束进程' },
-  { icon:'🧩', title:'应用商店', desc:'一键安装/升级常用应用，已装应用直达管理页' },
-  { icon:'📁', title:'文件管理', desc:'受限目录内浏览、在线编辑、上传下载' },
-  { icon:'💾', title:'备份恢复', desc:'面板与应用配置一键备份，可整体或选择性恢复' },
-  { icon:'⏰', title:'定时任务', desc:'面板内管理例行 Shell 任务，执行结果推送通知' },
-  { icon:'🔒', title:'安全加固', desc:'HTTPS 自签证书、登录锁定告警、Webhook 通知' },
-  { icon:'🌐', title:'网络工具', desc:'网卡实时流量图、Ping 连通性测试' },
-];
 function renderAbout(){
-  const grid = document.getElementById('featGrid');
-  if (grid && !grid.dataset.done){
-    grid.innerHTML = ABOUT_FEATURES.map(f=>
-      '<div class="feat-item"><div class="feat-ico">'+f.icon+'</div>'+
-      '<div class="feat-title">'+esc(f.title)+'</div>'+
-      '<div class="feat-desc">'+esc(f.desc)+'</div></div>').join('');
-    grid.dataset.done = '1';
-  }
   const curVer = document.getElementById('aboutCurVer');
   if (curVer) curVer.textContent = npVersion || 'dev';
   loadUpdateSettings();

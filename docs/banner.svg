@@ -1,13 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 96" width="460" height="96">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 100" width="480" height="100">
   <defs>
     <linearGradient id="npg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0a84ff"/>
       <stop offset="1" stop-color="#0055d4"/>
     </linearGradient>
   </defs>
-  <rect x="16" y="16" width="64" height="64" rx="16" fill="url(#npg)"/>
-  <path d="M35 62V34l26 28V34" fill="none" stroke="#fff" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="60" cy="30" r="5.5" fill="#34c759"/>
-  <text x="100" y="56" font-family="-apple-system,'SF Pro Display','PingFang SC','Helvetica Neue',Arial,sans-serif" font-size="40" font-weight="700" fill="#1d1d1f">NanoPanel</text>
-  <text x="102" y="78" font-family="-apple-system,'SF Pro Text','PingFang SC',Arial,sans-serif" font-size="15" fill="#86868b">轻量服务器运维面板 · npanel.lacs.cc</text>
+  <g transform="translate(16,16)">
+    <circle cx="34" cy="30" r="20" fill="url(#npg)"/>
+    <path d="M27 40V20l14 20V20" fill="none" stroke="#fff" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10 30A24 24 0 0 0 34 54" fill="none" stroke="#34c759" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <text x="120" y="56" font-family="-apple-system,'SF Pro Display','PingFang SC','Helvetica Neue',Arial,sans-serif" font-size="40" font-weight="700" fill="#1d1d1f">NanoPanel</text>
+  <text x="122" y="78" font-family="-apple-system,'SF Pro Text','PingFang SC',Arial,sans-serif" font-size="15" fill="#86868b">轻量服务器运维面板 · npanel.lacs.cc</text>
 </svg>

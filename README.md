@@ -23,7 +23,7 @@
   <code>curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash</code>
 </p>
 
-面向 OpenStick（UFI003 / MSM8916 / 512MB）这类小内存设备的**轻量运维面板**。单个 Go 二进制、前端内嵌、零第三方依赖，一条命令完成安装，但不用 Docker —— 全部走 `apt` + `systemd` 原生方案。
+面向小内存 Linux 设备（树莓派、N1 盒子、迷你主机、低内存 VPS、WSL2）的**轻量运维面板**。单个 Go 二进制、前端内嵌、零第三方依赖，一条命令完成安装，但不用 Docker —— 全部走 `apt` + `systemd` 原生方案。
 
 > 项目以 **root** 运行并能管理系统服务、进程与应用脚本，**仅限可信内网使用**。详见 [SECURITY.md](SECURITY.md)。
 
@@ -31,6 +31,7 @@
 
 - **单文件交付**：Go 标准库编译为静态二进制，前端用 `go:embed` 内嵌，部署只发一个约 6 MB 的文件
 - **一键安装**：自动探测最优镜像源、自动生成随机初始密码、安装后直接打印访问地址与账号
+- **检查更新与自动升级**：面板内一键检查 GitHub 最新 Release，可自动下载安装，失败自动回滚；支持国内镜像加速
 - **`npctl` 管理工具**：查看账号、重置密码、启停服务、查看镜像源、卸载
 - **WSL / systemd 自适应**：WSL2 Ubuntu 可直接安装；无 systemd 时自动回退为进程守护
 - 系统概览、进程管理（含内存占用）、日志中心、Ping、磁盘管理、文件管理、应用商店（含可升级检测与应用页面直达）、系统重启、修改密码
@@ -59,7 +60,7 @@ curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash
 
 ```bash
 # 指定版本 / 端口
-curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_VERSION=v0.1.2 NP_PORT=9090 bash
+curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_VERSION=v0.1.0 NP_PORT=9090 bash
 
 # 强制走某个镜像（跳过测速）
 curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_MIRROR=https://ghfast.top/https://github.com bash
@@ -105,7 +106,7 @@ sudo ./install.sh          # WSL 默认 root 时可直接 ./install.sh
   Windows  : http://localhost:8080  (WSL2 端口转发)
   用户名   : admin
   密码     : KK5fuGszsWE5Mktb
-  版本     : 0.1.2
+  版本     : 0.1.0
   下载源   : github (0.361059s)
   软件源   : ustc (0.220176s)
 ------------------------------------------------------------
@@ -135,7 +136,7 @@ Windows 浏览器打开 **http://localhost:8080** 即可（WSL2 自带 localhost
 | 变量 | 默认值 | 说明 |
 |---|---|---|
 | `NP_REPO` | `LACS-Official/NanoPanel` | GitHub `owner/repo`，指向自己的 fork 即可自建发布 |
-| `NP_VERSION` | `latest` | `latest` 跟随最新 Release，也可写 `v0.1.2` |
+| `NP_VERSION` | `latest` | `latest` 跟随最新 Release，也可写 `v0.1.0` |
 | `NP_PORT` | `8080` | 面板监听端口 |
 | `NP_USERNAME` | `admin` | 登录用户名 |
 | `NP_PASSWORD` | 随机 16 位 | 登录密码；留空自动生成 |

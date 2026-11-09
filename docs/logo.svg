@@ -5,7 +5,7 @@
       <stop offset="1" stop-color="#0055d4"/>
     </linearGradient>
   </defs>
-  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#npg)"/>
-  <path d="M21 45V19l22 26V19" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="50" cy="14" r="4.5" fill="#34c759"/>
+  <circle cx="34" cy="30" r="20" fill="url(#npg)"/>
+  <path d="M27 40V20l14 20V20" fill="none" stroke="#fff" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10 30A24 24 0 0 0 34 54" fill="none" stroke="#34c759" stroke-width="5" stroke-linecap="round"/>
 </svg>
