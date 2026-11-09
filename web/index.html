@@ -184,6 +184,7 @@
   /* 应用运行状态 */
   .app-state { font-size:12px; font-weight:600; }
   .st-run { color:#1a9e44; } .st-down { color:#d70015; } .st-unknown { color:var(--gray); }
+  .st-ok { color:#1a9e44; } .st-off { color:var(--gray); }
 
   /* ===== 关于 ===== */
   .about-hero { text-align:center; padding:12px 0 4px; }
@@ -462,6 +463,19 @@
         </div>
         <div class="subpane hidden" data-sub="system">
           <div class="card">
+            <h2>HTTPS 访问</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              开启后自动生成自签证书（有效期 10 年，覆盖本机主机名与全部网卡地址），面板重启后以 HTTPS 提供服务。
+              浏览器首次访问需信任证书；关闭后同样需要重启面板生效。
+            </div>
+            <div class="row-flex">
+              <span id="tlsState" class="state-tag"></span>
+              <button class="btn sm" id="tlsEnableBtn" onclick="saveTLS(true)">开启 HTTPS</button>
+              <button class="btn sm gray" id="tlsDisableBtn" onclick="saveTLS(false)">关闭</button>
+            </div>
+            <div style="font-size:12px;color:var(--gray);margin-top:10px" id="tlsHint"></div>
+          </div>
+          <div class="card">
             <h2>系统操作</h2>
             <div style="font-size:12px;color:var(--gray);margin-bottom:12px">重启会中断所有正在运行的服务，请谨慎操作。</div>
             <button class="btn danger" style="background:#ff3b30;color:#fff" onclick="doReboot()">重启系统</button>
@@ -653,6 +667,7 @@ function setSub(v,k){
   document.querySelectorAll('#view-'+v+' .subpane').forEach(p=>p.classList.toggle('hidden', p.dataset.sub!==k));
   if (v==='logs') (k==='system') ? loadLogs() : loadPanelLogs();
   if (v==='apps' && k==='store') loadMirrorSettings();
+  if (v==='settings' && k==='system') loadTLS();
 }
 document.getElementById('pageSubtabs').addEventListener('click', e=>{
   const b = e.target.closest('button[data-sub]');
@@ -807,6 +822,32 @@ async function saveMonitor(){
   const v = Number(document.getElementById('monInterval').value);
   try { await call('POST','/settings/monitor',{interval_sec:v}); toast('检测设置已保存'); loadMonitorSettings(); }
   catch(e){ toast(e.message); }
+}
+
+// ===== HTTPS 设置 =====
+async function loadTLS(){
+  try {
+    const d = await call('GET','/settings/tls');
+    const on = !!d.enabled;
+    const tag = document.getElementById('tlsState');
+    tag.textContent = on ? '已开启' + (d.expires ? ' · 证书有效期至 ' + d.expires : '') : '未开启';
+    tag.className = 'state-tag ' + (on ? 'st-ok' : 'st-off');
+    document.getElementById('tlsEnableBtn').disabled = on;
+    document.getElementById('tlsDisableBtn').disabled = !on;
+    document.getElementById('tlsHint').textContent = on
+      ? '当前以 HTTPS 提供服务。证书路径：' + d.cert_path
+      : '当前以 HTTP 明文传输，建议在可信网络内开启 HTTPS。';
+  } catch(e){ /* 静默 */ }
+}
+async function saveTLS(enable){
+  if (enable && !confirm('开启后将自动生成自签证书并重启面板（约 5 秒），期间页面会短暂不可达。继续？')) return;
+  if (!enable && !confirm('关闭 HTTPS 后面板将回到 HTTP 明文传输，重启面板后生效。继续？')) return;
+  try {
+    const d = await call('POST','/settings/tls',{enabled:!!enable});
+    toast(d.msg || '已保存');
+    if (enable) { setTimeout(()=>location.reload(), 4000); }
+    else loadTLS();
+  } catch(e){ toast(e.message); }
 }
 async function checkAppsNow(){
   try {

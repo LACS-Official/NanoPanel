@@ -36,6 +36,9 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 
 	if req.Username != s.username() || !config.VerifyPassword(s.passwordHash(), req.Password) {
 		if locked, _ := s.limiter.Fail(ip); locked {
+			// 连续失败达到阈值触发锁定，推送安全告警（security 事件类别）。
+			s.audit(r, "security", "登录失败锁定",
+				fmt.Sprintf("来源 IP %s 连续登录失败，已临时锁定", ip))
 			fail(w, http.StatusTooManyRequests, "登录失败次数过多，请稍后重试")
 			return
 		}

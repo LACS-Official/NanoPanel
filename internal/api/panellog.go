@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -48,7 +49,41 @@ func (s *Server) audit(r *http.Request, category, action, detail string) {
 	s.notifyAsync(category, action, detail)
 }
 
+// auditMutex 保护日志文件的追加与轮转。appendAudit 在独立 goroutine 中执行，
+// 无锁并发追加同一文件可能产生交错行。
+var auditMutex sync.Mutex
+
+// 面板日志按大小轮转：panel.log → panel.log.1 → panel.log.2，最多保留 3 份。
+const (
+	auditLogBackups  = 2
+	auditLogFilename = "panel.log"
+)
+
+// auditLogMaxSize 轮转阈值，测试可调小以触发轮转。
+var auditLogMaxSize int64 = 5 << 20 // 5MB
+
+// rotateAuditLog 在文件超过上限时滚动轮转，保留最近 auditLogBackups 份历史。
+func rotateAuditLog(path string) {
+	st, err := os.Stat(path)
+	if err != nil || st.Size() < auditLogMaxSize {
+		return
+	}
+	for i := auditLogBackups - 1; i >= 1; i-- {
+		older := fmt.Sprintf("%s.%d", path, i)
+		newer := fmt.Sprintf("%s.%d", path, i+1)
+		if i == auditLogBackups-1 {
+			_ = os.Remove(newer) // 最老的一份直接删除
+		}
+		if _, err := os.Stat(older); err == nil {
+			_ = os.Rename(older, newer)
+		}
+	}
+	_ = os.Rename(path, path+".1")
+}
+
 func (s *Server) appendAudit(entry auditEntry) {
+	auditMutex.Lock()
+	defer auditMutex.Unlock()
 	if err := os.MkdirAll(s.logDir, 0750); err != nil {
 		log.Printf("创建面板日志目录失败: %v", err)
 		return
@@ -57,7 +92,8 @@ func (s *Server) appendAudit(entry auditEntry) {
 	if err != nil {
 		return
 	}
-	path := filepath.Join(s.logDir, "panel.log")
+	path := filepath.Join(s.logDir, auditLogFilename)
+	rotateAuditLog(path)
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Printf("写入面板日志失败: %v", err)

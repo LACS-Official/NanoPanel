@@ -34,6 +34,7 @@ func main() {
 	port := flag.String("port", "", "配合 -init 设置监听端口")
 	resetPw := flag.String("reset-password", "", "重置现有配置的登录密码后退出")
 	genPw := flag.Int("genpw", 0, "生成指定长度的随机密码后退出")
+	genCert := flag.String("gen-cert", "", "生成自签 HTTPS 证书到指定目录（默认 /etc/nanopanel/tls）后退出")
 	showVersion := flag.Bool("version", false, "打印版本信息后退出")
 	dev := flag.Bool("dev", false, "开发模式：未指定 -c 时使用 ./dev/config.json")
 	flag.Parse()
@@ -52,6 +53,19 @@ func main() {
 			log.Fatalf("生成随机密码失败: %v", err)
 		}
 		fmt.Println(p)
+		return
+	}
+	if flagWasSet("gen-cert") {
+		dir := *genCert
+		if dir == "" {
+			dir = api.DefaultTLSDir
+		}
+		certPath := filepath.Join(dir, "nanopanel.crt")
+		keyPath := filepath.Join(dir, "nanopanel.key")
+		if err := api.GenerateSelfSignedCert(certPath, keyPath, api.LocalHostnames()); err != nil {
+			log.Fatalf("生成证书失败: %v", err)
+		}
+		fmt.Printf("证书已生成:\n  %s\n  %s\n在配置文件中设置 tls_cert / tls_key 后以 HTTPS 启动。\n", certPath, keyPath)
 		return
 	}
 
@@ -121,6 +135,8 @@ func main() {
 	mux.HandleFunc("POST /api/v1/settings/webhook", srv.AuthMiddleware(srv.SaveWebhook))
 	mux.HandleFunc("POST /api/v1/settings/webhook/test", srv.AuthMiddleware(srv.TestWebhook))
 	mux.HandleFunc("GET /api/v1/mihomo/status", srv.AuthMiddleware(srv.MihomoStatus))
+	mux.HandleFunc("GET /api/v1/settings/tls", srv.AuthMiddleware(srv.TLSSettings))
+	mux.HandleFunc("POST /api/v1/settings/tls", srv.AuthMiddleware(srv.SaveTLSSettings))
 
 	// 前端静态文件（SPA）
 	staticSub, err := fs.Sub(webFS, "web")
@@ -153,7 +169,7 @@ func main() {
 	}()
 
 	log.Printf("NanoPanel %s 启动，监听 %s，用户 %s，配置 %s",
-		version.Info(), cfg.Listen, cfg.Username, *cfgPath)
+		version.Info(), listenDesc(cfg), cfg.Username, *cfgPath)
 	if temporary != "" {
 		log.Printf("警告: 配置中没有密码，本次临时密码为 %s（重启后失效，请用 npctl reset-password 固化）", temporary)
 	}
@@ -161,10 +177,23 @@ func main() {
 		log.Printf("警告: 检测到旧版 sha256 密码哈希，建议执行 npctl reset-password 升级为 PBKDF2")
 	}
 
-	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	// 配置了证书则以 HTTPS 启动，否则保持 HTTP。
+	if cfg.TLSCert != "" && cfg.TLSKey != "" {
+		if err := httpServer.ListenAndServeTLS(cfg.TLSCert, cfg.TLSKey); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("服务启动失败: %v", err)
+		}
+	} else if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("服务启动失败: %v", err)
 	}
 	log.Println("NanoPanel 已停止")
+}
+
+// listenDesc 描述监听地址（HTTPS 时标注协议）。
+func listenDesc(cfg *config.Config) string {
+	if cfg.TLSCert != "" && cfg.TLSKey != "" {
+		return "https://" + cfg.Listen
+	}
+	return "http://" + cfg.Listen
 }
 
 func flagWasSet(name string) bool {

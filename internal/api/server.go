@@ -37,6 +37,12 @@ type Server struct {
 	// unitProbe 仅用于测试注入，为空时通过 systemctl 查询单元状态。
 	unitProbe func(context.Context, string) string
 
+	// selfRestart 仅用于测试注入，为空时通过 systemctl 重启面板服务。
+	selfRestart func() error
+
+	// tlsDir 仅用于测试注入，为空时使用默认证书目录。
+	tlsDir string
+
 	// actionMu 与 runningActions 防止同一应用并发执行安装/卸载脚本。
 	actionMu       sync.Mutex
 	runningActions map[string]bool

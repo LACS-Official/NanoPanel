@@ -34,18 +34,31 @@ func eventEnabled(events []string, event string) bool {
 }
 
 // notifyAsync 按当前配置异步推送 webhook 通知。
-// 面板操作不应该被慢速的 webhook 端点拖住，因此始终异步执行。
+// 面板操作不应该被慢速的 webhook 端点拖住，因此始终异步执行；
+// 发送失败时按指数退避自动重试，缓解端点抖动导致的通知丢失。
 func (s *Server) notifyAsync(event, title, content string) {
 	url, format, events := s.webhookSnapshot()
 	if url == "" || !eventEnabled(events, event) {
 		return
 	}
 	go func() {
-		if err := postWebhook(url, format, event, title, content); err != nil {
-			log.Printf("webhook 通知发送失败: %v", err)
+		var lastErr error
+		for i := 0; i < webhookMaxAttempts; i++ {
+			if i > 0 {
+				time.Sleep(webhookRetryBackoff << (i - 1))
+			}
+			if lastErr = postWebhook(url, format, event, title, content); lastErr == nil {
+				return
+			}
 		}
+		log.Printf("webhook 通知发送失败（已重试 %d 次）: %v", webhookMaxAttempts, lastErr)
 	}()
 }
+
+const (
+	webhookMaxAttempts  = 3
+	webhookRetryBackoff = 2 * time.Second // 2s → 4s
+)
 
 // postWebhook 按指定格式构造并推送通知。
 func postWebhook(url, format, event, title, content string) error {

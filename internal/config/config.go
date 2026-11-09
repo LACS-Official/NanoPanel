@@ -59,6 +59,10 @@ type Config struct {
 	// MonitorIntervalSec 是应用健康检测间隔（秒）。
 	// 0 表示使用默认值，小于 0 表示关闭自动检测。
 	MonitorIntervalSec int `json:"monitor_interval_sec,omitempty"`
+
+	// TLS 证书路径。两者都非空时面板以 HTTPS 启动。
+	TLSCert string `json:"tls_cert,omitempty"`
+	TLSKey  string `json:"tls_key,omitempty"`
 }
 
 // DefaultMonitorIntervalSec 是应用掉线检测的默认间隔。
@@ -68,7 +72,7 @@ const DefaultMonitorIntervalSec = 60
 var WebhookFormats = []string{"generic", "wecom", "dingtalk", "feishu", "serverchan"}
 
 // NotifyEvents 可订阅的通知事件类别。
-var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system", "health", "disk"}
+var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system", "health", "disk", "security"}
 
 // ValidWebhookFormat 判断格式是否受支持。
 func ValidWebhookFormat(f string) bool {
@@ -188,6 +192,9 @@ func (c *Config) Validate() error {
 	v := c.MonitorIntervalSec
 	if v != 0 && v != -1 && (v < 10 || v > 3600) {
 		return fmt.Errorf("monitor_interval_sec 超出范围（10-3600 秒，或 -1 关闭）: %d", v)
+	}
+	if (c.TLSCert == "") != (c.TLSKey == "") {
+		return fmt.Errorf("tls_cert 与 tls_key 必须同时设置或同时留空")
 	}
 	return nil
 }

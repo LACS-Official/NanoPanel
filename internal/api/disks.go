@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -395,8 +396,14 @@ func isDevice(path string) bool {
 }
 
 // appendFstab 幂等地把设备写入 /etc/fstab。返回是否新写入。
+// fstabPath 可在测试中注入覆盖。
+var fstabPath = "/etc/fstab"
+
+// appendFstab 追加开机自动挂载条目。写入前备份 fstab，
+// 写入后用 findmnt --verify 校验（util-linux 自带）；校验失败自动回滚，
+// 避免损坏的 fstab 导致设备重启后无法开机。
 func appendFstab(ctx context.Context, device, mountpoint string) (bool, error) {
-	data, err := os.ReadFile("/etc/fstab")
+	data, err := os.ReadFile(fstabPath)
 	if err != nil {
 		return false, err
 	}
@@ -416,13 +423,51 @@ func appendFstab(ctx context.Context, device, mountpoint string) (bool, error) {
 		spec = "UUID=" + uuid
 	}
 	entry := fmt.Sprintf("%s %s auto defaults,nofail 0 2\n", spec, mountpoint)
-	f, err := os.OpenFile("/etc/fstab", os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
+
+	// 写前备份（0600，root only），供校验失败回滚与人工恢复。
+	backupPath := fstabPath + ".nanopanel.bak"
+	if err := os.WriteFile(backupPath, data, 0600); err != nil {
+		return false, fmt.Errorf("备份 fstab 失败: %w", err)
+	}
+
+	if err := writeFstab(fstabPath, data, entry); err != nil {
+		restoreFstab(fstabPath, backupPath)
 		return false, err
 	}
-	defer f.Close()
-	if _, err := f.WriteString(entry); err != nil {
-		return false, err
+
+	// findmnt --verify 不可用（老系统）时跳过校验，只依赖备份保护。
+	if _, err := exec.LookPath("findmnt"); err == nil {
+		vctx, vcancel := context.WithTimeout(ctx, 10*time.Second)
+		defer vcancel()
+		if out, err := exec.CommandContext(vctx, "findmnt", "--verify", "--fstab", fstabPath).CombinedOutput(); err != nil {
+			restoreFstab(fstabPath, backupPath)
+			return false, fmt.Errorf("fstab 校验失败已回滚: %v\n%s", err, strings.TrimSpace(string(out)))
+		}
 	}
 	return true, nil
+}
+
+// writeFstab 原子化重写 fstab：先写临时文件再改名，避免半截写入。
+func writeFstab(path string, original []byte, entry string) error {
+	combined := append(append([]byte{}, original...), []byte(entry)...)
+	if len(original) > 0 && original[len(original)-1] != '\n' {
+		combined = append(append([]byte{}, original...), '\n')
+		combined = append(combined, []byte(entry)...)
+	}
+	tmp := path + ".nanopanel.tmp"
+	if err := os.WriteFile(tmp, combined, 0644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
+// restoreFstab 从备份恢复 fstab。恢复失败保留备份文件供人工处理。
+func restoreFstab(path, backupPath string) {
+	data, err := os.ReadFile(backupPath)
+	if err != nil {
+		return
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		log.Printf("fstab 回滚失败，请人工检查 %s（备份在 %s）: %v", path, backupPath, err)
+	}
 }
