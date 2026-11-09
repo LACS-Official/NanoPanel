@@ -17,6 +17,9 @@ coverage.*
 .env
 .env.*
 
+# 工作区本地数据（记忆、会话信息），不纳入版本控制
+/.workbuddy/
+
 # 编辑器与系统
 .idea/
 .vscode/
