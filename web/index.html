@@ -4,32 +4,52 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%230a84ff'/%3E%3Cstop%20offset='1'%20stop-color='%230055d4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20x='4'%20y='4'%20width='56'%20height='56'%20rx='14'%20fill='url(%23g)'/%3E%3Cpath%20d='M21%2045V19l22%2026V19'%20fill='none'%20stroke='%23fff'%20stroke-width='6.5'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3Ccircle%20cx='50'%20cy='14'%20r='4.5'%20fill='%2334c759'/%3E%3C/svg%3E">
 <title>NanoPanel</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   :root {
-    --blue:#0071e3; --bg:#f5f5f7; --card:#fff; --text:#1d1d1f;
+    --blue:#0071e3; --blue-weak:rgba(0,113,227,.09); --bg:#f5f5f7; --card:#fff; --text:#1d1d1f;
     --gray:#86868b; --line:#e9e9eb; --green:#34c759; --red:#ff3b30;
+    --radius:18px; --shadow:0 1px 3px rgba(0,0,0,.05); --shadow-lg:0 12px 40px rgba(0,0,0,.18);
   }
+  ::selection { background:rgba(0,113,227,.18); }
+  html { scrollbar-width:thin; scrollbar-color:#c7c7cc transparent; }
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb { background:#c7c7cc; border-radius:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
   body {
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif;
     background:var(--bg); color:var(--text); min-height:100vh; font-size:14px;
+    -webkit-font-smoothing:antialiased;
   }
   .hidden { display:none !important; }
+  a { color:var(--blue); text-decoration:none; }
 
-  #loginView { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
-  .login-box { background:var(--card); border-radius:20px; padding:36px 32px; width:100%; max-width:360px;
-    box-shadow:0 8px 30px rgba(0,0,0,.08); }
-  .login-box h1 { font-size:24px; text-align:center; margin-bottom:6px; }
-  .login-box p { text-align:center; color:var(--gray); margin-bottom:24px; font-size:13px; }
-  .login-box .ver { text-align:center; color:var(--gray); font-size:11px; margin-top:18px; }
+  /* ===== 登录页 ===== */
+  #loginView { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+    background:
+      radial-gradient(640px 420px at 18% 8%, rgba(10,132,255,.14), transparent 60%),
+      radial-gradient(560px 420px at 85% 92%, rgba(52,199,89,.10), transparent 60%),
+      var(--bg);
+  }
+  .login-box { background:var(--card); border-radius:24px; padding:40px 36px 32px; width:100%; max-width:380px;
+    box-shadow:0 8px 30px rgba(0,0,0,.08); text-align:center; }
+  .login-box .np-logo { width:64px; height:64px; margin:0 auto 14px; }
+  .login-box h1 { font-size:24px; margin-bottom:6px; letter-spacing:.2px; }
+  .login-box p { color:var(--gray); margin-bottom:24px; font-size:13px; }
+  .login-box .ver { color:var(--gray); font-size:11px; margin-top:20px; }
   input { width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:12px; font-size:14px;
-    font-family:inherit; outline:none; margin-bottom:12px; background:#fff; color:var(--text); }
-  input:focus { border-color:var(--blue); }
+    font-family:inherit; outline:none; margin-bottom:12px; background:#fff; color:var(--text);
+    transition:border-color .15s, box-shadow .15s; }
+  input:focus { border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-weak); }
 
   .btn { background:var(--blue); color:#fff; border:none; border-radius:980px; padding:10px 20px;
-    font-size:13px; cursor:pointer; font-family:inherit; white-space:nowrap; }
-  .btn:hover { opacity:.9; }
+    font-size:13px; cursor:pointer; font-family:inherit; white-space:nowrap;
+    transition:opacity .15s, transform .05s; }
+  .btn:hover { opacity:.88; }
+  .btn:active { transform:scale(.97); }
+  .btn:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
   .btn.gray { background:#e8e8ed; color:var(--text); }
   .btn.sm { padding:6px 12px; font-size:12px; }
   .btn.danger { background:#ffe3e0; color:#d70015; }
@@ -40,44 +60,67 @@
   .layout { display:flex; min-height:100vh; }
   .sidebar {
     width:216px; flex-shrink:0; background:var(--card); border-right:1px solid var(--line);
-    display:flex; flex-direction:column; padding:20px 14px 16px;
+    display:flex; flex-direction:column; padding:18px 14px 16px;
     position:sticky; top:0; height:100vh;
   }
-  .brand { font-weight:700; font-size:17px; padding:0 10px 18px; }
-  .brand .v { font-size:11px; color:var(--gray); font-weight:400; margin-left:6px; }
+  .brand { display:flex; align-items:center; gap:9px; padding:2px 10px 18px; }
+  .brand .np-logo { width:30px; height:30px; flex-shrink:0; }
+  .brand .bt { font-weight:700; font-size:17px; line-height:1.1; }
+  .brand .v { font-size:11px; color:var(--gray); font-weight:400; display:block; margin-top:1px; }
   .nav { display:flex; flex-direction:column; gap:2px; flex:1; overflow-y:auto; }
-  .nav button { background:none; border:none; text-align:left; padding:10px 12px; border-radius:10px;
-    cursor:pointer; font-family:inherit; font-size:13px; color:var(--gray); white-space:nowrap; }
+  .nav button { background:none; border:none; text-align:left; padding:9px 12px; border-radius:10px;
+    cursor:pointer; font-family:inherit; font-size:13px; color:var(--gray); white-space:nowrap;
+    display:flex; align-items:center; gap:10px; transition:background .15s, color .15s; }
   .nav button:hover { background:#f2f2f4; color:var(--text); }
-  .nav button.active { background:#e8e8ed; color:var(--text); font-weight:600; }
-  .nav .ic { display:inline-block; width:20px; opacity:.75; }
+  .nav button.active { background:var(--blue-weak); color:var(--blue); font-weight:600; }
+  .nav svg { width:16px; height:16px; flex-shrink:0; opacity:.85; }
 
   .side-foot { border-top:1px solid var(--line); padding-top:12px; margin-top:8px; }
   .side-user { font-size:12px; color:var(--gray); padding:0 10px 10px; word-break:break-all; }
 
-  .container { flex:1; min-width:0; padding:24px 24px 60px; max-width:1120px; }
+  /* ===== 主内容区：页面头 + 二级页签 ===== */
+  .container { flex:1; min-width:0; padding:26px 28px 60px; max-width:1120px; margin:0 auto; }
+  .page-head { display:flex; align-items:flex-end; justify-content:space-between; gap:14px;
+    flex-wrap:wrap; margin-bottom:18px; }
+  .page-head h1 { font-size:22px; letter-spacing:.2px; }
+  .ph-sub { font-size:12px; color:var(--gray); margin-top:3px; }
+  .subtabs { display:inline-flex; gap:2px; background:#e8e8ed; border-radius:980px; padding:3px; }
+  .subtabs button { background:none; border:none; padding:6px 14px; border-radius:980px; cursor:pointer;
+    font-family:inherit; font-size:12.5px; color:var(--gray); transition:all .15s; }
+  .subtabs button:hover { color:var(--text); }
+  .subtabs button.active { background:#fff; color:var(--text); font-weight:600;
+    box-shadow:0 1px 3px rgba(0,0,0,.12); }
+
   .view { display:none; }
-  .view.active { display:block; }
+  .view.active { display:block; animation:fadein .22s ease; }
+  @keyframes fadein { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+  .subpane.hidden { display:none; }
 
-  .card { background:var(--card); border-radius:18px; padding:22px; margin-bottom:16px;
-    box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .card { background:var(--card); border-radius:var(--radius); padding:22px; margin-bottom:16px;
+    box-shadow:var(--shadow); }
   .card h2 { font-size:16px; margin-bottom:16px; }
-  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
 
-  .metric { background:#fafafc; border-radius:14px; padding:14px 16px; }
+  .metric { background:#fafafc; border-radius:14px; padding:14px 16px; transition:background .15s; }
+  .metric:hover { background:#f2f2f4; }
   .metric .k { font-size:12px; color:var(--gray); }
-  .metric .v { font-size:18px; font-weight:600; margin-top:4px; word-break:break-all; }
+  .metric .v { font-size:17px; font-weight:600; margin-top:4px; word-break:break-all; }
 
   .notice { background:#fff8e6; color:#705400; border-radius:12px; padding:10px 14px; font-size:13px; margin-bottom:16px; }
   .bar-row { margin-bottom:14px; }
+  .bar-row:last-child { margin-bottom:0; }
   .bar-row .lab { display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px; }
   .bar-track { height:6px; background:var(--line); border-radius:3px; overflow:hidden; }
   .bar-fill { height:100%; background:var(--blue); border-radius:3px; transition:width .5s; }
 
   table { width:100%; border-collapse:collapse; }
   th,td { text-align:left; padding:10px 8px; font-size:13px; border-bottom:1px solid var(--line); }
-  th { color:var(--gray); font-weight:600; }
+  th { color:var(--gray); font-weight:600; font-size:12px; }
+  tbody tr { transition:background .12s; }
+  tbody tr:hover { background:#fafafc; }
+  tbody tr:last-child td { border-bottom:none; }
   .table-wrap { overflow-x:auto; }
+  .empty-tip { color:var(--gray); font-size:13px; padding:18px 8px; text-align:center; }
 
   .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#c7c7cc; margin-right:6px; }
   .dot.active { background:var(--green); }
@@ -90,14 +133,15 @@
   .svc-actions { display:flex; gap:8px; }
 
   pre { background:#1d1d1f; color:#e5e5e7; border-radius:12px; padding:14px; font-size:12px;
-    line-height:1.5; max-height:420px; overflow:auto; white-space:pre-wrap; word-break:break-all;
+    line-height:1.55; max-height:420px; overflow:auto; white-space:pre-wrap; word-break:break-all;
     font-family:"SF Mono",Menlo,Consolas,monospace; }
 
   .app-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
-  .app-card { background:#fafafc; border-radius:14px; padding:16px; }
+  .app-card { background:#fafafc; border-radius:14px; padding:16px; transition:background .15s; }
+  .app-card:hover { background:#f2f2f4; }
   .app-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
   .app-icon { width:38px; height:38px; border-radius:10px; background:var(--blue); color:#fff;
-    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; }
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; flex-shrink:0; }
   .app-head .name { font-weight:600; }
   .app-head .ver { font-size:12px; color:var(--gray); }
   .app-desc { font-size:12px; color:var(--gray); line-height:1.5; margin-bottom:12px; min-height:34px; }
@@ -110,26 +154,22 @@
   .row-flex { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 
   select { padding:10px 12px; border:1px solid var(--line); border-radius:12px; font-size:14px;
-    font-family:inherit; outline:none; background:#fff; color:var(--text); min-width:120px; }
-  select:focus { border-color:var(--blue); }
+    font-family:inherit; outline:none; background:#fff; color:var(--text); min-width:120px;
+    transition:border-color .15s, box-shadow .15s; }
+  select:focus { border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-weak); }
   select.sm { padding:7px 10px; font-size:13px; min-width:100px; }
-
-  /* 日志中心页签 */
-  .tabs { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--line); }
-  .tabs button { background:none; border:none; padding:10px 16px; font-family:inherit; font-size:13px;
-    color:var(--gray); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
-  .tabs button.active { color:var(--text); font-weight:600; border-bottom-color:var(--blue); }
 
   .chk-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
   .chk-row label { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;
-    background:#fafafc; border-radius:980px; padding:6px 14px; }
+    background:#fafafc; border-radius:980px; padding:6px 14px; transition:background .15s; }
+  .chk-row label:hover { background:#f2f2f4; }
   .chk-row input { width:auto; margin:0; accent-color:var(--blue); }
 
-  /* 应用配置弹窗 */
+  /* ===== 弹窗 ===== */
   .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:90;
-    display:flex; align-items:center; justify-content:center; padding:20px; }
-  .modal { background:var(--card); border-radius:18px; padding:24px; width:100%; max-width:520px;
-    max-height:86vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.18); }
+    display:flex; align-items:center; justify-content:center; padding:20px; animation:fadein .18s ease; }
+  .modal { background:var(--card); border-radius:var(--radius); padding:24px; width:100%; max-width:520px;
+    max-height:86vh; overflow-y:auto; box-shadow:var(--shadow-lg); }
   .modal h2 { font-size:16px; margin-bottom:14px; }
   .modal .field { margin-bottom:12px; }
   .modal .field .fl { font-size:12px; color:var(--gray); margin-bottom:5px; }
@@ -145,17 +185,34 @@
   .app-state { font-size:12px; font-weight:600; }
   .st-run { color:#1a9e44; } .st-down { color:#d70015; } .st-unknown { color:var(--gray); }
 
-  /* 代理管理 */
+  /* ===== 关于 ===== */
+  .about-hero { text-align:center; padding:12px 0 4px; }
+  .about-hero .np-logo { width:72px; height:72px; margin:0 auto 14px; }
+  .about-name { font-size:22px; font-weight:700; }
+  .about-name .v { font-size:13px; color:var(--gray); font-weight:400; margin-left:8px; }
+  .about-slogan { font-size:13px; color:var(--gray); margin-top:6px; }
+  .about-links { margin:22px 0 6px; border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .alink { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 16px;
+    color:var(--text); border-bottom:1px solid var(--line); transition:background .12s; }
+  .alink:last-child { border-bottom:none; }
+  .alink:hover { background:#fafafc; }
+  .alink .al-k { font-size:13px; }
+  .alink .al-v { font-size:13px; color:var(--blue); word-break:break-all; text-align:right; }
+  .alink .ar { opacity:.6; margin-left:4px; }
+  .about-foot { text-align:center; font-size:12px; color:var(--gray); margin-top:18px; }
+
+  /* ===== 代理管理 ===== */
   .mh-group { border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px; }
+  .mh-group:last-child { margin-bottom:0; }
   .mh-group h3 { font-size:14px; margin-bottom:2px; }
   .mh-group .sub { font-size:12px; color:var(--gray); margin-bottom:10px; }
   .node-list { display:flex; flex-wrap:wrap; gap:8px; }
   .node { border:1px solid var(--line); background:#fff; border-radius:980px; padding:6px 12px;
-    font-size:12px; cursor:pointer; font-family:inherit; color:var(--text); }
+    font-size:12px; cursor:pointer; font-family:inherit; color:var(--text); transition:all .12s; }
   .node:hover { border-color:var(--blue); }
   .node.cur { background:var(--blue); color:#fff; border-color:var(--blue); }
   .node .d { opacity:.7; margin-left:6px; font-size:11px; }
-  .mh-auto { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--gray); }
+  .mh-auto { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--gray); cursor:pointer; }
   .mh-auto input { width:auto; margin:0; accent-color:var(--blue); }
 
   /* 窄屏：侧边栏降级为顶部横滑条 */
@@ -165,18 +222,29 @@
       flex-direction:row; align-items:center; gap:8px; padding:10px 14px;
       border-right:none; border-bottom:1px solid var(--line); }
     .brand { padding:0; white-space:nowrap; }
+    .brand .np-logo { width:24px; height:24px; }
     .nav { flex-direction:row; overflow-x:auto; flex:1; gap:4px; }
-    .nav button { padding:8px 12px; white-space:nowrap; }
+    .nav button { padding:8px 10px; white-space:nowrap; }
+    .nav button svg { display:none; }
     .side-foot { border-top:none; padding-top:0; margin-top:0; margin-left:auto; }
     .side-user { display:none; }
     .container { padding:16px 14px 60px; }
+    .page-head { align-items:flex-start; }
   }
 </style>
 </head>
 <body>
 
+<!-- 常驻渐变定义：登录容器隐藏时 Logo 仍可引用 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="npg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#0a84ff"/><stop offset="1" stop-color="#0055d4"/>
+  </linearGradient>
+</defs></svg>
+
 <div id="loginView">
   <div class="login-box">
+    <div class="np-logo"></div>
     <h1>NanoPanel</h1>
     <p>轻量服务器运维面板</p>
     <input id="loginUser" type="text" placeholder="用户名" autocomplete="username" value="admin"
@@ -191,17 +259,20 @@
 <div id="mainView" class="hidden">
   <div class="layout">
     <aside class="sidebar">
-      <div class="brand">NanoPanel <span class="v" id="appVersion"></span></div>
+      <div class="brand">
+        <div class="np-logo"></div>
+        <div class="bt">NanoPanel<span class="v" id="appVersion"></span></div>
+      </div>
       <nav class="nav" id="nav">
-        <button data-view="overview" class="active"><span class="ic">◧</span>概览</button>
-        <button data-view="services"><span class="ic">⚙</span>服务</button>
-        <button data-view="processes"><span class="ic">☰</span>进程</button>
-        <button data-view="logs"><span class="ic">▤</span>日志</button>
-        <button data-view="network"><span class="ic">◎</span>网络</button>
-        <button data-view="disks"><span class="ic">▣</span>磁盘</button>
-        <button data-view="apps"><span class="ic">⊞</span>应用商店</button>
-        <button data-view="mihomo"><span class="ic">⇄</span>代理管理</button>
-        <button data-view="settings"><span class="ic">✎</span>设置</button>
+        <button data-view="overview" class="active"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1.2"/><rect x="9" y="2" width="5" height="5" rx="1.2"/><rect x="2" y="9" width="5" height="5" rx="1.2"/><rect x="9" y="9" width="5" height="5" rx="1.2"/></svg>概览</button>
+        <button data-view="services"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M12.4 3.6L11 5M5 11l-1.4 1.4"/></svg>服务</button>
+        <button data-view="processes"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5.5 4H14M5.5 8H14M5.5 12H14"/><circle cx="2.8" cy="4" r="1"/><circle cx="2.8" cy="8" r="1"/><circle cx="2.8" cy="12" r="1"/></svg>进程</button>
+        <button data-view="logs"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="1.8" width="10" height="12.4" rx="1.6"/><path d="M5.6 5h4.8M5.6 8h4.8M5.6 11h2.8"/></svg>日志</button>
+        <button data-view="network"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5.6"/><ellipse cx="8" cy="8" rx="2.4" ry="5.6"/><path d="M2.4 8h11.2"/></svg>网络</button>
+        <button data-view="disks"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><ellipse cx="8" cy="3.8" rx="5.4" ry="2.2"/><path d="M2.6 3.8v8.4c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2V3.8"/><path d="M2.6 8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2"/></svg>磁盘</button>
+        <button data-view="apps"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 5.4V4.2a2.8 2.8 0 015.6 0v1.2"/><rect x="2.8" y="5.4" width="10.4" height="8.4" rx="2"/></svg>应用商店</button>
+        <button data-view="mihomo"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 4.6h9M9.6 2.2L12 4.6 9.6 7M13.4 11.4h-9M6.4 8.9L4 11.4l2.4 2.5"/></svg>代理管理</button>
+        <button data-view="settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 5h4.4M9.6 5H14M2 11h9.4"/><circle cx="8" cy="5" r="1.7"/><circle cx="13" cy="11" r="1.7"/></svg>设置</button>
       </nav>
       <div class="side-foot">
         <div class="side-user" id="sideUser"></div>
@@ -210,6 +281,13 @@
     </aside>
 
     <main class="container">
+      <div class="page-head">
+        <div>
+          <h1 id="pageTitle">概览</h1>
+          <div class="ph-sub" id="pageSub"></div>
+        </div>
+        <div class="subtabs hidden" id="pageSubtabs"></div>
+      </div>
       <div class="notice hidden" id="platformNotice"></div>
 
       <div class="view active" id="view-overview">
@@ -243,24 +321,23 @@
       </div>
 
       <div class="view" id="view-logs">
-        <div class="card">
-          <h2>日志中心</h2>
-          <div class="tabs" id="logTabs">
-            <button data-log="system" class="active">系统日志</button>
-            <button data-log="panel">面板日志</button>
+        <div class="subpane" data-sub="system">
+          <div class="card">
+            <div class="row-flex" style="margin-bottom:14px">
+              <select id="logUnit" class="sm"></select>
+              <select id="logN" class="sm">
+                <option value="100" selected>最近 100 行</option>
+                <option value="200">最近 200 行</option>
+                <option value="300">最近 300 行</option>
+                <option value="500">最近 500 行</option>
+              </select>
+              <button class="btn sm" onclick="loadLogs()">刷新日志</button>
+            </div>
+            <pre id="logOutput">点击“刷新日志”加载…</pre>
           </div>
-          <div id="logSysBar" class="row-flex" style="margin-bottom:14px">
-            <select id="logUnit" class="sm"></select>
-            <select id="logN" class="sm">
-              <option value="100" selected>最近 100 行</option>
-              <option value="200">最近 200 行</option>
-              <option value="300">最近 300 行</option>
-              <option value="500">最近 500 行</option>
-            </select>
-            <button class="btn sm" onclick="loadLogs()">刷新日志</button>
-          </div>
-          <pre id="logOutput" class="hidden">点击“刷新日志”加载…</pre>
-          <div id="panelLogWrap" class="hidden">
+        </div>
+        <div class="subpane hidden" data-sub="panel">
+          <div class="card">
             <div class="row-flex" style="margin-bottom:14px">
               <button class="btn sm" onclick="loadPanelLogs()">刷新面板日志</button>
             </div>
@@ -354,50 +431,77 @@
       </div>
 
       <div class="view" id="view-settings">
-        <div class="card">
-          <h2>Webhook 通知</h2>
-          <input id="whUrl" placeholder="Webhook 地址（企业微信 / 钉钉 / 飞书 / Server酱 / 自定义）">
-          <select id="whFormat" style="width:100%;margin-bottom:14px">
-            <option value="generic">通用 JSON</option>
-            <option value="wecom">企业微信机器人</option>
-            <option value="dingtalk">钉钉机器人</option>
-            <option value="feishu">飞书机器人</option>
-            <option value="serverchan">Server酱</option>
-          </select>
-          <div class="chk-row" id="whEvents"></div>
-          <div style="font-size:12px;color:var(--gray);margin-bottom:14px">
-            推送失败不影响面板操作本身；在下方勾选要推送的事件类别。
+        <div class="subpane" data-sub="notify">
+          <div class="card">
+            <h2>Webhook 通知</h2>
+            <input id="whUrl" placeholder="Webhook 地址（企业微信 / 钉钉 / 飞书 / Server酱 / 自定义）">
+            <select id="whFormat" style="width:100%;margin-bottom:14px">
+              <option value="generic">通用 JSON</option>
+              <option value="wecom">企业微信机器人</option>
+              <option value="dingtalk">钉钉机器人</option>
+              <option value="feishu">飞书机器人</option>
+              <option value="serverchan">Server酱</option>
+            </select>
+            <div class="chk-row" id="whEvents"></div>
+            <div style="font-size:12px;color:var(--gray);margin-bottom:14px">
+              推送失败不影响面板操作本身；在上方勾选要推送的事件类别。
+            </div>
+            <div class="row-flex">
+              <button class="btn" onclick="saveWebhook()">保存通知配置</button>
+              <button class="btn gray" onclick="testWebhook()">发送测试通知</button>
+            </div>
           </div>
-          <div class="row-flex">
-            <button class="btn" onclick="saveWebhook()">保存通知配置</button>
-            <button class="btn gray" onclick="testWebhook()">发送测试通知</button>
+          <div class="card">
+            <h2>应用健康检测</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              定时检查已安装应用的 systemd 单元；从「运行中」变为「已停止」或恢复时，
+              会推送 Webhook 通知并写入面板日志。需在上方勾选「应用掉线 / 恢复」事件。
+            </div>
+            <div class="row-flex">
+              <select id="monInterval" class="sm"></select>
+              <button class="btn sm" onclick="saveMonitor()">保存设置</button>
+              <button class="btn sm gray" onclick="checkAppsNow()">立即检测并告警</button>
+            </div>
+            <div style="font-size:12px;color:var(--gray);margin-top:10px" id="monHint"></div>
           </div>
         </div>
-        <div class="card">
-          <h2>应用健康检测</h2>
-          <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
-            定时检查已安装应用的 systemd 单元；从「运行中」变为「已停止」或恢复时，
-            会推送 Webhook 通知并写入面板日志。需在上方勾选「应用掉线 / 恢复」事件。
+        <div class="subpane hidden" data-sub="security">
+          <div class="card">
+            <h2>修改密码</h2>
+            <input id="oldPwd" type="password" placeholder="原密码" autocomplete="current-password">
+            <input id="newPwd" type="password" placeholder="新密码（至少 8 位）" autocomplete="new-password">
+            <div style="font-size:12px;color:var(--gray);margin-bottom:12px">修改后其他设备的登录态会全部失效。</div>
+            <button class="btn" onclick="doChangePassword()">保存修改</button>
           </div>
-          <div class="row-flex">
-            <select id="monInterval" class="sm"></select>
-            <button class="btn sm" onclick="saveMonitor()">保存设置</button>
-            <button class="btn sm gray" onclick="checkAppsNow()">立即检测并告警</button>
+          <div class="card">
+            <h2>登录会话</h2>
+            <div style="font-size:12px;color:var(--gray);margin-bottom:12px">退出当前浏览器保存的登录凭据。</div>
+            <button class="btn gray" onclick="doLogout()">退出登录</button>
           </div>
-          <div style="font-size:12px;color:var(--gray);margin-top:10px" id="monHint"></div>
         </div>
-        <div class="card">
-          <h2>修改密码</h2>
-          <input id="oldPwd" type="password" placeholder="原密码" autocomplete="current-password">
-          <input id="newPwd" type="password" placeholder="新密码（至少 8 位）" autocomplete="new-password">
-          <div style="font-size:12px;color:var(--gray);margin-bottom:12px">修改后其他设备的登录态会全部失效。</div>
-          <button class="btn" onclick="doChangePassword()">保存修改</button>
+        <div class="subpane hidden" data-sub="system">
+          <div class="card">
+            <h2>系统操作</h2>
+            <div style="font-size:12px;color:var(--gray);margin-bottom:12px">重启会中断所有正在运行的服务，请谨慎操作。</div>
+            <button class="btn danger" style="background:#ff3b30;color:#fff" onclick="doReboot()">重启系统</button>
+          </div>
         </div>
-        <div class="card">
-          <h2>系统操作</h2>
-          <div class="row-flex">
-            <button class="btn gray" onclick="doReboot()">重启系统</button>
-            <button class="btn danger" onclick="doLogout()">退出登录</button>
+        <div class="subpane hidden" data-sub="about">
+          <div class="card">
+            <div class="about-hero">
+              <div class="np-logo"></div>
+              <div class="about-name">NanoPanel<span class="v" id="aboutVer"></span></div>
+              <div class="about-slogan">面向小内存 Linux 设备的轻量服务器运维面板</div>
+            </div>
+            <div class="about-links">
+              <a class="alink" href="https://lacs.cc" target="_blank" rel="noopener">
+                <span class="al-k">领创工作室官网</span><span class="al-v">lacs.cc<span class="ar">↗</span></span></a>
+              <a class="alink" href="https://npanel.lacs.cc" target="_blank" rel="noopener">
+                <span class="al-k">项目官网</span><span class="al-v">npanel.lacs.cc<span class="ar">↗</span></span></a>
+              <a class="alink" href="https://github.com/LACS-Official/NanoPanel" target="_blank" rel="noopener">
+                <span class="al-k">GitHub 仓库</span><span class="al-v">LACS-Official/NanoPanel<span class="ar">↗</span></span></a>
+            </div>
+            <div class="about-foot">由 领创工作室（LACS） 开源维护 · MIT License</div>
           </div>
         </div>
       </div>
@@ -454,6 +558,14 @@ const API = '/api/v1';
 let token = localStorage.getItem('np_token') || '';
 let overviewTimer = null;
 let mhTimer = null;
+
+/* ===== Logo（登录页 / 侧栏 / 关于 共用）===== */
+const LOGO_SVG =
+  '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">' +
+  '<rect x="4" y="4" width="56" height="56" rx="14" fill="url(#npg)"/>' +
+  '<path d="M21 45V19l22 26V19" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '<circle cx="50" cy="14" r="4.5" fill="#34c759"/></svg>';
+document.querySelectorAll('.np-logo').forEach(el=>{ el.innerHTML = LOGO_SVG; });
 
 function esc(v){
   return String(v == null ? '' : v)
@@ -520,14 +632,54 @@ async function doLogout(){
   token=''; localStorage.removeItem('np_token'); showLogin();
 }
 
+/* ===== 视图与二级页签 ===== */
+const viewMeta = {
+  overview:  { t:'概览',     s:'系统状态与资源占用一览' },
+  services:  { t:'服务',     s:'管理系统服务' },
+  processes: { t:'进程',     s:'按内存排序的进程快照' },
+  logs:      { t:'日志中心', s:'系统日志与面板审计',
+               tabs:[['system','系统日志'],['panel','面板日志']] },
+  network:   { t:'网络',     s:'连通性测试' },
+  disks:     { t:'磁盘',     s:'块设备挂载与用量管理' },
+  apps:      { t:'应用商店', s:'浏览、安装与配置应用' },
+  mihomo:    { t:'代理管理', s:'Mihomo 内核控制台' },
+  settings:  { t:'设置',     s:'通知、安全与面板信息',
+               tabs:[['notify','通知'],['security','安全'],['system','系统'],['about','关于']] },
+};
+let curSub = {};
 function currentView(){ const b=document.querySelector('.nav button.active'); return b?b.dataset.view:''; }
 function switchView(v){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
+  const m = viewMeta[v] || {};
+  document.getElementById('pageTitle').textContent = m.t || v;
+  document.getElementById('pageSub').textContent = m.s || '';
+  renderSubtabs(v);
   if (v==='mihomo') loadMihomoAll();
+  if (v==='logs' && !curSub.logs) setSub('logs','system');
+  if (v==='settings' && !curSub.settings) setSub('settings','notify');
   if (v==='disks') loadDisks();
   syncMihomoTimer();
 }
+function renderSubtabs(v){
+  const box = document.getElementById('pageSubtabs');
+  const m = viewMeta[v];
+  if (!m || !m.tabs){ box.innerHTML=''; box.classList.add('hidden'); return; }
+  const cur = curSub[v] || m.tabs[0][0];
+  box.classList.remove('hidden');
+  box.innerHTML = m.tabs.map(t=>
+    '<button data-sub="'+t[0]+'"'+(t[0]===cur?' class="active"':'')+'>'+t[1]+'</button>').join('');
+}
+function setSub(v,k){
+  curSub[v] = k;
+  document.querySelectorAll('#pageSubtabs button').forEach(b=>b.classList.toggle('active', b.dataset.sub===k));
+  document.querySelectorAll('#view-'+v+' .subpane').forEach(p=>p.classList.toggle('hidden', p.dataset.sub!==k));
+  if (v==='logs') (k==='system') ? loadLogs() : loadPanelLogs();
+}
+document.getElementById('pageSubtabs').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-sub]');
+  if (b) setSub(currentView(), b.dataset.sub);
+});
 function syncMihomoTimer(){
   if (mhTimer){ clearInterval(mhTimer); mhTimer=null; }
   const box = document.getElementById('mhAuto');
@@ -604,17 +756,6 @@ document.getElementById('procBody').addEventListener('click', async e=>{
   } catch(err){ toast(err.message); }
 });
 
-// ===== 日志中心 =====
-document.getElementById('logTabs').addEventListener('click', e=>{
-  const b = e.target.closest('button[data-log]'); if(!b) return;
-  document.querySelectorAll('#logTabs button').forEach(x=>x.classList.toggle('active', x===b));
-  const sys = b.dataset.log === 'system';
-  document.getElementById('logSysBar').classList.toggle('hidden', !sys);
-  document.getElementById('logOutput').classList.toggle('hidden', !sys);
-  document.getElementById('panelLogWrap').classList.toggle('hidden', sys);
-  if (sys) loadLogs(); else loadPanelLogs();
-});
-
 // 单元下拉：服务白名单 + 已安装应用
 async function refreshLogUnits(){
   const sel = document.getElementById('logUnit');
@@ -651,7 +792,7 @@ async function loadPanelLogs(){
     document.getElementById('panelLogBody').innerHTML = list.length
       ? list.map(e=>'<tr><td>'+esc(e.time)+'</td><td>'+esc(catLabels[e.category]||e.category)+
         '</td><td>'+esc(e.action)+'</td><td>'+esc(e.detail||'-')+'</td><td>'+esc(e.ip)+'</td></tr>').join('')
-      : '<tr><td colspan="5" style="color:var(--gray)">暂无面板操作日志</td></tr>';
+      : '<tr><td colspan="5" class="empty-tip">暂无面板操作日志</td></tr>';
   } catch(e){ document.getElementById('panelLogBody').innerHTML = '<tr><td colspan="5">'+esc(e.message)+'</td></tr>'; }
 }
 
@@ -733,8 +874,9 @@ async function mihomoCall(path, method, body, params){
 function mhMessage(msg){
   document.getElementById('mhStatus').textContent = msg;
   document.getElementById('mhMetrics').innerHTML = '';
-  document.getElementById('mhGroups').innerHTML = '';
-  document.getElementById('mhConns').innerHTML = '<tr><td colspan="5" style="color:var(--gray)">'+esc(msg)+'</td></tr>';
+  document.getElementById('mhGroups').innerHTML =
+    '<div class="empty-tip">'+esc(msg)+'</div>';
+  document.getElementById('mhConns').innerHTML = '<tr><td colspan="5" class="empty-tip">'+esc(msg)+'</td></tr>';
   document.getElementById('mhConnCount').textContent = '';
 }
 async function loadMihomoAll(){
@@ -768,7 +910,7 @@ function renderMihomoGroups(proxies){
   });
   if (!names.length){
     document.getElementById('mhGroups').innerHTML =
-      '<div style="font-size:13px;color:var(--gray)">当前配置没有可用的代理组，请先在应用配置里填写订阅链接。</div>';
+      '<div class="empty-tip">当前配置没有可用的代理组，请先在应用配置里填写订阅链接。</div>';
     return;
   }
   document.getElementById('mhGroups').innerHTML = names.map(g=>{
@@ -795,7 +937,7 @@ function renderMihomoConns(conns){
     return '<tr><td>'+esc(target)+'</td><td>'+esc(m.network||'-')+'</td><td>'+esc(rule)+'</td>'+
       '<td>'+esc(fmtBytes(c.upload))+' / '+esc(fmtBytes(c.download))+'</td>'+
       '<td><button class="btn sm danger" data-conn="'+esc(c.id)+'">断开</button></td></tr>';
-  }).join('') : '<tr><td colspan="5" style="color:var(--gray)">暂无活跃连接</td></tr>';
+  }).join('') : '<tr><td colspan="5" class="empty-tip">暂无活跃连接</td></tr>';
 }
 document.getElementById('mhGroups').addEventListener('click', async e=>{
   const delayBtn = e.target.closest('button[data-delay]');
@@ -981,14 +1123,14 @@ async function loadDisks(){
         '<div class="app-foot"><span class="state-tag">'+esc(stTag)+'</span>'+
         (dev.mountable?'<button class="btn sm" data-mountdev="'+esc(dev.path)+'" data-mountname="'+esc(dev.name)+'">挂载</button>':'')+
         '</div></div>';
-    }).join('') : '<div style="color:var(--gray);font-size:13px">未发现可管理的块设备</div>';
+    }).join('') : '<div class="empty-tip">未发现可管理的块设备</div>';
     mgrid.innerHTML = (d.mounts||[]).length ? d.mounts.map(m=>{
       const u = m.usage;
       return '<div class="app-card"><div class="app-head"><div class="app-icon">▪</div>'+
         '<div><div class="name">'+esc(m.mountpoint)+'</div>'+
         '<div class="ver">'+esc(m.device)+' · '+esc(m.fstype)+(m.read_only?' · 只读':'')+'</div></div></div>'+
         (u?bar('用量', u.used_pct, u.used_mb+' / '+u.total_mb+' MB'):'')+'</div>';
-    }).join('') : '<div style="color:var(--gray);font-size:13px">暂无</div>';
+    }).join('') : '<div class="empty-tip">暂无</div>';
   } catch(e){ grid.textContent = e.message; }
 }
 let mountDevicePath = '';
@@ -1099,6 +1241,7 @@ async function loadHealth(){
     const h = d.data || {};
     const v = h.version ? 'v'+h.version : '';
     document.getElementById('appVersion').textContent = v;
+    document.getElementById('aboutVer').textContent = v;
     document.getElementById('loginVersion').textContent = 'NanoPanel ' + v;
     if(h.platform && h.platform !== 'linux'){
       const n = document.getElementById('platformNotice');

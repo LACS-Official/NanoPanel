@@ -6,6 +6,9 @@
 
 ### 新增
 
+- **品牌 Logo**：全新 SVG Logo（蓝色渐变圆角方块 + N 字标 + 在线状态绿点），用于登录页、侧边栏、设置「关于」页与站点 favicon；`docs/logo.svg`、`docs/banner.svg` 随仓库分发
+- **设置「关于」页**：展示面板版本、项目简介，以及领创工作室官网（lacs.cc）、项目官网（npanel.lacs.cc）、GitHub 仓库（LACS-Official/NanoPanel）直达链接
+- **二级页签上移**：设置页改为「通知 / 安全 / 系统 / 关于」、日志中心改为「系统日志 / 面板日志」，统一渲染在主内容区顶部的页面头（标题 + 副标题 + 分段式页签）中，与左侧导航形成两级导航结构
 - **磁盘管理**：左侧「磁盘」页展示块设备与挂载点（容量/文件系统/用量），支持面板内挂载、卸载，可选写入 `/etc/fstab`（UUID + nofail）开机自动挂载；挂载点限制在 `/mnt` `/media` `/opt` `/srv` `/home` `/data` 白名单下；挂载/卸载写入面板日志并按需推送 `disk` 事件 Webhook
 - **实时安装输出**：应用安装/卸载改为 SSE 流式端点 `POST /app/action/stream`，前端弹窗实时滚动脚本输出；关闭弹窗不中断任务（`context.WithoutCancel`）；同一应用并发操作返回 409
 - **WebDAV 应用**：hacdias/webdav 官方二进制（多源回退下载），面板内配置端口、共享目录、账号密码、只读；未设置密码前仅监听 127.0.0.1，Windows「映射网络驱动器」即可管理文件
@@ -20,6 +23,7 @@
 
 ### 修复
 
+- 前端 Logo 渐变定义移入常驻 SVG defs：登录容器隐藏时主界面 Logo 不再因 `url(#npg)` 引用失效而丢失填充
 - samba/cups 安装脚本对 `apt-get update` 失败不再致命（部分镜像源临时 403 时仍可从缓存安装）
 - samba 卸载不再执行 `apt-get autoremove`，避免误删其他应用依赖的软件包
 - 磁盘列表过滤 lsblk 对 swap 的 `[SWAP]` 伪挂载点；还原 `/proc/self/mounts` 的 `\040` `\134` 等八进制转义

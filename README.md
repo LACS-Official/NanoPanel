@@ -1,9 +1,21 @@
-# NanoPanel
+<p align="center">
+  <img src="docs/banner.svg" alt="NanoPanel" width="420">
+</p>
 
-![Go](https://img.shields.io/badge/Go-1.25%2B-00ADD8)
-![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Platform](https://img.shields.io/badge/platform-linux%20%7C%20wsl2-lightgrey)
+<h1 align="center">NanoPanel</h1>
+
+<p align="center">
+<img src="docs/logo.svg" width="20" alt="logo"> 官网 <a href="https://npanel.lacs.cc">npanel.lacs.cc</a> ·
+仓库 <a href="https://github.com/LACS-Official/NanoPanel">GitHub</a> ·
+由 <a href="https://lacs.cc">领创工作室（LACS）</a>开源维护
+</p>
+
+<p align="center">
+<img src="https://img.shields.io/badge/Go-1.25%2B-00ADD8" alt="Go">
+<img src="https://img.shields.io/badge/dependencies-0-brightgreen" alt="Dependencies">
+<img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+<img src="https://img.shields.io/badge/platform-linux%20%7C%20wsl2-lightgrey" alt="Platform">
+</p>
 
 面向 OpenStick（UFI003 / MSM8916 / 512MB）这类小内存设备的**轻量运维面板**。单个 Go 二进制、前端内嵌、零第三方依赖，一条命令完成安装，但不用 Docker —— 全部走 `apt` + `systemd` 原生方案。
 
@@ -297,6 +309,9 @@ NanoPanel/
 
 ## 贡献与许可
 
+- 项目官网：<https://npanel.lacs.cc>
+- 领创工作室官网：<https://lacs.cc>
+- 本仓库：<https://github.com/LACS-Official/NanoPanel>
 - 贡献指南：[CONTRIBUTING.md](CONTRIBUTING.md)
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)
 - 许可证：[MIT](LICENSE)
