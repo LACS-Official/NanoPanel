@@ -118,12 +118,6 @@
   .dot.active { background:var(--green); }
   .dot.inactive, .dot.failed, .dot.unknown { background:#c7c7cc; }
 
-  .svc-row { display:flex; align-items:center; gap:10px; padding:12px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
-  .svc-row:last-child { border-bottom:none; }
-  .svc-name { flex:1; min-width:120px; }
-  .svc-name .lbl { font-size:12px; color:var(--gray); }
-  .svc-actions { display:flex; gap:8px; }
-
   pre { background:#1d1d1f; color:#e5e5e7; border-radius:12px; padding:14px; font-size:12px;
     line-height:1.55; max-height:420px; overflow:auto; white-space:pre-wrap; word-break:break-all;
     font-family:"SF Mono",Menlo,Consolas,monospace; }

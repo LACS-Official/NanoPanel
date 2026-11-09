@@ -284,3 +284,65 @@ func TestPanelLogs(t *testing.T) {
 		t.Fatalf("损坏行应被跳过: %+v", got2.Data)
 	}
 }
+
+// TestAppWebPortResolution 已安装应用的 web_port 应解析为实际端口：
+// 优先 config.env 保存值，其次清单默认值；未安装或未声明时为空。
+func TestAppWebPortResolution(t *testing.T) {
+	srv, _ := newAppTestServer(t)
+
+	// 清单声明 web_port 指向 port 字段（默认 8080）
+	manifest := `{"version":1,"apps":[{"id":"demo","name":"演示","description":"d",
+"version":"1.0.0","icon":"","category":"demo","unit":"demo-svc",
+"web_port":"port","web_path":"/",
+"config":[{"name":"port","label":"端口","type":"number","default":"8080"}]}]}`
+	if err := os.WriteFile(srv.cfg.ManifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	listApps := func() AppMeta {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/apps", nil)
+		rec := httptest.NewRecorder()
+		srv.ListApps(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		var resp struct {
+			Data []AppMeta `json:"data"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+			t.Fatal(err)
+		}
+		if len(resp.Data) != 1 {
+			t.Fatalf("应有 1 个应用: %s", rec.Body.String())
+		}
+		return resp.Data[0]
+	}
+
+	// demo 的 status.sh 返回 installed；未保存配置时应回退默认端口
+	a := listApps()
+	if a.State != "installed" || a.WebPort != "8080" || a.WebPath != "/" {
+		t.Fatalf("已安装应用应解析出默认端口 8080: %+v", a)
+	}
+
+	// 保存自定义端口后应优先取 config.env 的值
+	if err := os.WriteFile(filepath.Join(srv.cfg.AppsDir, "demo", "config.env"),
+		[]byte("port=9527\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if a = listApps(); a.WebPort != "9527" {
+		t.Fatalf("应优先使用保存的端口 9527: %+v", a)
+	}
+
+	// web_port 指向未声明的字段应被清单校验拒绝
+	bad := `{"version":1,"apps":[{"id":"demo","name":"演示","description":"d",
+"version":"1.0.0","icon":"","category":"demo","web_port":"no_such_field"}]}`
+	if err := os.WriteFile(srv.cfg.ManifestPath, []byte(bad), 0644); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/apps", nil)
+	rec := httptest.NewRecorder()
+	srv.ListApps(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("web_port 指向未声明字段应返回 500，得到 %d: %s", rec.Code, rec.Body.String())
+	}
+}

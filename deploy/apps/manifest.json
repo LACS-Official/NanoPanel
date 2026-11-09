@@ -9,6 +9,8 @@
       "icon": "",
       "category": "打印",
       "unit": "cups",
+      "web_port": "port",
+      "web_path": "/",
       "config": [
         {
           "name": "port",
@@ -38,6 +40,8 @@
       "icon": "",
       "category": "网络",
       "unit": "AdGuardHome",
+      "web_port": "web_port",
+      "web_path": "/",
       "config": [
         {
           "name": "web_port",
@@ -170,6 +174,8 @@
       "icon": "",
       "category": "AI",
       "unit": "picoclaw",
+      "web_port": "gateway_port",
+      "web_path": "/",
       "config": [
         {
           "name": "gateway_port",

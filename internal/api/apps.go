@@ -50,6 +50,8 @@ type AppMeta struct {
 	Config       []AppConfigField `json:"config,omitempty"`            // 常用配置项声明
 	Arch         string           `json:"arch,omitempty"`              // 安装预检：支持的架构（空=不限）
 	MinMemMB     int              `json:"min_mem_mb,omitempty"`        // 安装预检：最低可用内存 MB（0=不限）
+	WebPort      string           `json:"web_port,omitempty"`          // 清单里为配置字段名；/apps 返回时替换为实际端口（仅已安装）
+	WebPath      string           `json:"web_path,omitempty"`          // 应用页面路径前缀，如 /ui
 }
 
 type appManifestFile struct {
@@ -82,6 +84,9 @@ func (s *Server) loadManifest() (*appManifestFile, error) {
 			if f.Type == "select" && len(f.Options) == 0 {
 				return nil, fmt.Errorf("应用 %s 字段 %s 缺少 options", a.ID, f.Name)
 			}
+		}
+		if a.WebPort != "" && !hasField(a.Config, a.WebPort) {
+			return nil, fmt.Errorf("应用 %s 的 web_port %q 不是已声明的配置字段", a.ID, a.WebPort)
 		}
 	}
 	return &m, nil
@@ -148,9 +153,30 @@ func (s *Server) ListApps(w http.ResponseWriter, r *http.Request) {
 		m.Apps[i].Status = s.appRuntimeStatus(r.Context(), &m.Apps[i]).Status
 		if m.Apps[i].State == "installed" {
 			m.Apps[i].InstalledVer = s.readInstalledVersion(m.Apps[i].ID)
+			m.Apps[i].WebPort = s.resolveAppWebPort(&m.Apps[i])
+		} else {
+			m.Apps[i].WebPort = ""
 		}
 	}
 	ok(w, m.Apps)
+}
+
+// resolveAppWebPort 解析应用网页端口的实际值：优先取 config.env 里用户保存的端口，
+// 否则回退到清单声明的默认值。仅在应用已安装时调用，解析失败返回空。
+func (s *Server) resolveAppWebPort(a *AppMeta) string {
+	if a.WebPort == "" {
+		return ""
+	}
+	values, err := s.readAppValues(a.ID)
+	if err == nil && values[a.WebPort] != "" {
+		return values[a.WebPort]
+	}
+	for _, f := range a.Config {
+		if f.Name == a.WebPort {
+			return f.Default
+		}
+	}
+	return ""
 }
 
 // appEnvFile 应用配置持久化文件路径。

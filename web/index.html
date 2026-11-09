@@ -83,7 +83,7 @@
           <h2>进程管理（按内存排序，前 100）</h2>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>PID</th><th>用户</th><th>内存(KB)</th><th>命令</th><th>操作</th></tr></thead>
+              <thead><tr><th>PID</th><th>用户</th><th>内存占用</th><th>命令</th><th>操作</th></tr></thead>
               <tbody id="procBody"></tbody>
             </table>
           </div>
@@ -182,10 +182,6 @@
 
       <div class="view" id="view-apps">
         <div class="subpane" data-sub="all">
-          <div class="card">
-            <h2>系统服务</h2>
-            <div id="svcList"></div>
-          </div>
           <div class="card">
             <h2>全部应用</h2>
             <div class="app-grid" id="allGrid"></div>

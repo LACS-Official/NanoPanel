@@ -52,7 +52,7 @@ function showMain(){
   document.getElementById('mainView').classList.remove('hidden');
   const saved = localStorage.getItem('np_user');
   document.getElementById('sideUser').textContent = saved ? '已登录：' + saved : '';
-  switchView('overview'); loadOverview(); loadServices(); loadProcesses(); loadApps();
+  switchView('overview'); loadOverview(); loadProcesses(); loadApps();
   loadWebhook(); loadMonitorSettings();
   overviewTimer = setInterval(()=>{ if(currentView()==='overview') loadOverview(); }, 5000);
 }
@@ -162,31 +162,21 @@ function bar(label,pct,detail){
     '<div class="bar-track"><div class="bar-fill" style="width:'+w+'%"></div></div></div>';
 }
 
-async function loadServices(){
-  try {
-    const list = await call('GET','/services');
-    document.getElementById('svcList').innerHTML = list.map(s=>
-      '<div class="svc-row"><div class="svc-name"><span class="dot '+esc(s.state)+'"></span>'+esc(s.label)+
-      '<div class="lbl">'+esc(s.name)+' · '+esc(s.state)+'</div></div>'+
-      '<div class="svc-actions">'+
-      '<button class="btn sm green" data-svc="'+esc(s.name)+'" data-act="start">启动</button>'+
-      '<button class="btn sm gray" data-svc="'+esc(s.name)+'" data-act="restart">重启</button>'+
-      '<button class="btn sm danger" data-svc="'+esc(s.name)+'" data-act="stop">停止</button>'+
-      '</div></div>').join('');
-  } catch(e){ document.getElementById('svcList').textContent = e.message; }
+// fmtMemKB 把 KB 数值格式化为人类可读的内存大小。
+function fmtMemKB(kb){
+  kb = Number(kb)||0;
+  if (kb >= 1048576) return (kb/1048576).toFixed(2)+' GB';
+  if (kb >= 1024) return (kb/1024).toFixed(1)+' MB';
+  return kb+' KB';
 }
-document.getElementById('svcList').addEventListener('click', async e=>{
-  const b = e.target.closest('button[data-svc]'); if(!b) return;
-  try { await call('POST','/service/action?svc='+encodeURIComponent(b.dataset.svc)+'&action='+b.dataset.act);
-    toast('操作成功'); loadServices();
-  } catch(err){ toast(err.message); }
-});
 
 async function loadProcesses(){
   try {
     const list = await call('GET','/processes');
     document.getElementById('procBody').innerHTML = list.map(p=>
-      '<tr><td>'+esc(p.pid)+'</td><td>'+esc(p.user)+'</td><td>'+esc(p.rss_kb)+'</td><td>'+esc(p.comm)+'</td>'+
+      '<tr><td>'+esc(p.pid)+'</td><td>'+esc(p.user)+'</td>'+
+      '<td><b>'+fmtMemKB(p.rss_kb)+'</b><span style="color:var(--gray);font-size:12px"> '+(Number(p.rss_kb)||0).toLocaleString()+' KB</span></td>'+
+      '<td>'+esc(p.comm)+'</td>'+
       '<td><button class="btn sm danger" data-pid="'+esc(p.pid)+'">结束</button></td></tr>').join('');
   } catch(e){ document.getElementById('procBody').innerHTML = '<tr><td colspan="5">'+esc(e.message)+'</td></tr>'; }
 }
@@ -199,15 +189,16 @@ document.getElementById('procBody').addEventListener('click', async e=>{
   } catch(err){ toast(err.message); }
 });
 
-// 单元下拉：服务白名单 + 已安装应用
+// 单元下拉：运行中的系统服务 + 已安装应用
 async function refreshLogUnits(){
   const sel = document.getElementById('logUnit');
   const current = sel.value;
   let options = '<option value="">全部单元</option>';
   try {
     const svcs = await call('GET','/services');
-    if (svcs.length) options += '<optgroup label="系统服务">'+
-      svcs.map(s=>'<option value="'+esc(s.name)+'">'+esc(s.label||s.name)+'（'+esc(s.name)+'）</option>').join('')+'</optgroup>';
+    const live = (svcs||[]).filter(s=>s.state==='active');
+    if (live.length) options += '<optgroup label="系统服务">'+
+      live.map(s=>'<option value="'+esc(s.name)+'">'+esc(s.label||s.name)+'（'+esc(s.name)+'）</option>').join('')+'</optgroup>';
   } catch(e){ /* 服务列表加载失败时仍显示应用 */ }
   const units = (appData||[]).filter(a=>a.state==='installed' && a.unit);
   if (units.length) options += '<optgroup label="已安装应用">'+
@@ -465,8 +456,11 @@ function appUpgradable(a){
 function appCard(a, mode){
   const installed = a.state==='installed';
   const upgradable = appUpgradable(a);
+  const openBtn = installed && a.web_port
+    ? '<button class="btn sm" title="在新标签页打开应用页面" data-open="1" data-port="'+esc(a.web_port)+
+      '" data-path="'+esc(a.web_path||'')+'">打开</button>' : '';
   const cfgBtn = installed && a.config && a.config.length
-    ? '<button class="btn sm gray" data-cfg="'+esc(a.id)+'">配置</button>' : '';
+    ? '<button class="btn sm gray" data-cfg="'+esc(a.id)+'">配置</button> : '';
   const manageBtn = (a.id==='mihomo' && installed)
     ? '<button class="btn sm gray" data-manage="mihomo">管理面板</button>' : '';
   const upgBtn = upgradable && mode!=='upgradable'
@@ -487,7 +481,7 @@ function appCard(a, mode){
     '<div class="app-desc">'+esc(a.description)+'</div>'+
     '<div class="app-foot"><span class="app-state '+(healthCls[st]||'st-unknown')+'">'+
     esc(healthLabels[st]||st)+'</span>'+
-    '<span class="row-flex" style="gap:8px">'+manageBtn+cfgBtn+upgBtn+actionBtn+'</span></div></div>';
+    '<span class="row-flex" style="gap:8px">'+openBtn+manageBtn+cfgBtn+upgBtn+actionBtn+'</span></div></div>';
 }
 
 async function loadApps(){
@@ -507,6 +501,13 @@ async function loadApps(){
 }
 
 document.getElementById('view-apps').addEventListener('click', async e=>{
+  const openBtn = e.target.closest('button[data-open]');
+  if (openBtn){
+    const p = Number(openBtn.dataset.port);
+    if (!(p > 0 && p < 65536)){ toast('应用页面端口无效，请检查配置'); return; }
+    window.open('http://' + location.hostname + ':' + p + (openBtn.dataset.path || '/'), '_blank');
+    return;
+  }
   const manageBtn = e.target.closest('button[data-manage]');
   if (manageBtn){
     try {
