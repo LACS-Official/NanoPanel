@@ -27,12 +27,21 @@ jobs:
         run: go build ./...
       - name: Vet
         run: go vet ./...
-      - name: Test (with race detector)
-        if: runner.os == 'Linux'
-        run: go test -race -cover ./...
       - name: Test
-        if: runner.os != 'Linux'
-        run: go test -cover ./...
+        shell: bash
+        env:
+          RACE: ${{ runner.os == 'Linux' && '-race' || '' }}
+        run: |
+          set -o pipefail
+          go test $RACE -cover ./... 2>&1 | tee test.log || {
+            {
+              echo "### ❌ 测试失败（${{ matrix.os }}）"
+              echo '```text'
+              tail -100 test.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
       - name: gofmt check
         if: runner.os == 'Linux'
         run: test -z "$(gofmt -l .)"
@@ -51,7 +60,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           args: --timeout=5m

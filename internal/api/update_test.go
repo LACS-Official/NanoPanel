@@ -22,7 +22,10 @@ func TestParseSemver(t *testing.T) {
 }
 
 func TestVersionGreater(t *testing.T) {
-	cases := []struct{ a, b string; want bool }{
+	cases := []struct {
+		a, b string
+		want bool
+	}{
 		{"v1.2.4", "v1.2.3", true},
 		{"v1.3.0", "v1.2.9", true},
 		{"v2.0.0", "v1.9.9", true},
@@ -62,4 +65,3 @@ func TestUpdateArch(t *testing.T) {
 		t.Fatalf("updateArch() 返回意外值: %q", got)
 	}
 }
-

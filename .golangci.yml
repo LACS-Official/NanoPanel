@@ -1,0 +1,13 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  # 默认启用 standard 集合：errcheck / govet / ineffassign / staticcheck / unused
+  default: standard
+  exclusions:
+    presets:
+      # 豁免 defer f.Close()、fmt.Fprint(w, ...) 等标准库惯例性未检查错误
+      - std-error-handling
+      - common-false-positives

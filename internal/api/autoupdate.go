@@ -250,8 +250,8 @@ func (s *Server) ApplyUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]string{
-		"msg":           "已下载新版本，面板将在数秒后自动重启。",
-		"status":        "updating",
+		"msg":            "已下载新版本，面板将在数秒后自动重启。",
+		"status":         "updating",
 		"latest_version": info.LatestVersion,
 	})
 }

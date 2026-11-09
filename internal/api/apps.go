@@ -21,7 +21,6 @@ var (
 	appIDRe    = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 	appFieldRe = regexp.MustCompile(`^[a-z0-9_]{1,32}$`)
 	appPortRe  = regexp.MustCompile(`^[0-9]{1,5}$`)
-	appYesNo   = []string{"yes", "no"}
 )
 
 // AppConfigField 应用配置项的声明，由 manifest.json 提供。

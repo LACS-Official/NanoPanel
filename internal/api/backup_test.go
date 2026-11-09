@@ -3,9 +3,7 @@ package api
 // 备份与定时任务测试。
 
 import (
-	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"mime/multipart"
 	"net/http"
@@ -16,25 +14,6 @@ import (
 	"testing"
 	"time"
 )
-
-// makeBackupTar 手工构造一个备份流。
-func makeBackupTar(t *testing.T, files map[string]string) []byte {
-	t.Helper()
-	var buf bytes.Buffer
-	gz := gzip.NewWriter(&buf)
-	tw := tar.NewWriter(gz)
-	for name, content := range files {
-		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0600, Size: int64(len(content))}); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := tw.Write([]byte(content)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	_ = tw.Close()
-	_ = gz.Close()
-	return buf.Bytes()
-}
 
 // TestBackupAndRestore 导出 → 修改 → 恢复闭环。
 func TestBackupAndRestore(t *testing.T) {
