@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢你愿意为 MicroPanel 做点什么。项目保持「零第三方 Go 依赖」这条底线，提交前请确认没有引入新的 `require`。
+感谢你愿意为 NanoPanel 做点什么。项目保持「零第三方 Go 依赖」这条底线，提交前请确认没有引入新的 `require`。
 
 ## 开发准备
 
@@ -10,7 +10,7 @@
 
 ```bash
 git clone <你的仓库地址>
-cd MicroPanel
+cd NanoPanel
 make check          # gofmt 检查 + go vet + go test
 make dev            # 生成 dev/ 配置并在 :18080 启动开发版
 ```

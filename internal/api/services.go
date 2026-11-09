@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"micropanel/internal/config"
+	"nanopanel/internal/config"
 )
 
 type serviceStatus struct {

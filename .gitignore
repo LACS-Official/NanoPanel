@@ -1,11 +1,11 @@
 # 构建产物
 /dist/
-/micropanel
-/micropanel-*
-/deploy/micropanel-amd64
-/deploy/micropanel-arm64
-/deploy/micropanel-armv7
-/deploy/micropanel-*.sha256
+/nanopanel
+/nanopanel-*
+/deploy/nanopanel-amd64
+/deploy/nanopanel-arm64
+/deploy/nanopanel-armv7
+/deploy/nanopanel-*.sha256
 *.exe
 *.test
 *.out

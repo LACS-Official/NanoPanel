@@ -40,7 +40,7 @@ type ServiceDef struct {
 	Label string `json:"label"`
 }
 
-// Config 是 /etc/micropanel/config.json 的结构。
+// Config 是 /etc/nanopanel/config.json 的结构。
 type Config struct {
 	Listen       string       `json:"listen"`
 	Username     string       `json:"username"`
@@ -68,8 +68,8 @@ func Default() *Config {
 			{Name: "nginx", Label: "Nginx"},
 			{Name: "ssh", Label: "SSH"},
 		},
-		AppsDir:      "/opt/micropanel/apps",
-		ManifestPath: "/opt/micropanel/apps/manifest.json",
+		AppsDir:      "/opt/nanopanel/apps",
+		ManifestPath: "/opt/nanopanel/apps/manifest.json",
 	}
 }
 

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Credentials 保存首次安装时生成的登录凭据，供 mpctl user-info 查询。
+// Credentials 保存首次安装时生成的登录凭据，供 npctl user-info 查询。
 // 文件权限为 0600，且仅 root 可读。
 type Credentials struct {
 	Username  string `json:"username"`
@@ -29,7 +29,7 @@ func SaveCredentials(configPath, username, password string) error {
 	return writeCredentials(configPath, &c)
 }
 
-// UpdateCredentialsPassword 在面板内改密后同步凭据文件，保证 mpctl user-info 准确。
+// UpdateCredentialsPassword 在面板内改密后同步凭据文件，保证 npctl user-info 准确。
 // 凭据文件被删除时自动重建。
 func UpdateCredentialsPassword(configPath, password string) error {
 	c, err := LoadCredentials(configPath)

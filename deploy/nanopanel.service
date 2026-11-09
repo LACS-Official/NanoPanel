@@ -1,19 +1,19 @@
 [Unit]
-Description=MicroPanel lightweight control panel
+Description=NanoPanel lightweight control panel
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 # 安装脚本探测出的最优镜像源会作为环境变量传给应用商店脚本。
-EnvironmentFile=-/etc/micropanel/mirror.conf
-WorkingDirectory=/opt/micropanel
-ExecStart=/opt/micropanel/micropanel -c /etc/micropanel/config.json
+EnvironmentFile=-/etc/nanopanel/mirror.conf
+WorkingDirectory=/opt/nanopanel
+ExecStart=/opt/nanopanel/nanopanel -c /etc/nanopanel/config.json
 Restart=on-failure
 RestartSec=3
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=micropanel
+SyslogIdentifier=nanopanel
 # 说明：应用商店脚本需要执行 apt 并写入 /etc，因此不能启用 ProtectSystem=strict。
 # 面板设计要求部署在可信内网，详见 SECURITY.md。
 

@@ -34,21 +34,21 @@ jobs:
       - name: Create release bundles
         run: |
           for a in amd64 arm64 armv7; do
-            tar -czf "micropanel-${{ steps.ver.outputs.value }}-linux-${a}.tar.gz" \
-              -C deploy "micropanel-${a}" "micropanel-${a}.sha256" \
-              install.sh uninstall.sh mpctl micropanel.service apps
+            tar -czf "nanopanel-${{ steps.ver.outputs.value }}-linux-${a}.tar.gz" \
+              -C deploy "nanopanel-${a}" "nanopanel-${a}.sha256" \
+              install.sh uninstall.sh npctl nanopanel.service apps
           done
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: MicroPanel ${{ steps.ver.outputs.value }}
+          name: NanoPanel ${{ steps.ver.outputs.value }}
           generate_release_notes: true
           files: |
-            deploy/micropanel-amd64
-            deploy/micropanel-amd64.sha256
-            deploy/micropanel-arm64
-            deploy/micropanel-arm64.sha256
-            deploy/micropanel-armv7
-            deploy/micropanel-armv7.sha256
-            micropanel-*.tar.gz
+            deploy/nanopanel-amd64
+            deploy/nanopanel-amd64.sha256
+            deploy/nanopanel-arm64
+            deploy/nanopanel-arm64.sha256
+            deploy/nanopanel-armv7
+            deploy/nanopanel-armv7.sha256
+            nanopanel-*.tar.gz

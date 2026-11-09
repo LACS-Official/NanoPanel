@@ -1,5 +1,5 @@
 name: Bug 报告
-description: 报告 MicroPanel 的异常行为
+description: 报告 NanoPanel 的异常行为
 title: "[Bug] "
 labels: ["bug"]
 body:
@@ -12,7 +12,7 @@ body:
     id: version
     attributes:
       label: 面板版本
-      description: 执行 `mpctl version` 的输出
+      description: 执行 `npctl version` 的输出
       placeholder: "0.1.0"
     validations:
       required: true
@@ -52,5 +52,5 @@ body:
     id: logs
     attributes:
       label: 日志
-      description: "`journalctl -u micropanel -n 50 --no-pager` 的输出（请脱敏）"
+      description: "`journalctl -u nanopanel -n 50 --no-pager` 的输出（请脱敏）"
       render: shell

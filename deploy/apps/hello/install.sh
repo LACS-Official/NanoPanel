@@ -2,7 +2,7 @@
 # 示例应用安装脚本：退出码 0 表示成功，stdout 会回传到面板。
 set -euo pipefail
 
-MARK="/opt/micropanel/apps/.hello_installed"
+MARK="/opt/nanopanel/apps/.hello_installed"
 {
   echo "安装时间: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "下载源:   ${GITHUB_MIRROR:-未配置}"

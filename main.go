@@ -16,17 +16,17 @@ import (
 	"syscall"
 	"time"
 
-	"micropanel/internal/api"
-	"micropanel/internal/auth"
-	"micropanel/internal/config"
-	"micropanel/internal/version"
+	"nanopanel/internal/api"
+	"nanopanel/internal/auth"
+	"nanopanel/internal/config"
+	"nanopanel/internal/version"
 )
 
 //go:embed web
 var webFS embed.FS
 
 func main() {
-	cfgPath := flag.String("c", "/etc/micropanel/config.json", "配置文件路径")
+	cfgPath := flag.String("c", "/etc/nanopanel/config.json", "配置文件路径")
 	hashPw := flag.String("hashpw", "", "打印指定密码的哈希后退出")
 	initCfg := flag.Bool("init", false, "生成配置文件与凭据后退出")
 	pw := flag.String("password", "", "配合 -init 设置初始密码（留空则随机生成）")
@@ -39,7 +39,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Println("MicroPanel", version.Info())
+		fmt.Println("NanoPanel", version.Info())
 		return
 	}
 	if *hashPw != "" {
@@ -134,19 +134,19 @@ func main() {
 		_ = httpServer.Shutdown(shutdownCtx)
 	}()
 
-	log.Printf("MicroPanel %s 启动，监听 %s，用户 %s，配置 %s",
+	log.Printf("NanoPanel %s 启动，监听 %s，用户 %s，配置 %s",
 		version.Info(), cfg.Listen, cfg.Username, *cfgPath)
 	if temporary != "" {
-		log.Printf("警告: 配置中没有密码，本次临时密码为 %s（重启后失效，请用 mpctl reset-password 固化）", temporary)
+		log.Printf("警告: 配置中没有密码，本次临时密码为 %s（重启后失效，请用 npctl reset-password 固化）", temporary)
 	}
 	if config.IsLegacyHash(cfg.PasswordHash) {
-		log.Printf("警告: 检测到旧版 sha256 密码哈希，建议执行 mpctl reset-password 升级为 PBKDF2")
+		log.Printf("警告: 检测到旧版 sha256 密码哈希，建议执行 npctl reset-password 升级为 PBKDF2")
 	}
 
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("服务启动失败: %v", err)
 	}
-	log.Println("MicroPanel 已停止")
+	log.Println("NanoPanel 已停止")
 }
 
 func flagWasSet(name string) bool {

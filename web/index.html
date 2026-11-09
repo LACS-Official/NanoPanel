@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
-<title>MicroPanel</title>
+<title>NanoPanel</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   :root {
@@ -24,7 +24,7 @@
   .login-box p { text-align:center; color:var(--gray); margin-bottom:24px; font-size:13px; }
   .login-box .ver { text-align:center; color:var(--gray); font-size:11px; margin-top:18px; }
   input { width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:12px; font-size:14px;
-    font-family:inherit; outline:none; margin-bottom:12px; }
+    font-family:inherit; outline:none; margin-bottom:12px; background:#fff; color:var(--text); }
   input:focus { border-color:var(--blue); }
 
   .btn { background:var(--blue); color:#fff; border:none; border-radius:980px; padding:10px 20px;
@@ -36,15 +36,26 @@
   .btn.green { background:#e4f8ea; color:#1a9e44; }
   .btn:disabled { opacity:.5; cursor:not-allowed; }
 
-  .topbar { background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:10; }
-  .topbar-inner { max-width:1080px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; gap:16px; }
-  .brand { font-weight:700; font-size:17px; }
+  /* ===== 左侧导航布局 ===== */
+  .layout { display:flex; min-height:100vh; }
+  .sidebar {
+    width:216px; flex-shrink:0; background:var(--card); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; padding:20px 14px 16px;
+    position:sticky; top:0; height:100vh;
+  }
+  .brand { font-weight:700; font-size:17px; padding:0 10px 18px; }
   .brand .v { font-size:11px; color:var(--gray); font-weight:400; margin-left:6px; }
-  .nav { display:flex; gap:4px; overflow-x:auto; flex:1; }
-  .nav button { background:none; border:none; padding:8px 14px; border-radius:980px; cursor:pointer;
-    font-family:inherit; font-size:13px; color:var(--gray); white-space:nowrap; }
+  .nav { display:flex; flex-direction:column; gap:2px; flex:1; overflow-y:auto; }
+  .nav button { background:none; border:none; text-align:left; padding:10px 12px; border-radius:10px;
+    cursor:pointer; font-family:inherit; font-size:13px; color:var(--gray); white-space:nowrap; }
+  .nav button:hover { background:#f2f2f4; color:var(--text); }
   .nav button.active { background:#e8e8ed; color:var(--text); font-weight:600; }
-  .container { max-width:1080px; margin:0 auto; padding:24px 20px 60px; }
+  .nav .ic { display:inline-block; width:20px; opacity:.75; }
+
+  .side-foot { border-top:1px solid var(--line); padding-top:12px; margin-top:8px; }
+  .side-user { font-size:12px; color:var(--gray); padding:0 10px 10px; word-break:break-all; }
+
+  .container { flex:1; min-width:0; padding:24px 24px 60px; max-width:1120px; }
   .view { display:none; }
   .view.active { display:block; }
 
@@ -97,117 +108,135 @@
     padding:10px 20px; border-radius:980px; font-size:13px; opacity:0; transition:opacity .25s; z-index:99; pointer-events:none; }
   .toast.show { opacity:1; }
   .row-flex { display:flex; gap:10px; flex-wrap:wrap; }
+
+  /* 窄屏：侧边栏降级为顶部横滑条 */
+  @media (max-width:760px) {
+    .layout { flex-direction:column; }
+    .sidebar { width:100%; height:auto; position:sticky; top:0; z-index:10;
+      flex-direction:row; align-items:center; gap:8px; padding:10px 14px;
+      border-right:none; border-bottom:1px solid var(--line); }
+    .brand { padding:0; white-space:nowrap; }
+    .nav { flex-direction:row; overflow-x:auto; flex:1; gap:4px; }
+    .nav button { padding:8px 12px; white-space:nowrap; }
+    .side-foot { border-top:none; padding-top:0; margin-top:0; margin-left:auto; }
+    .side-user { display:none; }
+    .container { padding:16px 14px 60px; }
+  }
 </style>
 </head>
 <body>
 
 <div id="loginView">
   <div class="login-box">
-    <h1>MicroPanel</h1>
+    <h1>NanoPanel</h1>
     <p>轻量服务器运维面板</p>
     <input id="loginUser" type="text" placeholder="用户名" autocomplete="username" value="admin"
            onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
     <input id="loginPwd" type="password" placeholder="登录密码" autocomplete="current-password"
            onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn" style="width:100%" onclick="doLogin()">登 录</button>
-    <div class="ver" id="loginVersion">MicroPanel</div>
+    <div class="ver" id="loginVersion">NanoPanel</div>
   </div>
 </div>
 
 <div id="mainView" class="hidden">
-  <div class="topbar">
-    <div class="topbar-inner">
-      <div class="brand">MicroPanel <span class="v" id="appVersion"></span></div>
-      <div class="nav" id="nav">
-        <button data-view="overview" class="active">概览</button>
-        <button data-view="services">服务</button>
-        <button data-view="processes">进程</button>
-        <button data-view="logs">日志</button>
-        <button data-view="network">网络</button>
-        <button data-view="apps">应用商店</button>
-        <button data-view="settings">设置</button>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">NanoPanel <span class="v" id="appVersion"></span></div>
+      <nav class="nav" id="nav">
+        <button data-view="overview" class="active"><span class="ic">◧</span>概览</button>
+        <button data-view="services"><span class="ic">⚙</span>服务</button>
+        <button data-view="processes"><span class="ic">☰</span>进程</button>
+        <button data-view="logs"><span class="ic">▤</span>日志</button>
+        <button data-view="network"><span class="ic">◎</span>网络</button>
+        <button data-view="apps"><span class="ic">⊞</span>应用商店</button>
+        <button data-view="settings"><span class="ic">✎</span>设置</button>
+      </nav>
+      <div class="side-foot">
+        <div class="side-user" id="sideUser"></div>
+        <button class="btn sm gray" style="width:100%" onclick="doLogout()">退出登录</button>
       </div>
-    </div>
-  </div>
+    </aside>
 
-  <div class="container">
-    <div class="notice hidden" id="platformNotice"></div>
+    <main class="container">
+      <div class="notice hidden" id="platformNotice"></div>
 
-    <div class="view active" id="view-overview">
-      <div class="card">
-        <h2>系统信息</h2>
-        <div class="grid2" id="sysMetrics"></div>
-      </div>
-      <div class="card">
-        <h2>资源占用</h2>
-        <div id="resBars"></div>
-      </div>
-    </div>
-
-    <div class="view" id="view-services">
-      <div class="card">
-        <h2>系统服务</h2>
-        <div id="svcList"></div>
-      </div>
-    </div>
-
-    <div class="view" id="view-processes">
-      <div class="card">
-        <h2>进程管理（按内存排序，前 100）</h2>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>PID</th><th>用户</th><th>内存(KB)</th><th>命令</th><th>操作</th></tr></thead>
-            <tbody id="procBody"></tbody>
-          </table>
+      <div class="view active" id="view-overview">
+        <div class="card">
+          <h2>系统信息</h2>
+          <div class="grid2" id="sysMetrics"></div>
+        </div>
+        <div class="card">
+          <h2>资源占用</h2>
+          <div id="resBars"></div>
         </div>
       </div>
-    </div>
 
-    <div class="view" id="view-logs">
-      <div class="card">
-        <h2>系统日志</h2>
-        <div class="row-flex" style="margin-bottom:14px">
-          <input id="logUnit" placeholder="单元名（可选，如 cups）" style="width:220px;margin:0">
-          <button class="btn" onclick="loadLogs()">刷新日志</button>
-        </div>
-        <pre id="logOutput">点击“刷新日志”加载…</pre>
-      </div>
-    </div>
-
-    <div class="view" id="view-network">
-      <div class="card">
-        <h2>Ping 连通性测试</h2>
-        <div class="row-flex" style="margin-bottom:14px">
-          <input id="pingHost" placeholder="目标，如 192.168.1.1 或 baidu.com" style="width:260px;margin:0">
-          <button class="btn" onclick="doPing()">Ping</button>
-        </div>
-        <pre id="pingOutput">等待测试…</pre>
-      </div>
-    </div>
-
-    <div class="view" id="view-apps">
-      <div class="card">
-        <h2>应用商店</h2>
-        <div class="app-grid" id="appGrid"></div>
-      </div>
-    </div>
-
-    <div class="view" id="view-settings">
-      <div class="card">
-        <h2>修改密码</h2>
-        <input id="oldPwd" type="password" placeholder="原密码" autocomplete="current-password">
-        <input id="newPwd" type="password" placeholder="新密码（至少 8 位）" autocomplete="new-password">
-        <div style="font-size:12px;color:var(--gray);margin-bottom:12px">修改后其他设备的登录态会全部失效。</div>
-        <button class="btn" onclick="doChangePassword()">保存修改</button>
-      </div>
-      <div class="card">
-        <h2>系统操作</h2>
-        <div class="row-flex">
-          <button class="btn gray" onclick="doReboot()">重启系统</button>
-          <button class="btn danger" onclick="doLogout()">退出登录</button>
+      <div class="view" id="view-services">
+        <div class="card">
+          <h2>系统服务</h2>
+          <div id="svcList"></div>
         </div>
       </div>
-    </div>
+
+      <div class="view" id="view-processes">
+        <div class="card">
+          <h2>进程管理（按内存排序，前 100）</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>PID</th><th>用户</th><th>内存(KB)</th><th>命令</th><th>操作</th></tr></thead>
+              <tbody id="procBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-logs">
+        <div class="card">
+          <h2>系统日志</h2>
+          <div class="row-flex" style="margin-bottom:14px">
+            <input id="logUnit" placeholder="单元名（可选，如 cups）" style="width:220px;margin:0">
+            <button class="btn" onclick="loadLogs()">刷新日志</button>
+          </div>
+          <pre id="logOutput">点击“刷新日志”加载…</pre>
+        </div>
+      </div>
+
+      <div class="view" id="view-network">
+        <div class="card">
+          <h2>Ping 连通性测试</h2>
+          <div class="row-flex" style="margin-bottom:14px">
+            <input id="pingHost" placeholder="目标，如 192.168.1.1 或 baidu.com" style="width:260px;margin:0">
+            <button class="btn" onclick="doPing()">Ping</button>
+          </div>
+          <pre id="pingOutput">等待测试…</pre>
+        </div>
+      </div>
+
+      <div class="view" id="view-apps">
+        <div class="card">
+          <h2>应用商店</h2>
+          <div class="app-grid" id="appGrid"></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-settings">
+        <div class="card">
+          <h2>修改密码</h2>
+          <input id="oldPwd" type="password" placeholder="原密码" autocomplete="current-password">
+          <input id="newPwd" type="password" placeholder="新密码（至少 8 位）" autocomplete="new-password">
+          <div style="font-size:12px;color:var(--gray);margin-bottom:12px">修改后其他设备的登录态会全部失效。</div>
+          <button class="btn" onclick="doChangePassword()">保存修改</button>
+        </div>
+        <div class="card">
+          <h2>系统操作</h2>
+          <div class="row-flex">
+            <button class="btn gray" onclick="doReboot()">重启系统</button>
+            <button class="btn danger" onclick="doLogout()">退出登录</button>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 </div>
 
@@ -216,7 +245,7 @@
 <script>
 'use strict';
 const API = '/api/v1';
-let token = localStorage.getItem('mp_token') || '';
+let token = localStorage.getItem('np_token') || '';
 let overviewTimer = null;
 
 function esc(v){
@@ -240,7 +269,7 @@ async function call(method, path, body){
   try { res = await fetch(API + path, opt); }
   catch(e){ throw new Error('网络错误，连不上面板'); }
   if (res.status === 401){
-    token=''; localStorage.removeItem('mp_token'); showLogin();
+    token=''; localStorage.removeItem('np_token'); showLogin();
     throw new Error('登录已过期');
   }
   let data;
@@ -258,6 +287,8 @@ function showLogin(){
 function showMain(){
   document.getElementById('loginView').classList.add('hidden');
   document.getElementById('mainView').classList.remove('hidden');
+  const saved = localStorage.getItem('np_user');
+  document.getElementById('sideUser').textContent = saved ? '已登录：' + saved : '';
   switchView('overview'); loadOverview(); loadServices(); loadProcesses(); loadApps();
   overviewTimer = setInterval(()=>{ if(currentView()==='overview') loadOverview(); }, 5000);
 }
@@ -269,15 +300,15 @@ async function doLogin(){
   try {
     const d = await call('POST','/login',{username:user, password:pw});
     token = d.token;
-    localStorage.setItem('mp_token', token);
-    localStorage.setItem('mp_user', user);
+    localStorage.setItem('np_token', token);
+    localStorage.setItem('np_user', user);
     document.getElementById('loginPwd').value = '';
     showMain();
   } catch(e){ toast(e.message); }
 }
 async function doLogout(){
   try { await call('POST','/logout'); } catch(e){}
-  token=''; localStorage.removeItem('mp_token'); showLogin();
+  token=''; localStorage.removeItem('np_token'); showLogin();
 }
 
 function currentView(){ const b=document.querySelector('.nav button.active'); return b?b.dataset.view:''; }
@@ -286,7 +317,7 @@ function switchView(v){
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
 }
 document.getElementById('nav').addEventListener('click',e=>{
-  if(e.target.dataset.view) switchView(e.target.dataset.view);
+  if(e.target.closest('button[data-view]')) switchView(e.target.closest('button[data-view]').dataset.view);
 });
 
 function fmtUptime(sec){
@@ -401,7 +432,7 @@ async function doChangePassword(){
   if(newP.length < 8) return toast('新密码至少 8 位');
   try {
     const d = await call('POST','/change-password',{old_password:oldP,new_password:newP});
-    if(d && d.token){ token=d.token; localStorage.setItem('mp_token', token); }
+    if(d && d.token){ token=d.token; localStorage.setItem('np_token', token); }
     toast('密码已修改');
     document.getElementById('oldPwd').value=''; document.getElementById('newPwd').value='';
   } catch(e){ toast(e.message); }
@@ -418,7 +449,7 @@ async function loadHealth(){
     const h = d.data || {};
     const v = h.version ? 'v'+h.version : '';
     document.getElementById('appVersion').textContent = v;
-    document.getElementById('loginVersion').textContent = 'MicroPanel ' + v;
+    document.getElementById('loginVersion').textContent = 'NanoPanel ' + v;
     if(h.platform && h.platform !== 'linux'){
       const n = document.getElementById('platformNotice');
       n.textContent = '当前运行在 '+h.platform+' 环境，服务/进程/日志等依赖 Linux 的功能不可用。';
@@ -428,7 +459,7 @@ async function loadHealth(){
 }
 
 loadHealth();
-const savedUser = localStorage.getItem('mp_user');
+const savedUser = localStorage.getItem('np_user');
 if (savedUser) document.getElementById('loginUser').value = savedUser;
 if (token) showMain(); else showLogin();
 </script>

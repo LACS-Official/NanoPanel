@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
-    让 WSL2 发行版保持运行，使 MicroPanel 在 Windows 侧随时可访问。
+    让 WSL2 发行版保持运行，使 NanoPanel 在 Windows 侧随时可访问。
 
 .DESCRIPTION
     WSL2 在没有活动会话/进程时会自动停止整个发行版，systemd 与面板服务会一起停掉，
     此时 Windows 浏览器访问 localhost:8080 会超时。本脚本注册一个「登录时启动」的
     Windows 计划任务，运行 `wsl -d <发行版> -e sleep infinity` 保持发行版常驻，
-    由 systemd 自动拉起已 enable 的 micropanel.service。
+    由 systemd 自动拉起已 enable 的 nanopanel.service。
 
     这是可选操作，会修改当前用户的计划任务；如不需要，卸载方式见 -Remove。
     替代方案：手动开一个 WSL 终端窗口，或在 %USERPROFILE%\.wslconfig 中设置
@@ -22,7 +22,7 @@ param(
     [switch]$Remove
 )
 
-$TaskName = "MicroPanel-WSL-Keepalive"
+$TaskName = "NanoPanel-WSL-Keepalive"
 
 if ($Remove) {
     $existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
@@ -50,7 +50,7 @@ Register-ScheduledTask `
     -Action $action `
     -Trigger $trigger `
     -Settings $settings `
-    -Description "保持 WSL2 发行版 $Distro 运行，以便 MicroPanel 面板持续可用" `
+    -Description "保持 WSL2 发行版 $Distro 运行，以便 NanoPanel 面板持续可用" `
     -Force | Out-Null
 
 Start-ScheduledTask -TaskName $TaskName

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"micropanel/internal/config"
-	"micropanel/internal/sysinfo"
+	"nanopanel/internal/config"
+	"nanopanel/internal/sysinfo"
 )
 
 type loginReq struct {

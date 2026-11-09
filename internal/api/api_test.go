@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"micropanel/internal/auth"
-	"micropanel/internal/config"
+	"nanopanel/internal/auth"
+	"nanopanel/internal/config"
 )
 
 type apiResp struct {
@@ -60,7 +60,7 @@ func TestHealth(t *testing.T) {
 		t.Fatalf("健康检查状态码 %d", rec.Code)
 	}
 	r := decodeResp(t, rec)
-	if r.Data["status"] != "ok" || r.Data["version"] != "test" || r.Data["name"] != "MicroPanel" {
+	if r.Data["status"] != "ok" || r.Data["version"] != "test" || r.Data["name"] != "NanoPanel" {
 		t.Fatalf("健康检查内容异常: %+v", r.Data)
 	}
 }

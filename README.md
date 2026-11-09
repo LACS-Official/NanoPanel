@@ -1,4 +1,4 @@
-# MicroPanel
+# NanoPanel
 
 ![Go](https://img.shields.io/badge/Go-1.25%2B-00ADD8)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
@@ -13,7 +13,7 @@
 
 - **单文件交付**：Go 标准库编译为静态二进制，前端用 `go:embed` 内嵌，部署只发一个约 6 MB 的文件
 - **一键安装**：自动探测最优镜像源、自动生成随机初始密码、安装后直接打印访问地址与账号
-- **`mpctl` 管理工具**：查看账号、重置密码、启停服务、查看镜像源、卸载
+- **`npctl` 管理工具**：查看账号、重置密码、启停服务、查看镜像源、卸载
 - **WSL / systemd 自适应**：WSL2 Ubuntu 可直接安装；无 systemd 时自动回退为进程守护
 - 系统概览、服务启停、进程管理、日志、Ping、应用商店、系统重启、修改密码
 - 用户名 + 密码登录、PBKDF2 加盐哈希、登录限速、输入白名单、安全响应头
@@ -25,7 +25,7 @@
 从 [Releases](../../releases) 下载对应架构的压缩包，或从源码构建：
 
 ```bash
-make build-all          # 生成 deploy/micropanel-{amd64,arm64,armv7} 及 .sha256
+make build-all          # 生成 deploy/nanopanel-{amd64,arm64,armv7} 及 .sha256
 cd deploy
 sudo ./install.sh
 ```
@@ -33,7 +33,7 @@ sudo ./install.sh
 WSL2 中可直接用挂载目录安装：
 
 ```bash
-cd /mnt/e/Go/MicroPanel/deploy
+cd /path/to/NanoPanel/deploy   # 例如 WSL 挂载路径 /mnt/e/Go/MicroPanel/deploy
 sudo ./install.sh          # WSL 默认 root 时可直接 ./install.sh
 ```
 
@@ -41,7 +41,7 @@ sudo ./install.sh          # WSL 默认 root 时可直接 ./install.sh
 
 ```
 ============================================================
-  MicroPanel 安装完成
+  NanoPanel 安装完成
 ------------------------------------------------------------
   访问地址 : http://172.22.219.0:8080
   本机访问 : http://127.0.0.1:8080
@@ -56,7 +56,7 @@ sudo ./install.sh          # WSL 默认 root 时可直接 ./install.sh
 
 Windows 浏览器打开 **http://localhost:8080** 即可（WSL2 自带 localhost 转发）。
 
-> **WSL2 必读：发行版空闲会自动停机。** WSL2 在没有活动会话时可能停止整个发行版，systemd 与面板服务会一起停掉，此时 Windows 侧访问 `localhost:8080` 会超时（WSL 内 `systemctl is-active micropanel` 也会因为发行版关机而不可用）。这是 WSL 的机制，不是面板故障。三种处理方式：
+> **WSL2 必读：发行版空闲会自动停机。** WSL2 在没有活动会话时可能停止整个发行版，systemd 与面板服务会一起停掉，此时 Windows 侧访问 `localhost:8080` 会超时（WSL 内 `systemctl is-active nanopanel` 也会因为发行版关机而不可用）。这是 WSL 的机制，不是面板故障。三种处理方式：
 >
 > 1. 打开一个 WSL 终端窗口并保持：`wsl -d Ubuntu2404`，服务会由 systemd 自动拉起；
 > 2. 需要开机即常驻：在 PowerShell 执行 `powershell -ExecutionPolicy Bypass -File .\wsl-keepalive.ps1`（注册登录时计划任务，可用 `-Remove` 移除）；
@@ -67,9 +67,9 @@ Windows 浏览器打开 **http://localhost:8080** 即可（WSL2 自带 localhost
 发布前把仓库地址通过环境变量传入（脚本不硬编码任何仓库）：
 
 ```bash
-export MP_REPO="yourname/MicroPanel"
-export MP_VERSION="v0.1.0"
-curl -fsSL https://raw.githubusercontent.com/${MP_REPO}/main/deploy/install.sh | sudo -E bash
+export NP_REPO="yourname/NanoPanel"
+export NP_VERSION="v0.1.0"
+curl -fsSL https://raw.githubusercontent.com/${NP_REPO}/main/deploy/install.sh | sudo -E bash
 ```
 
 在线安装会按测速结果依次尝试各镜像，首个失败自动回退到下一个。
@@ -80,26 +80,26 @@ curl -fsSL https://raw.githubusercontent.com/${MP_REPO}/main/deploy/install.sh |
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `MP_REPO` | 空 | GitHub `owner/repo`；留空则只允许同目录离线安装 |
-| `MP_VERSION` | `v0.1.0` | 在线安装的 release 标签 |
-| `MP_PORT` | `8080` | 面板监听端口 |
-| `MP_USERNAME` | `admin` | 登录用户名 |
-| `MP_PASSWORD` | 随机 16 位 | 登录密码；留空自动生成 |
-| `MP_RANDOM_USER` | `0` | `1` 时生成随机用户名（`admin_xxxxxx`） |
-| `MP_SOURCE` | `auto` | `auto` / `local`（仅本地）/ `online`（仅下载） |
-| `MP_MIRROR` | 自动探测 | 手动指定 GitHub 下载源前缀 |
-| `MP_SKIP_MIRROR_TEST` | `0` | `1` 时跳过测速，用首个候选 |
-| `MP_PURGE` | 空 | 卸载时设为 `1`/`y` 可一并删除配置 |
+| `NP_REPO` | 空 | GitHub `owner/repo`；留空则只允许同目录离线安装 |
+| `NP_VERSION` | `v0.1.0` | 在线安装的 release 标签 |
+| `NP_PORT` | `8080` | 面板监听端口 |
+| `NP_USERNAME` | `admin` | 登录用户名 |
+| `NP_PASSWORD` | 随机 16 位 | 登录密码；留空自动生成 |
+| `NP_RANDOM_USER` | `0` | `1` 时生成随机用户名（`admin_xxxxxx`） |
+| `NP_SOURCE` | `auto` | `auto` / `local`（仅本地）/ `online`（仅下载） |
+| `NP_MIRROR` | 自动探测 | 手动指定 GitHub 下载源前缀 |
+| `NP_SKIP_MIRROR_TEST` | `0` | `1` 时跳过测速，用首个候选 |
+| `NP_PURGE` | 空 | 卸载时设为 `1`/`y` 可一并删除配置 |
 
 示例：
 
 ```bash
-sudo MP_PORT=9090 MP_RANDOM_USER=1 ./install.sh
+sudo NP_PORT=9090 NP_RANDOM_USER=1 ./install.sh
 ```
 
 ## 镜像源自动选择
 
-安装阶段会并发探测下列节点，按实测延迟选出最快的，并写入 `/etc/micropanel/mirror.conf`：
+安装阶段会并发探测下列节点，按实测延迟选出最快的，并写入 `/etc/nanopanel/mirror.conf`：
 
 - **GitHub 下载源**：GitHub 直连、`ghfast.top`、`ghproxy.net`、`gh-proxy.com`
 - **软件包源**：阿里云、华为云、中科大、清华
@@ -111,24 +111,24 @@ echo "${GITHUB_MIRROR}"   # 例：https://github.com
 echo "${APT_MIRROR}"      # 例：https://mirrors.ustc.edu.cn
 ```
 
-`mpctl mirror-info` 可随时查看当前选择；手工编辑 `mirror.conf` 后重启面板即可覆盖。若本机直连 GitHub 就很快，脚本会老老实实选直连，不会强行套代理。
+`npctl mirror-info` 可随时查看当前选择；手工编辑 `mirror.conf` 后重启面板即可覆盖。若本机直连 GitHub 就很快，脚本会老老实实选直连，不会强行套代理。
 
-## mpctl 管理命令
+## npctl 管理命令
 
 ```bash
-mpctl status                 # 运行状态与访问地址
-mpctl start|stop|restart     # 启停面板
-mpctl logs                   # 最近 100 行日志
-mpctl user-info              # 查看地址 / 用户名 / 密码
-mpctl reset-password         # 重置为随机密码（也可 mpctl reset-password '自定义密码'）
-mpctl version                # 版本信息
-mpctl mirror-info            # 当前镜像源
-mpctl uninstall              # 卸载（默认保留 /etc/micropanel）
+npctl status                 # 运行状态与访问地址
+npctl start|stop|restart     # 启停面板
+npctl logs                   # 最近 100 行日志
+npctl user-info              # 查看地址 / 用户名 / 密码
+npctl reset-password         # 重置为随机密码（也可 npctl reset-password '自定义密码'）
+npctl version                # 版本信息
+npctl mirror-info            # 当前镜像源
+npctl uninstall              # 卸载（默认保留 /etc/nanopanel）
 ```
 
 ## 配置
 
-主配置 `/etc/micropanel/config.json`（权限 0600）：
+主配置 `/etc/nanopanel/config.json`（权限 0600）：
 
 | 字段 | 说明 |
 |---|---|
@@ -139,16 +139,16 @@ mpctl uninstall              # 卸载（默认保留 /etc/micropanel）
 | `services` | 允许操作的 systemd 服务白名单 |
 | `apps_dir` / `manifest_path` | 应用商店目录与清单路径 |
 
-凭据文件 `/etc/micropanel/credentials.json`（0600）保存明文密码，供 `mpctl user-info` 使用；不需要可删除，不影响改密功能。
+凭据文件 `/etc/nanopanel/credentials.json`（0600）保存明文密码，供 `npctl user-info` 使用；不需要可删除，不影响改密功能。
 
 二进制辅助命令：
 
 ```bash
-micropanel -version
-micropanel -genpw 16
-micropanel -hashpw '某密码'
-micropanel -init -c /etc/micropanel/config.json -username admin -password 'xxx' -port 8080
-micropanel -reset-password '新密码' -c /etc/micropanel/config.json
+nanopanel -version
+nanopanel -genpw 16
+nanopanel -hashpw '某密码'
+nanopanel -init -c /etc/nanopanel/config.json -username admin -password 'xxx' -port 8080
+nanopanel -reset-password '新密码' -c /etc/nanopanel/config.json
 ```
 
 ## 开发
@@ -185,8 +185,8 @@ make build-all    # 交叉编译三个 Linux 架构
 
 ## 应用商店约定
 
-- 清单：`/opt/micropanel/apps/manifest.json`
-- 每个应用一个目录 `/opt/micropanel/apps/<id>/`，含 `install.sh`、`remove.sh`、`status.sh`
+- 清单：`/opt/nanopanel/apps/manifest.json`
+- 每个应用一个目录 `/opt/nanopanel/apps/<id>/`，含 `install.sh`、`remove.sh`、`status.sh`
 - `status.sh` 只输出 `installed` 或 `not_installed`
 - 应用 ID 仅允许字母、数字、下划线、短横，用于防止路径穿越
 - 安装脚本退出码 0 表示成功，stdout 会回传到面板；执行超时为 5 分钟
@@ -195,7 +195,7 @@ make build-all    # 交叉编译三个 Linux 架构
 ## 目录结构
 
 ```
-MicroPanel/
+NanoPanel/
 ├── main.go                  # 入口、路由、embed 前端、优雅关闭
 ├── internal/
 │   ├── version/             # 构建期注入的版本信息
@@ -207,8 +207,8 @@ MicroPanel/
 ├── deploy/
 │   ├── install.sh           # 一键安装脚本
 │   ├── uninstall.sh
-│   ├── mpctl                # 命令行管理工具
-│   ├── micropanel.service   # systemd 单元
+│   ├── npctl                # 命令行管理工具
+│   ├── nanopanel.service   # systemd 单元
 │   ├── wsl-keepalive.ps1    # WSL2 常驻（可选）
 │   └── apps/                # 应用商店清单与示例应用
 └── .github/                 # CI、发布流程、Issue/PR 模板

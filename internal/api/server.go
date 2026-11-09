@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"micropanel/internal/auth"
-	"micropanel/internal/config"
+	"nanopanel/internal/auth"
+	"nanopanel/internal/config"
 )
 
 // Server 持有面板运行所需的依赖。
@@ -80,7 +80,7 @@ func (s *Server) Services() []config.ServiceDef {
 func (s *Server) Health(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]string{
 		"status":   "ok",
-		"name":     "MicroPanel",
+		"name":     "NanoPanel",
 		"version":  s.version,
 		"platform": runtime.GOOS,
 	})

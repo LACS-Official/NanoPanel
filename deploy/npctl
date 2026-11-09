@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# mpctl - MicroPanel 命令行管理工具
+# npctl - NanoPanel 命令行管理工具
 set -euo pipefail
 
-BIN="/opt/micropanel/micropanel"
-CONF_DIR="/etc/micropanel"
+BIN="/opt/nanopanel/nanopanel"
+CONF_DIR="/etc/nanopanel"
 CONF="${CONF_DIR}/config.json"
 CRED="${CONF_DIR}/credentials.json"
 MIRROR_CONF="${CONF_DIR}/mirror.conf"
-PIDFILE="/opt/micropanel/micropanel.pid"
-SERVICE="micropanel"
+PIDFILE="/opt/nanopanel/nanopanel.pid"
+SERVICE="nanopanel"
 
-die()  { echo "[mpctl] 错误: $*" >&2; exit 1; }
-info() { echo "[mpctl] $*"; }
+die()  { echo "[npctl] 错误: $*" >&2; exit 1; }
+info() { echo "[npctl] $*"; }
 
 has_systemd() {
   command -v systemctl >/dev/null 2>&1 && \
@@ -33,9 +33,9 @@ port_of() {
 
 usage() {
   cat <<'EOF'
-mpctl - MicroPanel 管理工具
+npctl - NanoPanel 管理工具
 
-用法: mpctl <命令>
+用法: npctl <命令>
 
   status                 查看运行状态与访问地址
   start | stop | restart 启动 / 停止 / 重启面板
@@ -66,7 +66,7 @@ cmd_start() {
   if has_systemd; then
     systemctl start "$SERVICE"
   else
-    nohup "$BIN" -c "$CONF" >> /var/log/micropanel.log 2>&1 &
+    nohup "$BIN" -c "$CONF" >> /var/log/nanopanel.log 2>&1 &
     echo $! > "$PIDFILE"
   fi
   info "已启动"
@@ -92,7 +92,7 @@ cmd_logs() {
   if has_systemd; then
     journalctl -u "$SERVICE" -n 100 --no-pager
   else
-    tail -n 100 /var/log/micropanel.log 2>/dev/null || echo "暂无日志"
+    tail -n 100 /var/log/nanopanel.log 2>/dev/null || echo "暂无日志"
   fi
 }
 
@@ -139,8 +139,8 @@ cmd_mirror_info() {
 }
 
 cmd_uninstall() {
-  [ -x /opt/micropanel/uninstall.sh ] || die "卸载脚本不存在"
-  exec /opt/micropanel/uninstall.sh
+  [ -x /opt/nanopanel/uninstall.sh ] || die "卸载脚本不存在"
+  exec /opt/nanopanel/uninstall.sh
 }
 
 case "${1:-help}" in
@@ -155,5 +155,5 @@ case "${1:-help}" in
   mirror-info)     cmd_mirror_info ;;
   uninstall)       cmd_uninstall ;;
   help|-h|--help)  usage ;;
-  *)               die "未知命令: $1（执行 mpctl help 查看用法）" ;;
+  *)               die "未知命令: $1（执行 npctl help 查看用法）" ;;
 esac

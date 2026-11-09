@@ -59,9 +59,9 @@ jobs:
           GOOS: linux
           GOARCH: ${{ matrix.goarch }}
           GOARM: "7"
-        run: go build -trimpath -o micropanel-${{ matrix.name }} .
+        run: go build -trimpath -o nanopanel-${{ matrix.name }} .
       - uses: actions/upload-artifact@v4
         with:
-          name: micropanel-${{ matrix.name }}
-          path: micropanel-${{ matrix.name }}
+          name: nanopanel-${{ matrix.name }}
+          path: nanopanel-${{ matrix.name }}
           if-no-files-found: error

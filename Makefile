@@ -1,4 +1,4 @@
-BINARY  := micropanel
+BINARY  := nanopanel
 DIST    := dist
 DEPLOY  := deploy
 GO      ?= go
@@ -8,14 +8,14 @@ DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 SHA256  ?= $(shell command -v sha256sum >/dev/null 2>&1 && echo sha256sum || echo "shasum -a 256")
 
 LDFLAGS := -s -w \
-	-X micropanel/internal/version.Version=$(VERSION) \
-	-X micropanel/internal/version.Commit=$(COMMIT) \
-	-X micropanel/internal/version.Date=$(DATE)
+	-X nanopanel/internal/version.Version=$(VERSION) \
+	-X nanopanel/internal/version.Commit=$(COMMIT) \
+	-X nanopanel/internal/version.Date=$(DATE)
 
 .PHONY: help fmt fmt-check vet test check build build-all dev clean
 
 help:
-	@echo "MicroPanel 常用命令"
+	@echo "NanoPanel 常用命令"
 	@echo "  make check       格式检查 + vet + 单元测试"
 	@echo "  make build       编译当前平台到 dist/"
 	@echo "  make build-all   交叉编译 linux amd64/arm64/armv7 并同步到 deploy/"
@@ -40,7 +40,7 @@ build:
 	@mkdir -p $(DIST)
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $(DIST)/$(BINARY) .
 
-# 产物命名必须与 deploy/install.sh 中的 micropanel-<ARCH> 一致。
+# 产物命名必须与 deploy/install.sh 中的 nanopanel-<ARCH> 一致。
 build-all:
 	@mkdir -p $(DIST) $(DEPLOY)
 	@set -e; for spec in "amd64:amd64" "arm64:arm64" "armv7:arm"; do \

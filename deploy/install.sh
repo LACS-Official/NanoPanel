@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# MicroPanel 安装脚本
+# NanoPanel 安装脚本
 # 支持离线安装（同目录带二进制）与在线安装（自动选择最快镜像源）。
 set -euo pipefail
 
 # ============ 可通过环境变量覆盖的配置 ============
-REPO="${MP_REPO:-}"                       # GitHub 仓库 owner/repo，留空则只允许离线安装
-VERSION="${MP_VERSION:-v0.1.0}"           # 在线安装时的 release 版本
-PORT="${MP_PORT:-8080}"                   # 面板端口
-MP_USERNAME="${MP_USERNAME:-admin}"       # 登录用户名
-MP_PASSWORD="${MP_PASSWORD:-}"            # 留空则自动生成随机密码
-MP_RANDOM_USER="${MP_RANDOM_USER:-0}"     # 1 = 生成随机用户名
-SOURCE="${MP_SOURCE:-auto}"               # auto | local | online
-SKIP_MIRROR_TEST="${MP_SKIP_MIRROR_TEST:-0}"
-MP_MIRROR="${MP_MIRROR:-}"                # 手动指定 GitHub 镜像前缀
+REPO="${NP_REPO:-}"                       # GitHub 仓库 owner/repo，留空则只允许离线安装
+VERSION="${NP_VERSION:-v0.1.0}"           # 在线安装时的 release 版本
+PORT="${NP_PORT:-8080}"                   # 面板端口
+NP_USERNAME="${NP_USERNAME:-admin}"       # 登录用户名
+NP_PASSWORD="${NP_PASSWORD:-}"            # 留空则自动生成随机密码
+NP_RANDOM_USER="${NP_RANDOM_USER:-0}"     # 1 = 生成随机用户名
+SOURCE="${NP_SOURCE:-auto}"               # auto | local | online
+SKIP_MIRROR_TEST="${NP_SKIP_MIRROR_TEST:-0}"
+NP_MIRROR="${NP_MIRROR:-}"                # 手动指定 GitHub 镜像前缀
 # ==================================================
 
-INSTALL_DIR="/opt/micropanel"
-CONF_DIR="/etc/micropanel"
+INSTALL_DIR="/opt/nanopanel"
+CONF_DIR="/etc/nanopanel"
 MIRROR_CONF="${CONF_DIR}/mirror.conf"
-SERVICE_NAME="micropanel"
+SERVICE_NAME="nanopanel"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ -t 1 ]; then
@@ -113,9 +113,9 @@ else
 fi
 
 step "2/8 探测最优镜像源"
-if [ -n "$MP_MIRROR" ]; then
-  GITHUB_NAME="custom"; GITHUB_PREFIX="$MP_MIRROR"; GITHUB_LATENCY="manual"
-  ok "使用手动指定的下载源: $MP_MIRROR"
+if [ -n "$NP_MIRROR" ]; then
+  GITHUB_NAME="custom"; GITHUB_PREFIX="$NP_MIRROR"; GITHUB_LATENCY="manual"
+  ok "使用手动指定的下载源: $NP_MIRROR"
 elif [ "$SKIP_MIRROR_TEST" = "1" ]; then
   IFS='|' read -r GITHUB_NAME GITHUB_PREFIX _ <<< "${GITHUB_CANDIDATES[0]}"
   GITHUB_LATENCY="skipped"
@@ -126,7 +126,7 @@ else
   GITHUB_NAME="$BEST_NAME"; GITHUB_PREFIX="$BEST_PREFIX"; GITHUB_LATENCY="$BEST_LATENCY"
 fi
 
-if [ -n "$MP_MIRROR" ] || [ "$SKIP_MIRROR_TEST" = "1" ]; then
+if [ -n "$NP_MIRROR" ] || [ "$SKIP_MIRROR_TEST" = "1" ]; then
   IFS='|' read -r APT_NAME APT_PREFIX _ <<< "${APT_CANDIDATES[0]}"
   APT_LATENCY="skipped"
 else
@@ -139,7 +139,7 @@ step "3/8 创建目录与镜像配置"
 mkdir -p "$INSTALL_DIR" "$CONF_DIR" "${INSTALL_DIR}/apps"
 chmod 0750 "$CONF_DIR"
 cat > "$MIRROR_CONF" <<EOF
-# MicroPanel 自动探测出的最优镜像源，由安装脚本生成，可手工修改。
+# NanoPanel 自动探测出的最优镜像源，由安装脚本生成，可手工修改。
 GITHUB_MIRROR=${GITHUB_PREFIX}
 GITHUB_MIRROR_NAME=${GITHUB_NAME}
 GITHUB_MIRROR_LATENCY=${GITHUB_LATENCY}
@@ -152,16 +152,16 @@ chmod 0644 "$MIRROR_CONF"
 ok "镜像配置已写入 $MIRROR_CONF"
 
 step "4/8 获取二进制"
-LOCAL_BIN="${SCRIPT_DIR}/micropanel-${ARCH}"
+LOCAL_BIN="${SCRIPT_DIR}/nanopanel-${ARCH}"
 BIN_TMP="$(mktemp)"
 trap 'rm -f "$BIN_TMP"' EXIT
 fetch_ok=0
 if [ "$SOURCE" != "online" ] && [ -f "$LOCAL_BIN" ]; then
   cp "$LOCAL_BIN" "$BIN_TMP"
   fetch_ok=1
-  ok "使用本地二进制 micropanel-${ARCH}（离线安装）"
+  ok "使用本地二进制 nanopanel-${ARCH}（离线安装）"
 elif [ -n "$REPO" ]; then
-  ASSET="micropanel-${ARCH}"
+  ASSET="nanopanel-${ARCH}"
   log "从镜像源下载 ${ASSET} (${VERSION})…"
   ORDERED=("${GITHUB_PREFIX}")
   for entry in "${GITHUB_CANDIDATES[@]}"; do
@@ -178,7 +178,7 @@ elif [ -n "$REPO" ]; then
     fi
   done
 fi
-[ "$fetch_ok" -eq 1 ] || die "未找到本地 micropanel-${ARCH}，且在线下载失败。可设置 MP_REPO=owner/repo，或把二进制放到脚本同目录。"
+[ "$fetch_ok" -eq 1 ] || die "未找到本地 nanopanel-${ARCH}，且在线下载失败。可设置 NP_REPO=owner/repo，或把二进制放到脚本同目录。"
 
 if [ "$SOURCE" != "online" ] && [ -f "${LOCAL_BIN}.sha256" ]; then
   expected="$(cut -d' ' -f1 "${LOCAL_BIN}.sha256")"
@@ -186,20 +186,20 @@ if [ "$SOURCE" != "online" ] && [ -f "${LOCAL_BIN}.sha256" ]; then
   [ "$expected" = "$actual" ] || die "二进制 SHA256 校验失败，已中止安装"
   ok "SHA256 校验通过"
 fi
-install -m 0755 "$BIN_TMP" "${INSTALL_DIR}/micropanel"
-BIN="${INSTALL_DIR}/micropanel"
+install -m 0755 "$BIN_TMP" "${INSTALL_DIR}/nanopanel"
+BIN="${INSTALL_DIR}/nanopanel"
 ok "二进制已安装到 $BIN"
 
 step "5/8 生成登录凭据"
 FIRST_INSTALL=0
 if [ ! -f "${CONF_DIR}/config.json" ]; then
   FIRST_INSTALL=1
-  if [ "$MP_RANDOM_USER" = "1" ]; then
-    MP_USERNAME="admin_$("$BIN" -genpw 6 | tr '[:upper:]' '[:lower:]')"
+  if [ "$NP_RANDOM_USER" = "1" ]; then
+    NP_USERNAME="admin_$("$BIN" -genpw 6 | tr '[:upper:]' '[:lower:]')"
   fi
-  if [ -z "$MP_PASSWORD" ]; then MP_PASSWORD="$("$BIN" -genpw 16)"; fi
+  if [ -z "$NP_PASSWORD" ]; then NP_PASSWORD="$("$BIN" -genpw 16)"; fi
   "$BIN" -init -c "${CONF_DIR}/config.json" \
-    -username "$MP_USERNAME" -password "$MP_PASSWORD" -port "$PORT" >/dev/null
+    -username "$NP_USERNAME" -password "$NP_PASSWORD" -port "$PORT" >/dev/null
   ok "已生成随机密码并写入凭据文件（0600）"
 else
   warn "配置已存在，保留原有账号与密码（升级安装）"
@@ -207,8 +207,8 @@ fi
 chmod 0600 "${CONF_DIR}/config.json" "${CONF_DIR}/credentials.json" 2>/dev/null || true
 FINAL_USER="$(json_field username "${CONF_DIR}/credentials.json")"
 FINAL_PASS="$(json_field password "${CONF_DIR}/credentials.json")"
-if [ -z "$FINAL_USER" ]; then FINAL_USER="$MP_USERNAME"; fi
-if [ -z "$FINAL_PASS" ]; then FINAL_PASS="$MP_PASSWORD"; fi
+if [ -z "$FINAL_USER" ]; then FINAL_USER="$NP_USERNAME"; fi
+if [ -z "$FINAL_PASS" ]; then FINAL_PASS="$NP_PASSWORD"; fi
 
 step "6/8 安装应用商店与管理工具"
 if [ -d "${SCRIPT_DIR}/apps" ]; then
@@ -218,17 +218,17 @@ fi
 if [ ! -f "${INSTALL_DIR}/apps/manifest.json" ]; then
   echo '{"version":1,"apps":[]}' > "${INSTALL_DIR}/apps/manifest.json"
 fi
-if [ -f "${SCRIPT_DIR}/mpctl" ]; then
-  install -m 0755 "${SCRIPT_DIR}/mpctl" /usr/local/bin/mpctl
+if [ -f "${SCRIPT_DIR}/npctl" ]; then
+  install -m 0755 "${SCRIPT_DIR}/npctl" /usr/local/bin/npctl
 fi
 if [ -f "${SCRIPT_DIR}/uninstall.sh" ]; then
   install -m 0755 "${SCRIPT_DIR}/uninstall.sh" "${INSTALL_DIR}/uninstall.sh"
 fi
-ok "应用目录 / mpctl / 卸载脚本 已就绪"
+ok "应用目录 / npctl / 卸载脚本 已就绪"
 
 step "7/8 注册并启动服务"
 if [ "$HAS_SYSTEMD" -eq 1 ]; then
-  install -m 0644 "${SCRIPT_DIR}/micropanel.service" "/etc/systemd/system/${SERVICE_NAME}.service"
+  install -m 0644 "${SCRIPT_DIR}/nanopanel.service" "/etc/systemd/system/${SERVICE_NAME}.service"
   systemctl daemon-reload
   systemctl enable "${SERVICE_NAME}" >/dev/null 2>&1 || true
   systemctl restart "${SERVICE_NAME}"
@@ -239,15 +239,15 @@ if [ "$HAS_SYSTEMD" -eq 1 ]; then
   fi
   ok "systemd 服务已启动 (systemctl status ${SERVICE_NAME})"
 else
-  if [ -f "${INSTALL_DIR}/micropanel.pid" ]; then
-    old_pid="$(cat "${INSTALL_DIR}/micropanel.pid")"
+  if [ -f "${INSTALL_DIR}/nanopanel.pid" ]; then
+    old_pid="$(cat "${INSTALL_DIR}/nanopanel.pid")"
     if kill -0 "$old_pid" 2>/dev/null; then kill "$old_pid" || true; fi
   fi
-  nohup "$BIN" -c "${CONF_DIR}/config.json" >> /var/log/micropanel.log 2>&1 &
-  echo $! > "${INSTALL_DIR}/micropanel.pid"
+  nohup "$BIN" -c "${CONF_DIR}/config.json" >> /var/log/nanopanel.log 2>&1 &
+  echo $! > "${INSTALL_DIR}/nanopanel.pid"
   sleep 1
-  kill -0 "$(cat "${INSTALL_DIR}/micropanel.pid")" 2>/dev/null || die "进程启动失败，请查看 /var/log/micropanel.log"
-  ok "后台进程已启动 (PID $(cat "${INSTALL_DIR}/micropanel.pid"))"
+  kill -0 "$(cat "${INSTALL_DIR}/nanopanel.pid")" 2>/dev/null || die "进程启动失败，请查看 /var/log/nanopanel.log"
+  ok "后台进程已启动 (PID $(cat "${INSTALL_DIR}/nanopanel.pid"))"
 fi
 
 step "8/8 健康检查"
@@ -265,7 +265,7 @@ IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 printf "\n%s" "$C_GREEN"
 cat <<EOF
 ============================================================
-  MicroPanel 安装完成
+  NanoPanel 安装完成
 ------------------------------------------------------------
   访问地址 : http://${IP:-127.0.0.1}:${PORT}
   本机访问 : http://127.0.0.1:${PORT}
@@ -280,17 +280,17 @@ cat <<EOF
   下载源   : ${GITHUB_NAME} (${GITHUB_LATENCY}s)
   软件源   : ${APT_NAME} (${APT_LATENCY}s)
 ------------------------------------------------------------
-  管理命令 : mpctl
-    mpctl user-info        查看账号密码
-    mpctl reset-password   重置为随机密码
-    mpctl status|start|stop|restart
-    mpctl mirror-info      查看当前镜像源
-    mpctl uninstall        卸载面板
+  管理命令 : npctl
+    npctl user-info        查看账号密码
+    npctl reset-password   重置为随机密码
+    npctl status|start|stop|restart
+    npctl mirror-info      查看当前镜像源
+    npctl uninstall        卸载面板
 ============================================================
 EOF
 printf "%s" "$C_RESET"
 if [ "$FIRST_INSTALL" -eq 1 ]; then
-  warn "初始密码仅此一次明文展示；随时可用 mpctl user-info 查看，登录后建议尽快修改。"
+  warn "初始密码仅此一次明文展示；随时可用 npctl user-info 查看，登录后建议尽快修改。"
 fi
 if [ "$IS_WSL" -eq 1 ]; then
   warn "WSL2 发行版空闲会自动停机；需要长期访问请运行 deploy/wsl-keepalive.ps1（详见 README）。"
