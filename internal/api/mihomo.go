@@ -59,6 +59,12 @@ func (s *Server) mihomoAuthHeader(req *http.Request) {
 func (s *Server) MihomoStatus(w http.ResponseWriter, r *http.Request) {
 	port, _ := s.mihomoController()
 	installed := s.appState(r.Context(), "mihomo") == "installed"
+	uiEnabled := false
+	if installed {
+		if v, err := s.readAppValues("mihomo"); err == nil {
+			uiEnabled = strings.TrimSpace(v["external_ui"]) == "yes"
+		}
+	}
 	reachable, version := false, ""
 	if installed {
 		ctx, cancel := context.WithTimeout(r.Context(), 4*time.Second)
@@ -82,6 +88,7 @@ func (s *Server) MihomoStatus(w http.ResponseWriter, r *http.Request) {
 		"port":       port,
 		"version":    version,
 		"controller": "127.0.0.1:" + strconv.Itoa(port),
+		"ui_enabled": uiEnabled,
 	})
 }
 

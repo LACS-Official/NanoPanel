@@ -83,14 +83,20 @@ func (s *Server) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	old := s.cfg.PasswordHash
+	oldSecret := s.cfg.Secret
 	s.cfg.PasswordHash = config.HashPassword(req.NewPassword)
+	// 轮换签名密钥并随配置一起持久化：既吊销全部历史 token，又保证重启后旧 token 无法复活。
+	newSecret := config.RandHex(32)
+	s.cfg.Secret = newSecret
 	if err := s.cfg.Save(s.configPath); err != nil {
 		s.cfg.PasswordHash = old // 回滚内存状态，避免与磁盘不一致
+		s.cfg.Secret = oldSecret
 		s.mu.Unlock()
 		fail(w, http.StatusInternalServerError, "保存失败: "+err.Error())
 		return
 	}
 	s.mu.Unlock()
+	s.auth.RotateSecret(newSecret)
 
 	// 凭据文件不存在时静默跳过，不影响改密本身。
 	if err := config.UpdateCredentialsPassword(s.configPath, req.NewPassword); err != nil {
@@ -98,8 +104,7 @@ func (s *Server) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.auth.RevokeAll()
-	s.audit(r, "settings", "修改登录密码", "全部登录态已吊销")
+	s.audit(r, "settings", "修改登录密码", "签名密钥已轮换，全部历史登录态失效")
 	ok(w, map[string]string{
 		"msg":   "密码已修改，其他登录态已失效",
 		"token": s.auth.Issue(),

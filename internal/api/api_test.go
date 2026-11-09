@@ -31,7 +31,7 @@ func newTestServer(t *testing.T) (*Server, string) {
 	if err := config.SaveCredentials(cfgPath, cfg.Username, "secret123"); err != nil {
 		t.Fatal(err)
 	}
-	return NewServer(cfg, auth.NewManager(time.Hour), cfgPath, "test"), cfgPath
+	return NewServer(cfg, auth.NewManager(time.Hour, "test-secret"), cfgPath, "test"), cfgPath
 }
 
 func decodeResp(t *testing.T, rec *httptest.ResponseRecorder) apiResp {
@@ -72,7 +72,7 @@ func TestLogin(t *testing.T) {
 		t.Fatalf("正确凭据登录失败: %d %s", rec.Code, rec.Body.String())
 	}
 	r := decodeResp(t, rec)
-	if len(r.Data["token"]) != 64 || r.Data["username"] != "admin" {
+	if !strings.HasPrefix(r.Data["token"], "v1.") || r.Data["username"] != "admin" {
 		t.Fatalf("登录响应异常: %+v", r.Data)
 	}
 }

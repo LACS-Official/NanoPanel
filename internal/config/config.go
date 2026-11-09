@@ -87,7 +87,7 @@ func Default() *Config {
 		Listen:       ":8080",
 		Username:     DefaultUsername,
 		PasswordHash: "",
-		Secret:       randHex(32),
+		Secret:       RandHex(32),
 		TokenTTLHrs:  24,
 		Services: []ServiceDef{
 			{Name: "cups", Label: "CUPS 打印"},
@@ -318,7 +318,8 @@ func RandomPassword(n int) (string, error) {
 	return string(out), nil
 }
 
-func randHex(n int) string {
+// RandHex 生成 n 字节的十六进制随机串。
+func RandHex(n int) string {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
 		panic("crypto/rand 不可用: " + err.Error())

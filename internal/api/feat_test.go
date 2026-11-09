@@ -45,7 +45,7 @@ func newAppTestServer(t *testing.T) (*Server, string) {
 	if err := os.WriteFile(filepath.Join(cfg.AppsDir, "demo", "status.sh"), []byte(statusScript), 0755); err != nil {
 		t.Fatal(err)
 	}
-	return NewServer(cfg, auth.NewManager(time.Hour), cfgPath, "test"), cfgPath
+	return NewServer(cfg, auth.NewManager(time.Hour, "test-secret"), cfgPath, "test"), cfgPath
 }
 
 func TestValidateAppValues(t *testing.T) {

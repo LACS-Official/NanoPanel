@@ -392,6 +392,7 @@
           <h2>Mihomo 代理内核</h2>
           <div class="row-flex" style="margin-bottom:14px">
             <button class="btn sm" onclick="loadMihomoAll()">刷新</button>
+            <button class="btn sm green hidden" id="mhMetacubexdBtn" onclick="openMetacubexd()">打开 metacubexd 面板</button>
             <label class="mh-auto"><input type="checkbox" id="mhAuto"> 自动刷新（10 秒）</label>
             <span class="state-tag" id="mhStatus"></span>
           </div>
@@ -873,6 +874,7 @@ async function mihomoCall(path, method, body, params){
 }
 function mhMessage(msg){
   document.getElementById('mhStatus').textContent = msg;
+  document.getElementById('mhMetacubexdBtn').classList.add('hidden');
   document.getElementById('mhMetrics').innerHTML = '';
   document.getElementById('mhGroups').innerHTML =
     '<div class="empty-tip">'+esc(msg)+'</div>';
@@ -882,6 +884,9 @@ function mhMessage(msg){
 async function loadMihomoAll(){
   try {
     const st = await call('GET','/mihomo/status');
+    const mcdBtn = document.getElementById('mhMetacubexdBtn');
+    mcdBtn.classList.toggle('hidden', !(st.installed && st.ui_enabled && st.port));
+    mcdBtn._port = st.port || 9090;
     if (!st.installed) return mhMessage('尚未安装 Mihomo，请先到「应用商店」安装');
     if (!st.reachable) return mhMessage('内核控制接口不可达（' + esc(st.controller) + '），请检查应用状态与控制端口');
     const [ver, cfg, px, conns] = await Promise.all([
@@ -978,6 +983,10 @@ async function setMihomoMode(){
   const mode = document.getElementById('mhMode').value;
   try { await mihomoCall('/configs','PATCH',{mode}); toast('模式已切换为 ' + mode); loadMihomoAll(); }
   catch(e){ toast(e.message); }
+}
+function openMetacubexd(){
+  const port = document.getElementById('mhMetacubexdBtn')._port || 9090;
+  window.open('http://' + location.hostname + ':' + port + '/ui', '_blank');
 }
 async function clearMihomoConns(){
   if(!confirm('确定清空全部活跃连接？')) return;

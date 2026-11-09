@@ -21,18 +21,35 @@ ARCH="$(arch_map)" || die "不支持的架构: $(uname -m)"
 command -v curl >/dev/null 2>&1 || die "缺少 curl"
 command -v gunzip >/dev/null 2>&1 || die "缺少 gzip"
 
-# mihomo 的发布资产名带版本号，须通过 GitHub API 动态解析
+# mihomo 的发布资产名带版本号，须动态解析。优先走 GitHub API；
+# API 匿名限流（或不可达）时，改用 releases/latest 的 302 重定向提取 tag，
+# 资产名规则为 mihomo-linux-<arch>[-compatible]-<tag>.gz，可直接构造。
 resolve_mihomo_url() {
-  local pattern
+  local pattern asset
   if [ "$ARCH" = "amd64" ]; then
     pattern="mihomo-linux-amd64-compatible-v[0-9.]+\\.gz$"   # compatible 兼容老 CPU
   else
     pattern="mihomo-linux-${ARCH}-v[0-9.]+\\.gz$"
   fi
-  curl -fsSL --connect-timeout 8 --max-time 20 \
+  asset=$(curl -fsSL --connect-timeout 8 --max-time 20 \
     "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" 2>/dev/null \
     | grep -oE '"browser_download_url": *"[^"]+"' \
-    | cut -d'"' -f4 | grep -E "$pattern" | grep -v -- "-go1" | head -1
+    | cut -d'"' -f4 | grep -E "$pattern" | grep -v -- "-go1" | head -1)
+  if [ -n "$asset" ]; then
+    echo "$asset"
+    return 0
+  fi
+  local tag
+  tag=$(curl -fsS --connect-timeout 8 --max-time 20 -o /dev/null -w '%{redirect_url}' \
+    "$GH/MetaCubeX/mihomo/releases/latest" 2>/dev/null \
+    | grep -oE 'tag/v[0-9.]+$' | cut -d/ -f2)
+  if [ -n "$tag" ]; then
+    local compat=""
+    [ "$ARCH" = "amd64" ] && compat="-compatible"   # 老版本资产无 compatible 后缀，失败时再退
+    echo "https://github.com/MetaCubeX/mihomo/releases/download/${tag}/mihomo-linux-${ARCH}${compat}-${tag}.gz"
+    return 0
+  fi
+  return 1
 }
 
 DL="$(resolve_mihomo_url)"

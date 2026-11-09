@@ -61,7 +61,7 @@ func newMihomoTestServer(t *testing.T) (*Server, *httptest.Server, *[]capturedRe
 			w.WriteHeader(http.StatusNoContent)
 		}
 	}))
-	srv := NewServer(cfg, auth.NewManager(time.Hour), cfgPath, "test")
+	srv := NewServer(cfg, auth.NewManager(time.Hour, "test-secret"), cfgPath, "test")
 	srv.mihomoBase = kernel.URL
 	t.Cleanup(kernel.Close)
 	return srv, kernel, &caps

@@ -178,12 +178,14 @@ func (s *Server) writeAppValues(id string, values map[string]string) error {
 }
 
 // appScriptEnv 构造传给应用脚本的额外环境变量。
+// NP_APPS_DIR 让 config.sh 能定位并回写自己的 config.env（如 mihomo 自动生成的控制密钥）。
 func (s *Server) appScriptEnv(id string) ([]string, error) {
 	values, err := s.readAppValues(id)
 	if err != nil {
 		return nil, err
 	}
-	env := make([]string, 0, len(values))
+	env := make([]string, 0, len(values)+1)
+	env = append(env, "NP_APPS_DIR="+s.cfg.AppsDir)
 	for k, v := range values {
 		env = append(env, k+"="+v)
 	}

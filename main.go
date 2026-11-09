@@ -83,7 +83,7 @@ func main() {
 		cfg.PasswordHash = config.HashPassword(temporary)
 	}
 
-	am := auth.NewManager(time.Duration(cfg.TokenTTLHrs) * time.Hour)
+	am := auth.NewManager(time.Duration(cfg.TokenTTLHrs)*time.Hour, cfg.Secret)
 	srv := api.NewServer(cfg, am, *cfgPath, version.Version)
 
 	mux := http.NewServeMux()

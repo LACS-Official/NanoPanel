@@ -117,12 +117,20 @@
           "description": "RESTful API 控制端口，面板的代理管理页通过它连接内核"
         },
         {
+          "name": "external_ui",
+          "label": "metacubexd 管理面板",
+          "type": "select",
+          "default": "no",
+          "options": ["yes", "no"],
+          "description": "开启后自动下载 metacubexd 到内核 ui 目录，局域网设备可通过 http://设备IP:控制端口/ui 打开完整管理面板；控制接口将监听 0.0.0.0 并自动生成访问密钥"
+        },
+        {
           "name": "controller_secret",
           "label": "控制接口密钥",
           "type": "password",
           "default": "",
-          "placeholder": "可留空（仅本机可访问控制接口）",
-          "description": "设置后内核要求 Bearer 鉴权，面板会自动携带"
+          "placeholder": "开启 metacubexd 后留空则自动生成",
+          "description": "设置后内核要求 Bearer 鉴权，面板会自动携带；开启 metacubexd 时必须设置"
         },
         {
           "name": "subscribe_url",

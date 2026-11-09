@@ -6,6 +6,10 @@
 
 ### 新增
 
+- **持久化登录**：登录 token 改为无状态 HMAC 签名（`v1.nonce.expiry.hmac`，密钥为配置文件持久化的 `secret`），**面板重启后已登录的浏览器无需重新登录**；修改密码时轮换签名密钥并随配置落盘，历史 token 全部失效且无法复活；单端登出走内存撤销列表
+- **metacubexd 管理面板**：Mihomo 应用配置新增「metacubexd 管理面板」开关，开启后自动下载 metacubexd（官方 release dist）到内核 ui 目录，控制接口切换为 `0.0.0.0` 监听并强制鉴权（未设密钥时自动生成并回写应用配置），局域网设备访问 `http://<设备IP>:9090/ui` 即可使用完整管理面板（流量图表等 WebSocket 能力由内核原生提供）；代理管理页新增「打开 metacubexd 面板」入口按钮
+- mihomo 安装脚本在 GitHub API 匿名限流时自动改用 `releases/latest` 302 重定向解析版本号，不再因限流安装失败
+- `appScriptEnv` 向应用脚本注入 `NP_APPS_DIR`，`config.sh` 可定位并回写自身 `config.env`
 - **品牌 Logo**：全新 SVG Logo（蓝色渐变圆角方块 + N 字标 + 在线状态绿点），用于登录页、侧边栏、设置「关于」页与站点 favicon；`docs/logo.svg`、`docs/banner.svg` 随仓库分发
 - **设置「关于」页**：展示面板版本、项目简介，以及领创工作室官网（lacs.cc）、项目官网（npanel.lacs.cc）、GitHub 仓库（LACS-Official/NanoPanel）直达链接
 - **二级页签上移**：设置页改为「通知 / 安全 / 系统 / 关于」、日志中心改为「系统日志 / 面板日志」，统一渲染在主内容区顶部的页面头（标题 + 副标题 + 分段式页签）中，与左侧导航形成两级导航结构
