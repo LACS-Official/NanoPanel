@@ -7,9 +7,30 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+// TestWithinRootsNormalization 根目录与目标路径写法不一致时仍应正确判定归属。
+// 回归：GitHub Windows runner 的临时目录是 8.3 短名（RUNNER~1），
+// 解析软链后变成长名，旧实现按字符串前缀比较会误判「超出允许范围」。
+func TestWithinRootsNormalization(t *testing.T) {
+	root := t.TempDir()
+	sub := filepath.Join(root, "docs")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !withinRoots(sub, []string{root}) {
+		t.Fatalf("子目录应判定在根内: root=%s sub=%s", root, sub)
+	}
+	if withinRoots(t.TempDir(), []string{root}) {
+		t.Fatal("无关目录不应判定在根内")
+	}
+	if runtime.GOOS == "windows" && !withinRoots(strings.ToUpper(sub), []string{root}) {
+		t.Fatal("Windows 下大小写差异不应影响归属判定")
+	}
+}
 
 func newFileTestServer(t *testing.T) (*Server, string) {
 	t.Helper()

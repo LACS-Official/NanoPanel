@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -62,9 +63,12 @@ func cleanManagedPath(p string) string {
 }
 
 // withinRoots 判断已解析路径是否落在根目录集合内（含根本身）。
+// 两侧都做短名/软链规范化后再比较，避免 Windows 8.3 短路径
+// （如 RUNNER~1）与实际长路径写法不一致导致误判越界。
 func withinRoots(resolved string, roots []string) bool {
+	resolved = canonicalPath(resolved)
 	for _, root := range roots {
-		rel, err := filepath.Rel(root, resolved)
+		rel, err := filepath.Rel(canonicalPath(root), resolved)
 		if err != nil {
 			continue
 		}
@@ -73,6 +77,22 @@ func withinRoots(resolved string, roots []string) bool {
 		}
 	}
 	return false
+}
+
+// canonicalPath 把路径规范为绝对路径并解析软链与平台短名；
+// Windows 下另做小写化，使路径归属比较不受大小写影响。
+// 路径不存在（如待创建文件）时保留 Abs 结果，不视为失败。
+func canonicalPath(p string) string {
+	if abs, err := filepath.Abs(p); err == nil {
+		p = abs
+	}
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		p = r
+	}
+	if runtime.GOOS == "windows" {
+		p = strings.ToLower(p)
+	}
+	return p
 }
 
 // resolveFilePath 校验面板操作的文件路径：必须落在某个根目录内，
