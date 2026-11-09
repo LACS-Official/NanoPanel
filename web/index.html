@@ -345,6 +345,13 @@
 
       <div class="view" id="view-network">
         <div class="card">
+          <h2>网卡实时流量</h2>
+          <div style="font-size:12px;color:var(--gray);margin-bottom:12px">
+            每 2 秒采样，折线展示最近 60 个采样点（2 分钟）的上下行速率。
+          </div>
+          <div id="netTraffic"></div>
+        </div>
+        <div class="card">
           <h2>Ping 连通性测试</h2>
           <div class="row-flex" style="margin-bottom:14px">
             <input id="pingHost" placeholder="目标，如 192.168.1.1 或 baidu.com" style="width:260px;margin:0">
@@ -665,6 +672,7 @@ function switchView(v){
   if (v==='logs' && !curSub.logs) setSub('logs','system');
   if (v==='settings' && !curSub.settings) setSub('settings','notify');
   if (v==='disks') loadDisks();
+  startNetTimer(v==='network');
 }
 function renderSubtabs(v){
   const box = document.getElementById('pageSubtabs');
@@ -975,6 +983,64 @@ async function loadMirrorSettings(){
       metric('测速延迟', d.GITHUB_MIRROR_LATENCY ? (Number(d.GITHUB_MIRROR_LATENCY).toFixed(2)+' s') : '-')+
       metric('选择时间', d.SELECTED_AT || '-');
   } catch(e){ /* 静默 */ }
+}
+
+// ===== 网卡流量图表 =====
+const netHistory = {}; // name -> {rx:[], tx:[]}
+let netTimer = null;
+const NET_POINTS = 60;
+
+function startNetTimer(active){
+  if (netTimer){ clearInterval(netTimer); netTimer = null; }
+  if (active){
+    pollNetTraffic();
+    netTimer = setInterval(pollNetTraffic, 2000);
+  }
+}
+
+async function pollNetTraffic(){
+  try {
+    const list = await call('GET','/net/traffic');
+    const container = document.getElementById('netTraffic');
+    if (!container) return;
+    container.innerHTML = (list||[]).map(renderNetCard).join('') ||
+      '<div class="empty-tip">未读取到网卡信息</div>';
+  } catch(e){ /* 静默 */ }
+}
+
+function fmtRate(bps){
+  if (bps >= 1048576) return (bps/1048576).toFixed(1)+' MB/s';
+  if (bps >= 1024) return (bps/1024).toFixed(1)+' KB/s';
+  return Math.round(bps)+' B/s';
+}
+function fmtBytes(b){
+  const u = ['B','KB','MB','GB','TB']; let i = 0;
+  while (b >= 1024 && i < u.length-1){ b /= 1024; i++; }
+  return b.toFixed(i?1:0)+' '+u[i];
+}
+
+// renderNetCard 画一块网卡：速率、累计、SVG 双折线（下蓝上红）。
+function renderNetCard(n){
+  let h = netHistory[n.name];
+  if (!h) h = netHistory[n.name] = {rx:[], tx:[]};
+  h.rx.push(n.rx_rate||0); h.tx.push(n.tx_rate||0);
+  if (h.rx.length > NET_POINTS) { h.rx.shift(); h.tx.shift(); }
+  const max = Math.max(1024, ...h.rx, ...h.tx);
+  const W = 560, H = 80;
+  const line = arr => arr.map((v,i)=>{
+    const x = (i/Math.max(1,NET_POINTS-1))*W;
+    const y = H - (v/max)*H;
+    return (i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);
+  }).join(' ');
+  return '<div class="net-card" style="margin-bottom:16px">'+
+    '<div class="row-flex" style="margin-bottom:6px"><b>'+esc(n.name)+'</b>'+
+    '<span style="color:#0071e3">↓ '+fmtRate(n.rx_rate||0)+'</span>'+
+    '<span style="color:#d70015">↑ '+fmtRate(n.tx_rate||0)+'</span>'+
+    '<span style="color:var(--gray);font-size:12px">累计 ↓ '+fmtBytes(n.rx_bytes)+' / ↑ '+fmtBytes(n.tx_bytes)+'</span></div>'+
+    '<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" preserveAspectRatio="none" style="display:block;background:rgba(0,113,227,0.04);border-radius:8px">'+
+    '<path d="'+line(h.rx)+'" fill="none" stroke="#0071e3" stroke-width="1.6"/>'+
+    '<path d="'+line(h.tx)+'" fill="none" stroke="#d70015" stroke-width="1.6"/>'+
+    '</svg></div>';
 }
 
 async function doPing(){

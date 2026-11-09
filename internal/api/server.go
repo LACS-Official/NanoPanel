@@ -42,6 +42,11 @@ type Server struct {
 	// tempProbe 仅用于测试注入，为空时读取 sysinfo 热区温度。
 	tempProbe func() []sysinfo.TempZone
 
+	// netMu 与 netPrev 保护网卡速率采样（两次请求间求差）。
+	netMu    sync.Mutex
+	netPrev  map[string]netSample
+	netProbe func() []sysinfo.NetIface // 仅测试注入，为空时读 /proc/net/dev
+
 	// selfRestart 仅用于测试注入，为空时通过 systemctl 重启面板服务。
 	selfRestart func() error
 

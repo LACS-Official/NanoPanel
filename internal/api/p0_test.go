@@ -236,3 +236,52 @@ func TestTempAlertAndRecovery(t *testing.T) {
 		t.Fatal("回落后应清除告警标记")
 	}
 }
+
+// TestTrafficStatsRate 两次请求之间按差值计算速率；计数器回绕归零。
+func TestTrafficStatsRate(t *testing.T) {
+	srv, _ := newTestServer(t)
+	rx := uint64(1000000)
+	srv.netProbe = func() []sysinfo.NetIface {
+		return []sysinfo.NetIface{{Name: "eth0", RxBytes: rx, TxBytes: 0}}
+	}
+
+	// 第一次：速率为 0，仅累计
+	rec := httptest.NewRecorder()
+	srv.TrafficStats(rec, httptest.NewRequest(http.MethodGet, "/api/v1/net/traffic", nil))
+	if !strings.Contains(rec.Body.String(), `"rx_rate":0`) {
+		t.Fatalf("首次请求速率应为 0: %s", rec.Body.String())
+	}
+
+	// 第二次：累计增加 2048 字节，速率为 2048/s 量级
+	rx += 2048
+	time.Sleep(250 * time.Millisecond) // 间隔需超过 0.2s 的防抖下限
+	rec = httptest.NewRecorder()
+	srv.TrafficStats(rec, httptest.NewRequest(http.MethodGet, "/api/v1/net/traffic", nil))
+	var resp struct {
+		OK   bool `json:"ok"`
+		Data []struct {
+			RxRate float64 `json:"rx_rate"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Data) != 1 {
+		t.Fatalf("应返回一块网卡: %s", rec.Body.String())
+	}
+	// 两次请求间隔极短，速率可能远大于 2048/s；只验证非零且有限。
+	if resp.Data[0].RxRate <= 0 || resp.Data[0].RxRate > 1<<30 {
+		t.Fatalf("速率计算异常: %v", resp.Data[0].RxRate)
+	}
+
+	// 计数器回绕：归零而非负数
+	rx = 0
+	rec = httptest.NewRecorder()
+	srv.TrafficStats(rec, httptest.NewRequest(http.MethodGet, "/api/v1/net/traffic", nil))
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Data[0].RxRate != 0 {
+		t.Fatalf("回绕后速率应归零: %v", resp.Data[0].RxRate)
+	}
+}

@@ -116,6 +116,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/process/kill", srv.AuthMiddleware(srv.KillProcess))
 	mux.HandleFunc("POST /api/v1/reboot", srv.AuthMiddleware(srv.Reboot))
 	mux.HandleFunc("GET /api/v1/ping", srv.AuthMiddleware(srv.Ping))
+	mux.HandleFunc("GET /api/v1/net/traffic", srv.AuthMiddleware(srv.TrafficStats))
 	mux.HandleFunc("GET /api/v1/logs", srv.AuthMiddleware(srv.Logs))
 	mux.HandleFunc("GET /api/v1/panel-logs", srv.AuthMiddleware(srv.PanelLogs))
 	mux.HandleFunc("GET /api/v1/apps", srv.AuthMiddleware(srv.ListApps))
