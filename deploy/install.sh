@@ -292,3 +292,6 @@ printf "%s" "$C_RESET"
 if [ "$FIRST_INSTALL" -eq 1 ]; then
   warn "初始密码仅此一次明文展示；随时可用 mpctl user-info 查看，登录后建议尽快修改。"
 fi
+if [ "$IS_WSL" -eq 1 ]; then
+  warn "WSL2 发行版空闲会自动停机；需要长期访问请运行 deploy/wsl-keepalive.ps1（详见 README）。"
+fi

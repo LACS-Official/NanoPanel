@@ -56,6 +56,12 @@ sudo ./install.sh          # WSL 默认 root 时可直接 ./install.sh
 
 Windows 浏览器打开 **http://localhost:8080** 即可（WSL2 自带 localhost 转发）。
 
+> **WSL2 必读：发行版空闲会自动停机。** WSL2 在没有活动会话时可能停止整个发行版，systemd 与面板服务会一起停掉，此时 Windows 侧访问 `localhost:8080` 会超时（WSL 内 `systemctl is-active micropanel` 也会因为发行版关机而不可用）。这是 WSL 的机制，不是面板故障。三种处理方式：
+>
+> 1. 打开一个 WSL 终端窗口并保持：`wsl -d Ubuntu2404`，服务会由 systemd 自动拉起；
+> 2. 需要开机即常驻：在 PowerShell 执行 `powershell -ExecutionPolicy Bypass -File .\wsl-keepalive.ps1`（注册登录时计划任务，可用 `-Remove` 移除）；
+> 3. 在 `%USERPROFILE%\.wslconfig` 中设置 `[wsl2] vmIdleTimeout=-1`，影响本机所有 WSL 发行版。
+
 ### 在线安装
 
 发布前把仓库地址通过环境变量传入（脚本不硬编码任何仓库）：
@@ -203,6 +209,7 @@ MicroPanel/
 │   ├── uninstall.sh
 │   ├── mpctl                # 命令行管理工具
 │   ├── micropanel.service   # systemd 单元
+│   ├── wsl-keepalive.ps1    # WSL2 常驻（可选）
 │   └── apps/                # 应用商店清单与示例应用
 └── .github/                 # CI、发布流程、Issue/PR 模板
 ```

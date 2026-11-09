@@ -13,6 +13,7 @@
 - 1Panel 式安装体验：自动探测最优镜像源、随机初始密码、安装后信息面板
 - `mpctl` 命令行工具（对标 `1pctl`）：状态管理、账号查看、密码重置、镜像信息、卸载
 - WSL / systemd 自动适配，无 systemd 时回退为进程守护
+- `deploy/wsl-keepalive.ps1`：解决 WSL2 发行版空闲停机后面板不可达的可选常驻方案
 - GitHub Actions CI（Linux + Windows）与 tag 触发的多架构发布流程
 
 ### 安全
