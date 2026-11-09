@@ -37,6 +37,20 @@ jobs:
         if: runner.os == 'Linux'
         run: test -z "$(gofmt -l .)"
 
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+
   cross-build:
     name: Cross build (linux/${{ matrix.name }})
     runs-on: ubuntu-latest

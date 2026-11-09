@@ -44,6 +44,7 @@ npctl - NanoPanel 管理工具
   reset-password [密码]  重置密码（不传则生成随机密码）
   version                查看面板版本
   mirror-info            查看当前使用的镜像源
+  upgrade                自升级：从 GitHub Release 拉取最新版本并重启
   uninstall              卸载面板
   help                   显示本帮助
 EOF
@@ -138,6 +139,54 @@ cmd_mirror_info() {
   cat "$MIRROR_CONF"
 }
 
+cmd_upgrade() {
+  local arch tmp tag asset
+  case "$(uname -m)" in
+    x86_64)        arch=amd64 ;;
+    aarch64|arm64) arch=arm64 ;;
+    armv7l)        arch=armv7 ;;
+    *)             die "不支持的架构: $(uname -m)" ;;
+  esac
+  [ -f "$MIRROR_CONF" ] && . "$MIRROR_CONF" 2>/dev/null || true
+  local GH="${GITHUB_MIRROR:-https://github.com}"
+  local REPO="LACS-Official/NanoPanel"
+  info "检查最新版本…"
+  tag=""
+  for base in "$GH" "https://github.com" "https://ghfast.top/https://github.com"; do
+    loc="$(curl -s -o /dev/null -w '%{redirect_url}' --connect-timeout 8 --max-time 20 "${base}/${REPO}/releases/latest" || true)"
+    tag="$(printf '%s' "$loc" | grep -oE 'tag/v[0-9A-Za-z.-]+$' | sed 's/^tag\///' || true)"
+    [ -n "$tag" ] && break
+  done
+  [ -n "$tag" ] || die "无法解析最新版本（仓库可能尚未发布 Release）"
+  asset="nanopanel-${arch}"
+  tmp="$(mktemp /tmp/nanopanel-XXXXXX)"
+  info "下载 ${tag} / linux-${arch}…"
+  for base in "$GH" "https://github.com" "https://ghfast.top/https://github.com"; do
+    if curl -fsL --connect-timeout 8 --max-time 300 -o "$tmp" \
+       "${base}/${REPO}/releases/download/${tag}/${asset}"; then
+      break
+    fi
+  done
+  [ -s "$tmp" ] || { rm -f "$tmp"; die "下载失败，请检查网络或稍后重试"; }
+  chmod 0755 "$tmp"
+  info "校验新版本…"
+  if ! "$tmp" -version >/dev/null 2>&1; then
+    rm -f "$tmp"; die "下载的文件无法执行，已回滚"
+  fi
+  info "替换二进制并重启…"
+  if has_systemd; then
+    systemctl stop "$SERVICE"
+    install -m 0755 "$tmp" "$BIN"
+    systemctl start "$SERVICE"
+  else
+    install -m 0755 "$tmp" "$BIN"
+    cmd_start >/dev/null
+  fi
+  rm -f "$tmp"
+  "$BIN" -version
+  info "升级完成"
+}
+
 cmd_uninstall() {
   [ -x /opt/nanopanel/uninstall.sh ] || die "卸载脚本不存在"
   exec /opt/nanopanel/uninstall.sh
@@ -153,6 +202,7 @@ case "${1:-help}" in
   reset-password)  cmd_reset_password "${2:-}" ;;
   version)         cmd_version ;;
   mirror-info)     cmd_mirror_info ;;
+  upgrade)         cmd_upgrade ;;
   uninstall)       cmd_uninstall ;;
   help|-h|--help)  usage ;;
   *)               die "未知命令: $1（执行 npctl help 查看用法）" ;;
