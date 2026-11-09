@@ -108,9 +108,15 @@ func main() {
 	mux.HandleFunc("POST /api/v1/app/action", srv.AuthMiddleware(srv.AppAction))
 	mux.HandleFunc("GET /api/v1/apps/config", srv.AuthMiddleware(srv.GetAppConfig))
 	mux.HandleFunc("POST /api/v1/apps/config", srv.AuthMiddleware(srv.SaveAppConfig))
+	mux.HandleFunc("GET /api/v1/apps/health", srv.AuthMiddleware(srv.AppHealthStatus))
+	mux.HandleFunc("POST /api/v1/apps/check", srv.AuthMiddleware(srv.CheckAppHealth))
+	mux.HandleFunc("GET /api/v1/settings/monitor", srv.AuthMiddleware(srv.GetMonitorSettings))
+	mux.HandleFunc("POST /api/v1/settings/monitor", srv.AuthMiddleware(srv.SaveMonitorSettings))
 	mux.HandleFunc("GET /api/v1/settings/webhook", srv.AuthMiddleware(srv.GetWebhook))
 	mux.HandleFunc("POST /api/v1/settings/webhook", srv.AuthMiddleware(srv.SaveWebhook))
 	mux.HandleFunc("POST /api/v1/settings/webhook/test", srv.AuthMiddleware(srv.TestWebhook))
+	mux.HandleFunc("GET /api/v1/mihomo/status", srv.AuthMiddleware(srv.MihomoStatus))
+	mux.HandleFunc("/api/v1/mihomo", srv.AuthMiddleware(srv.MihomoProxy))
 
 	// 前端静态文件（SPA）
 	staticSub, err := fs.Sub(webFS, "web")
@@ -132,6 +138,8 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	// 应用健康检测随服务生命周期启停，掉线/恢复会推送 health 事件通知。
+	srv.StartMonitor(ctx)
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

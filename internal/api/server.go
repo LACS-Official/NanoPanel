@@ -2,6 +2,7 @@
 package api
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"runtime"
@@ -23,8 +24,18 @@ type Server struct {
 	// logDir 面板操作日志目录，空值时按平台默认。
 	logDir string
 
-	// mu 保护运行期可变的配置字段（当前是 PasswordHash）。
+	// mu 保护运行期可变的配置字段（PasswordHash、Webhook、监控间隔等）。
 	mu sync.RWMutex
+
+	// healthMu 保护应用健康状态快照，避免定时检测与手动检测并发。
+	healthMu   sync.Mutex
+	lastHealth map[string]string // appID -> running / down / unknown / not_installed
+
+	// mihomoBase 仅用于测试注入，为空时按配置的控制端口拼装。
+	mihomoBase string
+
+	// unitProbe 仅用于测试注入，为空时通过 systemctl 查询单元状态。
+	unitProbe func(context.Context, string) string
 }
 
 // NewServer 创建 API 服务容器。

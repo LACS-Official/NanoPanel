@@ -114,7 +114,15 @@
           "label": "外部控制端口",
           "type": "number",
           "default": "9090",
-          "description": "RESTful API 控制端口，配合可视化面板使用"
+          "description": "RESTful API 控制端口，面板的代理管理页通过它连接内核"
+        },
+        {
+          "name": "controller_secret",
+          "label": "控制接口密钥",
+          "type": "password",
+          "default": "",
+          "placeholder": "可留空（仅本机可访问控制接口）",
+          "description": "设置后内核要求 Bearer 鉴权，面板会自动携带"
         },
         {
           "name": "subscribe_url",
@@ -123,6 +131,78 @@
           "default": "",
           "placeholder": "https://example.com/subscribe?token=…",
           "description": "填写后保存会拉取订阅并替换配置文件"
+        }
+      ]
+    },
+    {
+      "id": "picoclaw",
+      "name": "PicoClaw",
+      "description": "超轻量 Go AI 助手（<10MB 内存），可接入 Telegram / 飞书 / 钉钉等频道，适合小内存 ARM 与 RISC-V 设备",
+      "version": "0.2.x",
+      "icon": "",
+      "category": "AI",
+      "unit": "picoclaw",
+      "config": [
+        {
+          "name": "gateway_port",
+          "label": "Gateway 端口",
+          "type": "number",
+          "default": "18790",
+          "description": "HTTP 网关监听端口"
+        },
+        {
+          "name": "gateway_host",
+          "label": "Gateway 监听地址",
+          "type": "select",
+          "default": "127.0.0.1",
+          "options": ["127.0.0.1", "0.0.0.0"],
+          "description": "0.0.0.0 允许局域网访问网关，请注意鉴权"
+        },
+        {
+          "name": "model",
+          "label": "模型标识",
+          "type": "text",
+          "default": "openai/gpt-4o-mini",
+          "placeholder": "openai/gpt-4o-mini 或 deepseek/deepseek-chat",
+          "description": "格式为「厂商/模型名」，决定使用哪家协议"
+        },
+        {
+          "name": "api_base",
+          "label": "模型 API 地址",
+          "type": "text",
+          "default": "https://api.openai.com/v1",
+          "placeholder": "https://api.openai.com/v1"
+        },
+        {
+          "name": "api_key",
+          "label": "模型 API Key",
+          "type": "password",
+          "default": "",
+          "placeholder": "sk-…（留空则只启动网关，不加载模型）",
+          "description": "写入 0600 权限的配置文件，面板不会回显"
+        },
+        {
+          "name": "telegram_token",
+          "label": "Telegram Bot Token",
+          "type": "password",
+          "default": "",
+          "placeholder": "可留空（从 @BotFather 获取）",
+          "description": "填写后自动启用 Telegram 频道"
+        },
+        {
+          "name": "telegram_allow_from",
+          "label": "Telegram 允许的用户 ID",
+          "type": "text",
+          "default": "",
+          "placeholder": "可留空表示不限制",
+          "description": "建议填写自己的用户 ID，避免机器人被陌生人使用"
+        },
+        {
+          "name": "log_level",
+          "label": "日志级别",
+          "type": "select",
+          "default": "warn",
+          "options": ["warn", "info", "debug", "error"]
         }
       ]
     },

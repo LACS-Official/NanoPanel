@@ -40,8 +40,9 @@ type AppMeta struct {
 	Version     string           `json:"version"`
 	Icon        string           `json:"icon"`
 	Category    string           `json:"category"`
-	Unit        string           `json:"unit,omitempty"`   // 对应的 systemd 单元，供日志筛选
+	Unit        string           `json:"unit,omitempty"`   // 对应的 systemd 单元，供日志筛选与存活检测
 	State       string           `json:"state"`            // installed / not_installed / unknown
+	Status      string           `json:"status,omitempty"` // running / down / unknown / not_installed
 	Config      []AppConfigField `json:"config,omitempty"` // 常用配置项声明
 }
 
@@ -124,6 +125,7 @@ func (s *Server) ListApps(w http.ResponseWriter, r *http.Request) {
 	}
 	for i := range m.Apps {
 		m.Apps[i].State = s.appState(r.Context(), m.Apps[i].ID)
+		m.Apps[i].Status = s.appRuntimeStatus(r.Context(), &m.Apps[i]).Status
 	}
 	ok(w, m.Apps)
 }
@@ -418,5 +420,6 @@ func notifyEventOptions() []map[string]string {
 		{"key": "app", "label": "应用商店"},
 		{"key": "settings", "label": "面板设置"},
 		{"key": "system", "label": "系统操作"},
+		{"key": "health", "label": "应用掉线 / 恢复"},
 	}
 }

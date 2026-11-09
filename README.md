@@ -16,8 +16,10 @@
 - **`npctl` 管理工具**：查看账号、重置密码、启停服务、查看镜像源、卸载
 - **WSL / systemd 自适应**：WSL2 Ubuntu 可直接安装；无 systemd 时自动回退为进程守护
 - 系统概览、服务启停、进程管理、日志中心、Ping、应用商店、系统重启、修改密码
-- **应用商店**：内置 CUPS、AdGuard Home、Tailscale、Mihomo 四个真实应用，面板内可视化配置常用参数（端口、订阅链接、AuthKey 等）
+- **应用商店**：内置 CUPS、AdGuard Home、Tailscale、Mihomo、PicoClaw 五个真实应用，面板内可视化配置常用参数（端口、订阅链接、AuthKey、模型密钥等）
+- **Mihomo 管理面板**：面板内切换代理节点、测速、切换运行模式、查看与断开活跃连接，无需单独部署前端
 - **Webhook 通知**：支持企业微信、钉钉、飞书、Server酱与通用 JSON 五种格式，按事件类别订阅推送
+- **应用健康检测**：定时检查已安装应用的 systemd 单元，掉线或恢复时自动推送 Webhook 并写入面板日志
 - **日志中心**：系统日志可按服务与已安装应用筛选，面板操作全程留痕可审计
 - 用户名 + 密码登录、PBKDF2 加盐哈希、登录限速、输入白名单、安全响应头
 
@@ -141,6 +143,8 @@ npctl uninstall              # 卸载（默认保留 /etc/nanopanel）
 | `token_ttl_hours` | token 有效期，默认 24 小时 |
 | `services` | 允许操作的 systemd 服务白名单 |
 | `apps_dir` / `manifest_path` | 应用商店目录与清单路径 |
+| `webhook_url` / `webhook_format` / `webhook_events` | 通知地址、格式与订阅事件（含 `health` 掉线告警） |
+| `monitor_interval_sec` | 应用健康检测间隔（秒），默认 60；`-1` 关闭自动检测 |
 
 凭据文件 `/etc/nanopanel/credentials.json`（0600）保存明文密码，供 `npctl user-info` 使用；不需要可删除，不影响改密功能。
 
@@ -184,13 +188,19 @@ make build-all    # 交叉编译三个 Linux 架构
 | GET | `/ping?host=` | 连通性测试 |
 | GET | `/logs?unit=&n=` | journalctl 日志，可按服务/应用单元筛选 |
 | GET | `/panel-logs` | 面板操作审计日志（最近 300 条，新在前） |
-| GET | `/apps` | 应用列表 |
+| GET | `/apps` | 应用列表（含安装与运行状态） |
 | POST | `/app/action?id=&action=` | 安装 / 卸载应用 |
 | GET | `/apps/config?id=` | 读取应用配置项与当前值 |
 | POST | `/apps/config?id=` | 保存应用配置并调用 `config.sh` 应用 |
+| GET | `/apps/health` | 所有应用的运行状态快照与监控配置 |
+| POST | `/apps/check?force=1` | 立即体检；`force=1` 时对当前已掉线的应用直接告警 |
+| GET | `/settings/monitor` | 读取健康检测设置与可选间隔 |
+| POST | `/settings/monitor` | 保存检测间隔（`{"interval_sec":60}`，`-1` 关闭） |
 | GET | `/settings/webhook` | 读取 Webhook 通知配置与可选项 |
 | POST | `/settings/webhook` | 保存通知地址 / 格式 / 订阅事件 |
 | POST | `/settings/webhook/test` | 立即发送一条测试通知 |
+| GET | `/mihomo/status` | mihomo 安装状态、控制端口与内核版本 |
+| ALL | `/mihomo?path=/proxies` | 转发到 mihomo 控制接口（路径白名单，GET/PUT/PATCH/DELETE） |
 
 ## 应用商店约定
 
@@ -208,7 +218,25 @@ make build-all    # 交叉编译三个 Linux 架构
 | CUPS | apt | 管理端口、局域网访问开关 |
 | AdGuard Home | GitHub 官方二进制 | 控制台端口、监听地址 |
 | Tailscale | 官方一键脚本 | AuthKey 自动入网、出口节点、DNS 设置 |
-| Mihomo (Clash.Meta) | GitHub 官方二进制 | 混合代理端口、局域网开关、控制端口、订阅链接 |
+| Mihomo (Clash.Meta) | GitHub 官方二进制 | 混合代理端口、局域网开关、控制端口与密钥、订阅链接 |
+| PicoClaw | GitHub 官方预编译包 | Gateway 端口/地址、模型与 API Key、Telegram Bot、日志级别 |
+
+### 应用健康检测
+
+面板启动后按 `monitor_interval_sec`（默认 60 秒）检查清单中已安装应用的 systemd 单元：
+
+- 状态由「运行中」变为「已停止」→ 推送 `health` 事件通知「应用掉线」，恢复时推送「应用恢复」
+- 首次检测只建立基线，不会因为启动瞬间的中间状态刷屏；未声明 `unit` 的应用不参与检测
+- 告警同时写入面板日志（类别 `健康检测`），可在「设置 → 应用健康检测」调整间隔或关闭，也可点「立即检测并告警」手动体检
+- 需要在 Webhook 设置里勾选「**应用掉线 / 恢复**」事件并填写地址，通知才会发出
+
+### Mihomo 管理面板
+
+左侧「代理管理」或应用卡片上的「管理」按钮进入。浏览器不直接连接内核，所有请求经面板转发到 `127.0.0.1:<控制端口>`：
+
+- 转发路径限定在 `/version`、`/configs`、`/proxies`、`/connections`、`/rules`、`/providers/proxies` 白名单内，仅允许 GET/PUT/PATCH/DELETE，面板的登录 token 不会泄漏给内核
+- 支持中文代理组与节点名；如果配置了「控制接口密钥」，面板会自动携带 `Bearer` 头
+- 提供内核版本、运行模式、流量统计、代理组节点切换与测速、活跃连接查看/断开/清空，可开启 10 秒自动刷新
 
 ### 应用配置约定
 
@@ -227,7 +255,7 @@ NanoPanel/
 │   ├── config/              # 配置、校验、密码哈希、凭据文件
 │   ├── auth/                # token 管理与登录限速
 │   ├── sysinfo/             # /proc 采集与跨平台磁盘信息
-│   └── api/                 # 全部 HTTP 接口
+│   └── api/                 # 全部 HTTP 接口（含健康检测、通知、内核代理）
 ├── web/index.html           # 内嵌单页前端
 ├── deploy/
 │   ├── install.sh           # 一键安装脚本

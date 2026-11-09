@@ -101,7 +101,7 @@
   .app-head .name { font-weight:600; }
   .app-head .ver { font-size:12px; color:var(--gray); }
   .app-desc { font-size:12px; color:var(--gray); line-height:1.5; margin-bottom:12px; min-height:34px; }
-  .app-foot { display:flex; justify-content:space-between; align-items:center; }
+  .app-foot { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
   .state-tag { font-size:12px; color:var(--gray); }
 
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1d1d1f; color:#fff;
@@ -140,6 +140,23 @@
   .modal textarea:focus { border-color:var(--blue); }
   .modal pre { margin-top:12px; max-height:200px; }
   .modal-actions { display:flex; gap:10px; margin-top:16px; }
+
+  /* 应用运行状态 */
+  .app-state { font-size:12px; font-weight:600; }
+  .st-run { color:#1a9e44; } .st-down { color:#d70015; } .st-unknown { color:var(--gray); }
+
+  /* 代理管理 */
+  .mh-group { border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px; }
+  .mh-group h3 { font-size:14px; margin-bottom:2px; }
+  .mh-group .sub { font-size:12px; color:var(--gray); margin-bottom:10px; }
+  .node-list { display:flex; flex-wrap:wrap; gap:8px; }
+  .node { border:1px solid var(--line); background:#fff; border-radius:980px; padding:6px 12px;
+    font-size:12px; cursor:pointer; font-family:inherit; color:var(--text); }
+  .node:hover { border-color:var(--blue); }
+  .node.cur { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .node .d { opacity:.7; margin-left:6px; font-size:11px; }
+  .mh-auto { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--gray); }
+  .mh-auto input { width:auto; margin:0; accent-color:var(--blue); }
 
   /* 窄屏：侧边栏降级为顶部横滑条 */
   @media (max-width:760px) {
@@ -182,6 +199,7 @@
         <button data-view="logs"><span class="ic">▤</span>日志</button>
         <button data-view="network"><span class="ic">◎</span>网络</button>
         <button data-view="apps"><span class="ic">⊞</span>应用商店</button>
+        <button data-view="mihomo"><span class="ic">⇄</span>代理管理</button>
         <button data-view="settings"><span class="ic">✎</span>设置</button>
       </nav>
       <div class="side-foot">
@@ -273,6 +291,49 @@
         </div>
       </div>
 
+      <div class="view" id="view-mihomo">
+        <div class="card">
+          <h2>Mihomo 代理内核</h2>
+          <div class="row-flex" style="margin-bottom:14px">
+            <button class="btn sm" onclick="loadMihomoAll()">刷新</button>
+            <label class="mh-auto"><input type="checkbox" id="mhAuto"> 自动刷新（10 秒）</label>
+            <span class="state-tag" id="mhStatus"></span>
+          </div>
+          <div class="grid2" id="mhMetrics"></div>
+        </div>
+        <div class="card">
+          <h2>运行模式</h2>
+          <div class="row-flex">
+            <select id="mhMode" class="sm">
+              <option value="rule">规则模式 (rule)</option>
+              <option value="global">全局模式 (global)</option>
+              <option value="direct">直连模式 (direct)</option>
+            </select>
+            <button class="btn sm" onclick="setMihomoMode()">切换模式</button>
+          </div>
+          <div style="font-size:12px;color:var(--gray);margin-top:10px">
+            代理接口仅监听 127.0.0.1，所有请求经面板转发；切换节点、测速、断开连接都会记入面板日志。
+          </div>
+        </div>
+        <div class="card">
+          <h2>代理组与节点</h2>
+          <div id="mhGroups"></div>
+        </div>
+        <div class="card">
+          <h2>活跃连接</h2>
+          <div class="row-flex" style="margin-bottom:12px">
+            <span class="state-tag" id="mhConnCount"></span>
+            <button class="btn sm danger" onclick="clearMihomoConns()">清空全部连接</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>目标</th><th>网络</th><th>规则</th><th>上传 / 下载</th><th>操作</th></tr></thead>
+              <tbody id="mhConns"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div class="view" id="view-settings">
         <div class="card">
           <h2>Webhook 通知</h2>
@@ -292,6 +353,19 @@
             <button class="btn" onclick="saveWebhook()">保存通知配置</button>
             <button class="btn gray" onclick="testWebhook()">发送测试通知</button>
           </div>
+        </div>
+        <div class="card">
+          <h2>应用健康检测</h2>
+          <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+            定时检查已安装应用的 systemd 单元；从「运行中」变为「已停止」或恢复时，
+            会推送 Webhook 通知并写入面板日志。需在上方勾选「应用掉线 / 恢复」事件。
+          </div>
+          <div class="row-flex">
+            <select id="monInterval" class="sm"></select>
+            <button class="btn sm" onclick="saveMonitor()">保存设置</button>
+            <button class="btn sm gray" onclick="checkAppsNow()">立即检测并告警</button>
+          </div>
+          <div style="font-size:12px;color:var(--gray);margin-top:10px" id="monHint"></div>
         </div>
         <div class="card">
           <h2>修改密码</h2>
@@ -331,6 +405,7 @@
 const API = '/api/v1';
 let token = localStorage.getItem('np_token') || '';
 let overviewTimer = null;
+let mhTimer = null;
 
 function esc(v){
   return String(v == null ? '' : v)
@@ -367,13 +442,15 @@ function showLogin(){
   document.getElementById('loginView').classList.remove('hidden');
   document.getElementById('mainView').classList.add('hidden');
   if (overviewTimer){ clearInterval(overviewTimer); overviewTimer=null; }
+  if (mhTimer){ clearInterval(mhTimer); mhTimer=null; }
 }
 function showMain(){
   document.getElementById('loginView').classList.add('hidden');
   document.getElementById('mainView').classList.remove('hidden');
   const saved = localStorage.getItem('np_user');
   document.getElementById('sideUser').textContent = saved ? '已登录：' + saved : '';
-  switchView('overview'); loadOverview(); loadServices(); loadProcesses(); loadApps(); loadWebhook();
+  switchView('overview'); loadOverview(); loadServices(); loadProcesses(); loadApps();
+  loadWebhook(); loadMonitorSettings();
   overviewTimer = setInterval(()=>{ if(currentView()==='overview') loadOverview(); }, 5000);
 }
 
@@ -399,7 +476,17 @@ function currentView(){ const b=document.querySelector('.nav button.active'); re
 function switchView(v){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
+  if (v==='mihomo') loadMihomoAll();
+  syncMihomoTimer();
 }
+function syncMihomoTimer(){
+  if (mhTimer){ clearInterval(mhTimer); mhTimer=null; }
+  const box = document.getElementById('mhAuto');
+  if (box && box.checked && currentView()==='mihomo'){
+    mhTimer = setInterval(()=>{ if(currentView()==='mihomo') loadMihomoAll(); }, 10000);
+  }
+}
+document.getElementById('mhAuto').addEventListener('change', syncMihomoTimer);
 document.getElementById('nav').addEventListener('click',e=>{
   if(e.target.closest('button[data-view]')) switchView(e.target.closest('button[data-view]').dataset.view);
 });
@@ -508,7 +595,7 @@ async function loadLogs(){
   } catch(e){ document.getElementById('logOutput').textContent = e.message; }
 }
 
-const catLabels = {login:'登录', service:'服务', process:'进程', app:'应用', settings:'设置', system:'系统'};
+const catLabels = {login:'登录', service:'服务', process:'进程', app:'应用', settings:'设置', system:'系统', health:'健康检测'};
 async function loadPanelLogs(){
   try {
     const list = await call('GET','/panel-logs');
@@ -544,6 +631,169 @@ async function testWebhook(){
   catch(e){ toast(e.message); }
 }
 
+// ===== 应用健康检测设置 =====
+async function loadMonitorSettings(){
+  try {
+    const d = await call('GET','/settings/monitor');
+    const sel = document.getElementById('monInterval');
+    sel.innerHTML = (d.options||[]).map(o=>
+      '<option value="'+esc(o.value)+'"'+(Number(o.value)===Number(d.interval_sec)?' selected':'')+'>'+esc(o.label)+'</option>').join('');
+    document.getElementById('monHint').textContent = d.monitor_enabled
+      ? '当前每 ' + d.interval_sec + ' 秒检测一次；保存后下一轮生效。'
+      : '自动检测已关闭，可点「立即检测并告警」手动体检。';
+  } catch(e){ /* 静默 */ }
+}
+async function saveMonitor(){
+  const v = Number(document.getElementById('monInterval').value);
+  try { await call('POST','/settings/monitor',{interval_sec:v}); toast('检测设置已保存'); loadMonitorSettings(); }
+  catch(e){ toast(e.message); }
+}
+async function checkAppsNow(){
+  try {
+    const d = await call('POST','/apps/check?force=1');
+    toast('检测完成：' + (d.changes||[]).length + ' 处掉线 / 恢复');
+    loadApps(); loadPanelLogs();
+  } catch(e){ toast(e.message); }
+}
+
+// ===== Mihomo 代理管理 =====
+let mhDelays = {};
+function fmtBytes(n){
+  n = Number(n) || 0;
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n/1024).toFixed(1) + ' KB';
+  if (n < 1073741824) return (n/1048576).toFixed(1) + ' MB';
+  return (n/1073741824).toFixed(2) + ' GB';
+}
+// 内核返回的可能是 204 空响应，因此单独封装，不复用 call()
+async function mihomoCall(path, method, body, params){
+  let url = API + '/mihomo?path=' + encodeURIComponent(path);
+  if (params) Object.keys(params).forEach(k=>{ url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); });
+  const opt = { method: method || 'GET', headers: {'Content-Type':'application/json'} };
+  if (token) opt.headers['Authorization'] = 'Bearer ' + token;
+  if (body) opt.body = JSON.stringify(body);
+  const res = await fetch(url, opt);
+  if (res.status === 401){ token=''; localStorage.removeItem('np_token'); showLogin(); throw new Error('登录已过期'); }
+  if (res.status === 204 || res.status === 205) return {};
+  const text = await res.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch(e){ throw new Error('内核响应格式错误'); }
+  if (!res.ok) throw new Error(data.message || data.error || ('内核返回 HTTP ' + res.status));
+  return data;
+}
+function mhMessage(msg){
+  document.getElementById('mhStatus').textContent = msg;
+  document.getElementById('mhMetrics').innerHTML = '';
+  document.getElementById('mhGroups').innerHTML = '';
+  document.getElementById('mhConns').innerHTML = '<tr><td colspan="5" style="color:var(--gray)">'+esc(msg)+'</td></tr>';
+  document.getElementById('mhConnCount').textContent = '';
+}
+async function loadMihomoAll(){
+  try {
+    const st = await call('GET','/mihomo/status');
+    if (!st.installed) return mhMessage('尚未安装 Mihomo，请先到「应用商店」安装');
+    if (!st.reachable) return mhMessage('内核控制接口不可达（' + esc(st.controller) + '），请检查应用状态与控制端口');
+    const [ver, cfg, px, conns] = await Promise.all([
+      mihomoCall('/version'), mihomoCall('/configs'), mihomoCall('/proxies'), mihomoCall('/connections')
+    ]);
+    document.getElementById('mhStatus').textContent = '已连接 · ' + (ver.version || ver.meta || '内核在线');
+    document.getElementById('mhMetrics').innerHTML =
+      metric('内核版本', ver.version || ver.meta || '-') +
+      metric('运行模式', cfg.mode || '-') +
+      metric('混合代理端口', cfg['mixed-port'] || '-') +
+      metric('活跃连接', (conns.connections||[]).length) +
+      metric('累计下载', fmtBytes(conns.downloadTotal)) +
+      metric('累计上传', fmtBytes(conns.uploadTotal));
+    const mode = cfg.mode || 'rule';
+    const sel = document.getElementById('mhMode');
+    if (sel.querySelector('option[value="'+CSS.escape(mode)+'"]')) sel.value = mode;
+    renderMihomoGroups(px.proxies || {});
+    renderMihomoConns(conns);
+  } catch(e){ mhMessage(e.message); }
+}
+const mhGroupTypes = ['Selector','URLTest','Fallback','LoadBalance','Relay'];
+function renderMihomoGroups(proxies){
+  const names = Object.keys(proxies).filter(n=>{
+    const p = proxies[n] || {};
+    return mhGroupTypes.indexOf(p.type) >= 0 && (p.all||[]).length > 0;
+  });
+  if (!names.length){
+    document.getElementById('mhGroups').innerHTML =
+      '<div style="font-size:13px;color:var(--gray)">当前配置没有可用的代理组，请先在应用配置里填写订阅链接。</div>';
+    return;
+  }
+  document.getElementById('mhGroups').innerHTML = names.map(g=>{
+    const p = proxies[g], delays = mhDelays[g] || {};
+    const nodes = (p.all||[]).map(n=>{
+      const v = delays[n];
+      const d = (typeof v === 'number' && v > 0) ? v + 'ms' : '';
+      return '<button class="node'+(p.now===n?' cur':'')+'" data-group="'+esc(g)+'" data-node="'+esc(n)+'">'+
+        esc(n)+(d?'<span class="d">'+esc(d)+'</span>':'')+'</button>';
+    }).join('');
+    return '<div class="mh-group"><div class="row-flex" style="justify-content:space-between">'+
+      '<h3>'+esc(g)+'</h3><button class="btn sm gray" data-delay="'+esc(g)+'">测速</button></div>'+
+      '<div class="sub">'+esc(p.type||'')+' · 当前 '+esc(p.now||'-')+' · '+(p.all||[]).length+' 个节点</div>'+
+      '<div class="node-list">'+nodes+'</div></div>';
+  }).join('');
+}
+function renderMihomoConns(conns){
+  const list = conns.connections || [];
+  document.getElementById('mhConnCount').textContent = '共 ' + list.length + ' 条连接' + (list.length>50?'（仅显示前 50 条）':'');
+  document.getElementById('mhConns').innerHTML = list.length ? list.slice(0,50).map(c=>{
+    const m = c.metadata || {};
+    const target = (m.host || m.destinationIP || '-') + (m.destinationPort ? ':' + m.destinationPort : '');
+    const rule = (c.rule||'-') + (c.rulePayload ? ' ' + c.rulePayload : '');
+    return '<tr><td>'+esc(target)+'</td><td>'+esc(m.network||'-')+'</td><td>'+esc(rule)+'</td>'+
+      '<td>'+esc(fmtBytes(c.upload))+' / '+esc(fmtBytes(c.download))+'</td>'+
+      '<td><button class="btn sm danger" data-conn="'+esc(c.id)+'">断开</button></td></tr>';
+  }).join('') : '<tr><td colspan="5" style="color:var(--gray)">暂无活跃连接</td></tr>';
+}
+document.getElementById('mhGroups').addEventListener('click', async e=>{
+  const delayBtn = e.target.closest('button[data-delay]');
+  if (delayBtn){
+    const group = delayBtn.dataset.delay;
+    delayBtn.disabled = true; toast('正在测速…');
+    try {
+      const d = await mihomoCall('/proxies/'+group+'/delay','GET',null,
+        {url:'http://www.gstatic.com/generate_204', timeout:'3000'});
+      mhDelays[group] = d || {};
+      Array.from(document.querySelectorAll('#mhGroups .node')).forEach(el=>{
+        if (el.dataset.group !== group) return;
+        const v = mhDelays[group][el.dataset.node];
+        let tag = el.querySelector('.d');
+        if (!tag){ tag = document.createElement('span'); tag.className='d'; el.appendChild(tag); }
+        tag.textContent = (typeof v === 'number' && v > 0) ? v+'ms' : '超时';
+      });
+      toast('测速完成');
+    } catch(err){ toast(err.message); }
+    delayBtn.disabled = false;
+    return;
+  }
+  const nodeBtn = e.target.closest('button[data-node]');
+  if (nodeBtn){
+    try {
+      await mihomoCall('/proxies/'+nodeBtn.dataset.group,'PUT',{name:nodeBtn.dataset.node});
+      toast('已切换到 ' + nodeBtn.dataset.node);
+      loadMihomoAll();
+    } catch(err){ toast(err.message); }
+  }
+});
+document.getElementById('mhConns').addEventListener('click', async e=>{
+  const b = e.target.closest('button[data-conn]'); if(!b) return;
+  try { await mihomoCall('/connections/'+b.dataset.conn,'DELETE'); toast('连接已断开'); loadMihomoAll(); }
+  catch(err){ toast(err.message); }
+});
+async function setMihomoMode(){
+  const mode = document.getElementById('mhMode').value;
+  try { await mihomoCall('/configs','PATCH',{mode}); toast('模式已切换为 ' + mode); loadMihomoAll(); }
+  catch(e){ toast(e.message); }
+}
+async function clearMihomoConns(){
+  if(!confirm('确定清空全部活跃连接？')) return;
+  try { await mihomoCall('/connections','DELETE'); toast('连接已清空'); loadMihomoAll(); }
+  catch(e){ toast(e.message); }
+}
+
 async function doPing(){
   const host = document.getElementById('pingHost').value.trim();
   if(!host) return toast('请输入目标');
@@ -554,6 +804,8 @@ async function doPing(){
   } catch(e){ document.getElementById('pingOutput').textContent = e.message; }
 }
 
+const healthLabels = {running:'● 运行中', down:'● 已掉线', unknown:'○ 未监控', not_installed:'未安装'};
+const healthCls = {running:'st-run', down:'st-down', unknown:'st-unknown', not_installed:'st-unknown'};
 async function loadApps(){
   try {
     const list = await call('GET','/apps');
@@ -562,11 +814,15 @@ async function loadApps(){
       const installed = a.state==='installed';
       const cfgBtn = installed && a.config && a.config.length
         ? '<button class="btn sm gray" data-cfg="'+esc(a.id)+'">配置</button>' : '';
+      const manageBtn = (a.id==='mihomo' && installed)
+        ? '<button class="btn sm gray" data-manage="mihomo">管理</button>' : '';
+      const st = a.status || a.state;
       return '<div class="app-card"><div class="app-head"><div class="app-icon">'+esc((a.name||'?')[0])+'</div>'+
         '<div><div class="name">'+esc(a.name)+'</div><div class="ver">'+esc(a.version)+'</div></div></div>'+
         '<div class="app-desc">'+esc(a.description)+'</div>'+
-        '<div class="app-foot"><span class="state-tag">'+esc(a.state)+'</span>'+
-        '<span class="row-flex" style="gap:8px">'+cfgBtn+
+        '<div class="app-foot"><span class="app-state '+(healthCls[st]||'st-unknown')+'">'+
+        esc(healthLabels[st]||st)+'</span>'+
+        '<span class="row-flex" style="gap:8px">'+manageBtn+cfgBtn+
         '<button class="btn sm '+(installed?'danger':'')+'" data-id="'+esc(a.id)+'" data-act="'+(installed?'remove':'install')+'">'+
         (installed?'卸载':'安装')+'</button></span></div></div>';
     }).join('');
@@ -575,6 +831,8 @@ async function loadApps(){
 }
 let appData = [];
 document.getElementById('appGrid').addEventListener('click', async e=>{
+  const manageBtn = e.target.closest('button[data-manage]');
+  if (manageBtn){ switchView('mihomo'); return; }
   const cfgBtn = e.target.closest('button[data-cfg]');
   if (cfgBtn) return openAppCfg(cfgBtn.dataset.cfg);
   const b = e.target.closest('button[data-id]'); if(!b) return;

@@ -45,6 +45,14 @@ else
   printf 'external-controller: 127.0.0.1:%s\n' "$external_controller_port" >> "$conf"
 fi
 
+# 控制接口密钥：先删除旧值再按需写入，避免残留或 YAML 注入
+secret_value="${controller_secret:-}"
+sed -i -E '/^secret:/d' "$conf"
+if [ -n "$secret_value" ]; then
+  [[ "$secret_value" =~ ^[A-Za-z0-9._-]{1,64}$ ]] || die "控制接口密钥只允许字母、数字、点、下划线和短横"
+  printf 'secret: "%s"\n' "$secret_value" >> "$conf"
+fi
+
 if command -v systemctl >/dev/null 2>&1; then
   systemctl restart mihomo
 fi

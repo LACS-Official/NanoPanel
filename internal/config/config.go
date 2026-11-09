@@ -55,13 +55,20 @@ type Config struct {
 	WebhookURL    string   `json:"webhook_url,omitempty"`
 	WebhookFormat string   `json:"webhook_format,omitempty"`
 	WebhookEvents []string `json:"webhook_events,omitempty"`
+
+	// MonitorIntervalSec 是应用健康检测间隔（秒）。
+	// 0 表示使用默认值，小于 0 表示关闭自动检测。
+	MonitorIntervalSec int `json:"monitor_interval_sec,omitempty"`
 }
+
+// DefaultMonitorIntervalSec 是应用掉线检测的默认间隔。
+const DefaultMonitorIntervalSec = 60
 
 // WebhookFormats 支持的通知推送格式。
 var WebhookFormats = []string{"generic", "wecom", "dingtalk", "feishu", "serverchan"}
 
 // NotifyEvents 可订阅的通知事件类别。
-var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system"}
+var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system", "health"}
 
 // ValidWebhookFormat 判断格式是否受支持。
 func ValidWebhookFormat(f string) bool {
@@ -89,8 +96,9 @@ func Default() *Config {
 			{Name: "nginx", Label: "Nginx"},
 			{Name: "ssh", Label: "SSH"},
 		},
-		AppsDir:      "/opt/nanopanel/apps",
-		ManifestPath: "/opt/nanopanel/apps/manifest.json",
+		AppsDir:            "/opt/nanopanel/apps",
+		ManifestPath:       "/opt/nanopanel/apps/manifest.json",
+		MonitorIntervalSec: DefaultMonitorIntervalSec,
 	}
 }
 
@@ -131,6 +139,9 @@ func Load(path string) (*Config, error) {
 	}
 	if c.WebhookFormat == "" {
 		c.WebhookFormat = "generic"
+	}
+	if c.MonitorIntervalSec == 0 {
+		c.MonitorIntervalSec = d.MonitorIntervalSec
 	}
 	if err := c.Validate(); err != nil {
 		return nil, err
@@ -173,6 +184,10 @@ func (c *Config) Validate() error {
 		if !ValidNotifyEvent(e) {
 			return fmt.Errorf("webhook_events 包含未知事件: %q", e)
 		}
+	}
+	v := c.MonitorIntervalSec
+	if v != 0 && v != -1 && (v < 10 || v > 3600) {
+		return fmt.Errorf("monitor_interval_sec 超出范围（10-3600 秒，或 -1 关闭）: %d", v)
 	}
 	return nil
 }
