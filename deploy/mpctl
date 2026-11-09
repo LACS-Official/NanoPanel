@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mpctl - MicroPanel 命令行管理工具（用法对标 1pctl）
+# mpctl - MicroPanel 命令行管理工具
 set -euo pipefail
 
 BIN="/opt/micropanel/micropanel"

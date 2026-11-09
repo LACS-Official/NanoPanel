@@ -5,14 +5,14 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20wsl2-lightgrey)
 
-面向 OpenStick（UFI003 / MSM8916 / 512MB）这类小内存设备的**轻量运维面板**。单个 Go 二进制、前端内嵌、零第三方依赖，对标 1Panel 的形态与安装体验，但不用 Docker —— 全部走 `apt` + `systemd` 原生方案。
+面向 OpenStick（UFI003 / MSM8916 / 512MB）这类小内存设备的**轻量运维面板**。单个 Go 二进制、前端内嵌、零第三方依赖，一条命令完成安装，但不用 Docker —— 全部走 `apt` + `systemd` 原生方案。
 
 > 项目以 **root** 运行并能管理系统服务、进程与应用脚本，**仅限可信内网使用**。详见 [SECURITY.md](SECURITY.md)。
 
 ## 特性
 
 - **单文件交付**：Go 标准库编译为静态二进制，前端用 `go:embed` 内嵌，部署只发一个约 6 MB 的文件
-- **1Panel 式安装**：自动探测最优镜像源、自动生成随机初始密码、安装后直接打印访问地址与账号
+- **一键安装**：自动探测最优镜像源、自动生成随机初始密码、安装后直接打印访问地址与账号
 - **`mpctl` 管理工具**：查看账号、重置密码、启停服务、查看镜像源、卸载
 - **WSL / systemd 自适应**：WSL2 Ubuntu 可直接安装；无 systemd 时自动回退为进程守护
 - 系统概览、服务启停、进程管理、日志、Ping、应用商店、系统重启、修改密码
@@ -205,7 +205,7 @@ MicroPanel/
 │   └── api/                 # 全部 HTTP 接口
 ├── web/index.html           # 内嵌单页前端
 ├── deploy/
-│   ├── install.sh           # 1Panel 式安装脚本
+│   ├── install.sh           # 一键安装脚本
 │   ├── uninstall.sh
 │   ├── mpctl                # 命令行管理工具
 │   ├── micropanel.service   # systemd 单元

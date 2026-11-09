@@ -9,7 +9,7 @@ VERSION="${MP_VERSION:-v0.1.0}"           # 在线安装时的 release 版本
 PORT="${MP_PORT:-8080}"                   # 面板端口
 MP_USERNAME="${MP_USERNAME:-admin}"       # 登录用户名
 MP_PASSWORD="${MP_PASSWORD:-}"            # 留空则自动生成随机密码
-MP_RANDOM_USER="${MP_RANDOM_USER:-0}"     # 1 = 生成随机用户名（1Panel 风格）
+MP_RANDOM_USER="${MP_RANDOM_USER:-0}"     # 1 = 生成随机用户名
 SOURCE="${MP_SOURCE:-auto}"               # auto | local | online
 SKIP_MIRROR_TEST="${MP_SKIP_MIRROR_TEST:-0}"
 MP_MIRROR="${MP_MIRROR:-}"                # 手动指定 GitHub 镜像前缀
