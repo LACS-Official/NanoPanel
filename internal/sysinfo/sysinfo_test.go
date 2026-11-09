@@ -17,6 +17,9 @@ func TestGetOverviewNeverPanics(t *testing.T) {
 	if o.MemUsedPct < 0 || o.MemUsedPct > 100 || o.DiskUsedPct < 0 || o.DiskUsedPct > 100 {
 		t.Fatalf("百分比越界: mem=%v disk=%v", o.MemUsedPct, o.DiskUsedPct)
 	}
+	if o.CPUUsagePct < 0 || o.CPUUsagePct > 100 {
+		t.Fatalf("CPU 使用率越界: %v", o.CPUUsagePct)
+	}
 }
 
 func TestRound1(t *testing.T) {

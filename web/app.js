@@ -147,19 +147,30 @@ async function loadOverview(){
       metric('运行时间',fmtUptime(o.uptime_sec))+
       metric('CPU',o.cpu_model || '-')+
       metric('核心数 / 负载',o.cpu_cores+' 核 / '+o.load1)+
+      metric('当前时间',o.server_time || '-')+
       (o.temps && o.temps.length ? metric('温度',
         o.temps.map(z=>esc(z.label)+' <b style="color:'+(z.celsius>=70?'#ff3b30':(z.celsius>=55?'#d38b1d':'#1a9e44'))+'">'+z.celsius+'℃</b>').join(' · ')) : '')+
       (o.cpu_freqs && o.cpu_freqs.length ? metric('CPU 频率',
         Math.round(Math.min(...o.cpu_freqs))+' - '+Math.round(Math.max(...o.cpu_freqs))+' MHz') : '');
     document.getElementById('resBars').innerHTML =
+      bar('CPU 使用率',o.cpu_usage_pct, (Number(o.cpu_usage_pct)||0).toFixed(1)+'%')+
       bar('内存',o.mem_used_pct,(o.mem_total_mb-o.mem_avail_mb)+' / '+o.mem_total_mb+' MB')+
       bar('磁盘',o.disk_used_pct,(o.disk_total_mb-o.disk_avail_mb)+' / '+o.disk_total_mb+' MB');
+    const instCount = (appData||[]).filter(a=>a.state==='installed').length;
+    const svcCount = (svcData||[]).filter(s=>s.state==='active').length;
+    const maxTemp = (o.temps && o.temps.length) ? Math.max(...o.temps.map(z=>z.celsius)) : null;
+    document.getElementById('statTiles').innerHTML =
+      metric('进程数', (o.proc_count || o.proc_count===0) ? o.proc_count : '-')+
+      metric('已安装应用', instCount)+
+      metric('运行中服务', svcCount)+
+      metric('最高温度', maxTemp!==null ? maxTemp+'℃' : '—');
   } catch(e){ /* 定时刷新静默失败，避免打扰 */ }
 }
 function bar(label,pct,detail){
   const w = Math.max(0, Math.min(100, Number(pct)||0));
+  const color = w>=90 ? '#ff3b30' : (w>=70 ? '#d38b1d' : '#0071e3');
   return '<div class="bar-row"><div class="lab"><span>'+esc(label)+'</span><span>'+esc(detail)+'（'+w+'%）</span></div>'+
-    '<div class="bar-track"><div class="bar-fill" style="width:'+w+'%"></div></div></div>';
+    '<div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:'+color+'"></div></div></div>';
 }
 
 // fmtMemKB 把 KB 数值格式化为人类可读的内存大小。
@@ -196,7 +207,8 @@ async function refreshLogUnits(){
   let options = '<option value="">全部单元</option>';
   try {
     const svcs = await call('GET','/services');
-    const live = (svcs||[]).filter(s=>s.state==='active');
+    svcData = svcs || [];
+    const live = svcData.filter(s=>s.state==='active');
     if (live.length) options += '<optgroup label="系统服务">'+
       live.map(s=>'<option value="'+esc(s.name)+'">'+esc(s.label||s.name)+'（'+esc(s.name)+'）</option>').join('')+'</optgroup>';
   } catch(e){ /* 服务列表加载失败时仍显示应用 */ }
@@ -448,6 +460,28 @@ async function checkAppsNow(){
 const healthLabels = {running:'● 运行中', down:'● 已掉线', unknown:'○ 未监控', not_installed:'未安装'};
 const healthCls = {running:'st-run', down:'st-down', unknown:'st-unknown', not_installed:'st-unknown'};
 let appData = [];
+let svcData = [];
+
+// APP_ICONS：各应用的品牌色 + 白色矢量图标（24x24 viewBox），替代首字母占位。
+// 未登记的应用回退到首字母圆角方块。
+const APP_ICONS = {
+  cups:       ['#2563eb', '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V4h12v5"/><path d="M6 14H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"/><rect x="5" y="13" width="14" height="7" rx="1.5"/><path d="M9 17h6"/></svg>'],
+  adguardhome:['#22c55e', '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.3 8.2-7 9.6C8.3 19.2 5 16 5 11V6z"/><path d="M9 12l2 2 4-4"/></svg>'],
+  tailscale:  ['#4f46e5', '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4"/><path d="M11 11l8 8M16 16l3-3M16 16l-3 3"/></svg>'],
+  mihomo:     ['#3b82f6', '<svg viewBox="0 0 24 24" fill="#fff"><rect x="3" y="3" width="8" height="8" rx="1.6"/><rect x="13" y="3" width="8" height="8" rx="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.6"/><rect x="13" y="13" width="8" height="8" rx="1.6" opacity=".55"/></svg>'],
+  picoclaw:   ['#8b5cf6', '<svg viewBox="0 0 24 24" fill="#fff"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>'],
+  webdav:     ['#0ea5e9', '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.6-1.4A4 4 0 0 1 18 18z"/></svg>'],
+  frp:        ['#f97316', '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 6.6l10 4.4M7 17.4l10-4.4"/></svg>'],
+  samba:      ['#a16207', '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>'],
+  hello:      ['#64748b', '<svg viewBox="0 0 24 24" fill="#fff"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><circle cx="18.5" cy="5.5" r="1.4"/></svg>']
+};
+function appIconHTML(a){
+  const e = APP_ICONS[a.id];
+  if (e){
+    return '<div class="app-icon" style="background:'+e[0]+'">'+e[1]+'</div>';
+  }
+  return '<div class="app-icon">'+esc((a.name||'?')[0])+'</div>';
+}
 
 function appUpgradable(a){
   return a.state==='installed' && a.installed_version && a.installed_version !== a.version;
@@ -476,7 +510,7 @@ function appCard(a, mode){
     ? '<div class="ver">当前 '+esc(a.installed_version)+' → 最新 '+esc(a.version)+'</div>'
     : '<div class="ver">'+esc(a.version)+(upgradable?' · <span style="color:#d70015">有新版本</span>':'')+'</div>';
   const st = a.status || a.state;
-  return '<div class="app-card"><div class="app-head"><div class="app-icon">'+esc((a.name||'?')[0])+'</div>'+
+  return '<div class="app-card"><div class="app-head">'+appIconHTML(a)+
     '<div><div class="name">'+esc(a.name)+'</div>'+verLine+'</div></div>'+
     '<div class="app-desc">'+esc(a.description)+'</div>'+
     '<div class="app-foot"><span class="app-state '+(healthCls[st]||'st-unknown')+'">'+
