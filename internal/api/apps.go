@@ -486,6 +486,7 @@ func notifyEventOptions() []map[string]string {
 		{"key": "temp", "label": "温度告警（超温 / 回落）"},
 		{"key": "file", "label": "文件管理操作"},
 		{"key": "task", "label": "定时任务执行结果"},
+		{"key": "update", "label": "版本更新（发现新版本 / 自动升级结果）"},
 	}
 }
 

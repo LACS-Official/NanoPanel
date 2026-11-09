@@ -162,6 +162,9 @@ func main() {
 	// 应用商店远程更新
 	mux.HandleFunc("POST /api/v1/apps/update-manifest", srv.AuthMiddleware(srv.UpdateManifest))
 	mux.HandleFunc("GET /api/v1/update/check", srv.AuthMiddleware(srv.CheckUpdate))
+	mux.HandleFunc("GET /api/v1/update/settings", srv.AuthMiddleware(srv.GetUpdateSettings))
+	mux.HandleFunc("POST /api/v1/update/settings", srv.AuthMiddleware(srv.SaveUpdateSettings))
+	mux.HandleFunc("POST /api/v1/update/apply", srv.AuthMiddleware(srv.ApplyUpdate))
 
 	// 前端静态文件（SPA）
 	staticSub, err := fs.Sub(webFS, "web")
@@ -187,6 +190,8 @@ func main() {
 	srv.StartMonitor(ctx)
 	// 定时任务调度器随服务生命周期启停。
 	srv.StartCron(ctx)
+	// 后台自动更新检查随服务生命周期启停（每日在配置小时检查、可自动安装）。
+	srv.StartAutoUpdate(ctx)
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

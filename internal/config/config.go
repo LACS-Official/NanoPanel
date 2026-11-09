@@ -69,6 +69,11 @@ type Config struct {
 
 	// FileRoots 文件管理器允许访问的根目录；空则使用内置默认值。
 	FileRoots []string `json:"file_roots,omitempty"`
+
+	// AutoUpdate 检测到新版本时是否自动下载并安装（每日在 UpdateCheckHour 检查）。
+	AutoUpdate bool `json:"auto_update,omitempty"`
+	// UpdateCheckHour 每日自动检查更新的小时（0-23）。
+	UpdateCheckHour int `json:"update_check_hour,omitempty"`
 }
 
 // DefaultMonitorIntervalSec 是应用掉线检测的默认间隔。
@@ -78,7 +83,7 @@ const DefaultMonitorIntervalSec = 60
 var WebhookFormats = []string{"generic", "wecom", "dingtalk", "feishu", "serverchan"}
 
 // NotifyEvents 可订阅的通知事件类别。
-var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system", "health", "disk", "security", "temp", "file", "task"}
+var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system", "health", "disk", "security", "temp", "file", "task", "update"}
 
 // ValidWebhookFormat 判断格式是否受支持。
 func ValidWebhookFormat(f string) bool {
@@ -109,6 +114,7 @@ func Default() *Config {
 		AppsDir:            "/opt/nanopanel/apps",
 		ManifestPath:       "/opt/nanopanel/apps/manifest.json",
 		MonitorIntervalSec: DefaultMonitorIntervalSec,
+		UpdateCheckHour:    4,
 	}
 }
 
@@ -146,6 +152,9 @@ func Load(path string) (*Config, error) {
 	}
 	if len(c.Services) == 0 {
 		c.Services = d.Services
+	}
+	if c.UpdateCheckHour < 0 || c.UpdateCheckHour > 23 {
+		c.UpdateCheckHour = d.UpdateCheckHour
 	}
 	if c.WebhookFormat == "" {
 		c.WebhookFormat = "generic"
@@ -204,6 +213,9 @@ func (c *Config) Validate() error {
 	}
 	if c.TempThresholdC != 0 && (c.TempThresholdC < 40 || c.TempThresholdC > 100) {
 		return fmt.Errorf("temp_threshold_c 超出范围（40-100，或 0 关闭）: %d", c.TempThresholdC)
+	}
+	if c.UpdateCheckHour < 0 || c.UpdateCheckHour > 23 {
+		return fmt.Errorf("update_check_hour 超出范围（0-23）: %d", c.UpdateCheckHour)
 	}
 	return nil
 }

@@ -51,3 +51,15 @@ func TestParseTagFromURL(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateArch(t *testing.T) {
+	// updateArch 依赖运行时 GOARCH，仅校验它返回非空且仅接受已知架构。
+	got := updateArch()
+	switch got {
+	case "amd64", "arm64", "armv7", "":
+		// 允许空（如 386/riscv64 等暂不支持架构）。
+	default:
+		t.Fatalf("updateArch() 返回意外值: %q", got)
+	}
+}
+

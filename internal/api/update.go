@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -51,14 +52,21 @@ func (s *Server) CheckUpdate(w http.ResponseWriter, r *http.Request) {
 	ok(w, info)
 }
 
-// latestReleaseTag 从 GitHub（带镜像回退）解析最新 Release 的 tag 与发布页地址。
-// 逻辑与 deploy/npctl 的 cmd_upgrade 保持一致。
-func latestReleaseTag() (tag, releaseURL string, err error) {
+// updateBases 返回更新源基址列表：优先环境变量指定的镜像，其次 GitHub 官方，
+// 最后 ghfast 镜像。与 deploy/npctl 的 cmd_upgrade 保持一致。
+func updateBases() []string {
 	bases := []string{}
 	if m := strings.TrimRight(os.Getenv("GITHUB_MIRROR"), "/"); m != "" {
 		bases = append(bases, m)
 	}
 	bases = append(bases, "https://github.com", "https://ghfast.top/https://github.com")
+	return bases
+}
+
+// latestReleaseTag 从 GitHub（带镜像回退）解析最新 Release 的 tag 与发布页地址。
+// 逻辑与 deploy/npctl 的 cmd_upgrade 保持一致。
+func latestReleaseTag() (tag, releaseURL string, err error) {
+	bases := updateBases()
 
 	client := &http.Client{Timeout: 25 * time.Second}
 	for _, base := range bases {
@@ -127,4 +135,40 @@ func parseSemver(v string) [3]int {
 		r[i] = n
 	}
 	return r
+}
+
+// downloadReleaseAsset 从更新源（带镜像回退）下载指定 Release 资产到 dest。
+// 任一源成功即返回；全部失败返回错误。
+func (s *Server) downloadReleaseAsset(tag, asset, dest string) error {
+	client := &http.Client{Timeout: 300 * time.Second}
+	for _, base := range updateBases() {
+		url := base + "/" + updateRepo + "/releases/download/" + tag + "/" + asset
+		req, rerr := http.NewRequest(http.MethodGet, url, nil)
+		if rerr != nil {
+			continue
+		}
+		req.Header.Set("User-Agent", "NanoPanel/"+version.Version)
+		resp, derr := client.Do(req)
+		if derr != nil {
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			continue
+		}
+		f, ferr := os.Create(dest)
+		if ferr != nil {
+			resp.Body.Close()
+			continue
+		}
+		_, cerr := io.Copy(f, resp.Body)
+		resp.Body.Close()
+		f.Close()
+		if cerr != nil {
+			os.Remove(dest)
+			continue
+		}
+		return nil
+	}
+	return fmt.Errorf("下载失败，请检查网络或稍后重试")
 }

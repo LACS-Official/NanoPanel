@@ -5,11 +5,14 @@ let overviewTimer = null;
 let npVersion = '';
 
 /* ===== Logo（登录页 / 侧栏 / 关于 共用）===== */
+// 圆环脉冲：左上角的圆环 + 绿色脉冲弧（象征实时监控），右侧白色 N 字母。
 const LOGO_SVG =
   '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">' +
   '<rect x="4" y="4" width="56" height="56" rx="14" fill="url(#npg)"/>' +
-  '<path d="M21 45V19l22 26V19" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<circle cx="50" cy="14" r="4.5" fill="#34c759"/></svg>';
+  '<circle cx="20" cy="20" r="11" fill="none" stroke="#fff" stroke-width="4.5" opacity="0.95"/>' +
+  '<path d="M20 9 A11 11 0 0 0 9 20" fill="none" stroke="#34c759" stroke-width="4.5" stroke-linecap="round"/>' +
+  '<path d="M33 47V27l15 20V27" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '</svg>';
 document.querySelectorAll('.np-logo').forEach(el=>{ el.innerHTML = LOGO_SVG; });
 
 function esc(v){
@@ -1042,10 +1045,43 @@ function renderAbout(){
   }
   const curVer = document.getElementById('aboutCurVer');
   if (curVer) curVer.textContent = npVersion || 'dev';
+  loadUpdateSettings();
+}
+
+// 填充自动更新设置（小时下拉 + 开关状态）。
+async function loadUpdateSettings(){
+  const sel = document.getElementById('updateHour');
+  if (sel && !sel.dataset.done){
+    let opts = '';
+    for (let h=0; h<24; h++) opts += '<option value="'+h+'">'+String(h).padStart(2,'0')+'</option>';
+    sel.innerHTML = opts;
+    sel.dataset.done = '1';
+  }
+  try {
+    const d = await call('GET','/update/settings');
+    const u = d || {};
+    const sw = document.getElementById('autoUpdateSwitch');
+    if (sw) sw.checked = !!u.auto_update;
+    if (sel) sel.value = String(u.update_check_hour ?? 4);
+  } catch(e){ /* 设置读取失败不阻塞关于页 */ }
+}
+
+async function saveUpdateSettings(){
+  const sw = document.getElementById('autoUpdateSwitch');
+  const sel = document.getElementById('updateHour');
+  try {
+    await call('POST','/update/settings', {
+      auto_update: sw ? sw.checked : false,
+      update_check_hour: sel ? parseInt(sel.value,10) : 4,
+    });
+    toast('自动更新设置已保存');
+  } catch(e){ toast(e.message); }
 }
 
 async function checkUpdate(){
   const status = document.getElementById('updateStatus');
+  const btn = document.getElementById('applyUpdateBtn');
+  if (btn) btn.style.display = 'none';
   if (!status) return;
   status.textContent = '正在检查…';
   try {
@@ -1058,11 +1094,36 @@ async function checkUpdate(){
     if (u.has_update){
       status.innerHTML = '发现新版本 <b style="color:var(--green)">v'+esc(u.latest_version)+
         '</b> · <a href="'+esc(u.release_url||'#')+'" target="_blank" rel="noopener">查看发布 ↗</a>';
+      if (btn) btn.style.display = '';
     } else {
       status.textContent = '已是最新版本（当前 v'+(u.current_version||npVersion)+'）';
     }
   } catch(e){
     status.textContent = '检查失败：'+e.message;
+  }
+}
+
+async function applyUpdate(){
+  const status = document.getElementById('updateStatus');
+  if (!confirm('确定升级到最新版本？升级前会自动备份当前版本，面板将重启。')) return;
+  try {
+    const d = await call('POST','/update/apply');
+    const u = d || {};
+    if (u.status === 'uptodate'){
+      if (status) status.textContent = '已是最新版本';
+      toast('已是最新版本');
+      return;
+    }
+    if (u.status === 'unreachable'){
+      if (status) status.textContent = u.msg || '无法连接更新源';
+      toast(u.msg || '无法连接更新源');
+      return;
+    }
+    toast('升级已开始，面板将在数秒后重启');
+    if (status) status.textContent = '正在升级到 v'+(u.latest_version||'')+'，面板即将重启…';
+  } catch(e){
+    toast(e.message);
+    if (status) status.textContent = '升级失败：'+e.message;
   }
 }
 

@@ -59,6 +59,9 @@ type Server struct {
 	// actionMu 与 runningActions 防止同一应用并发执行安装/卸载脚本。
 	actionMu       sync.Mutex
 	runningActions map[string]bool
+
+	// updateMu 防止后台自动更新与手动升级并发操作二进制。
+	updateMu sync.Mutex
 }
 
 // NewServer 创建 API 服务容器。
