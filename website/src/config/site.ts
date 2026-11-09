@@ -11,6 +11,7 @@ export const SITE_CONFIG = {
   // SEO
   keywords: [
     "领创工作室",
+    "LAC Studio",
     "LACS",
     "NanoPanel",
     "nanopanel",
@@ -25,7 +26,7 @@ export const SITE_CONFIG = {
     "自建服务器",
   ],
   author: "领创工作室",
-  copyright: `© 2026 领创工作室 LACS · MIT License`,
+  copyright: `© 2026 领创工作室（LAC Studio）· MIT License`,
 
   // 社交与开源
   social: {

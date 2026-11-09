@@ -7,7 +7,7 @@
 <p align="center">
 <img src="docs/logo.svg" width="20" alt="logo"> 官网 <a href="https://npanel.lacs.cc">npanel.lacs.cc</a> ·
 仓库 <a href="https://github.com/LACS-Official/NanoPanel">GitHub</a> ·
-由 <a href="https://lacs.cc">领创工作室（LACS）</a>开源维护
+由 <a href="https://lacs.cc">领创工作室（LAC Studio）</a>开源维护
 </p>
 
 <p align="center">
