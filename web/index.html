@@ -18,6 +18,10 @@
 </defs></svg>
 
 <div id="loginView">
+  <div class="login-bg" aria-hidden="true">
+    <span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span>
+    <span class="login-grid"></span>
+  </div>
   <div class="login-box">
     <div class="np-logo"></div>
     <h1>NanoPanel</h1>
@@ -27,7 +31,13 @@
     <input id="loginPwd" type="password" placeholder="登录密码" autocomplete="current-password"
            onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn" style="width:100%" onclick="doLogin()">登 录</button>
-    <div class="ver" id="loginVersion">NanoPanel</div>
+    <div class="login-foot">
+      <span class="lf-ver" id="loginVersion">NanoPanel</span>
+      <span class="lf-sep">·</span>
+      <span class="lf-author">领创工作室</span>
+      <span class="lf-sep">·</span>
+      <a class="lf-link" href="https://npanel.lacs.cc" target="_blank" rel="noopener">npanel.lacs.cc</a>
+    </div>
   </div>
 </div>
 

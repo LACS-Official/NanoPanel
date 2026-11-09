@@ -1,0 +1,105 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { SITE_CONFIG } from "@/config/site";
+
+const { downloadPage, product, social } = SITE_CONFIG;
+const latest = `${social.releases}/latest/download`;
+---
+
+<MainLayout title="下载" description="下载 NanoPanel 单二进制，支持 amd64 / arm64 / armv7。">
+  <section class="relative overflow-hidden pt-16 pb-10">
+    <div class="absolute inset-0 -z-10 np-grid-bg"></div>
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h1 class="text-4xl md:text-5xl font-bold tracking-tight">{downloadPage.hero.title}</h1>
+      <p class="mt-5 text-gray-600 dark:text-gray-400">{downloadPage.hero.subtitle}</p>
+      <div
+        class="mt-6 inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-800/60 px-4 py-1.5 text-xs text-gray-600 dark:text-gray-300"
+      >
+        最新版本
+        <span class="font-mono font-medium text-[#0071e3]">v{product.version}</span>
+        <span class="text-gray-300 dark:text-gray-600">·</span>
+        {product.releaseDate}
+      </div>
+    </div>
+  </section>
+
+  <section class="pb-16">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid md:grid-cols-3 gap-5">
+        {
+          downloadPage.assets.map((a) => (
+            <div class="np-card p-6 flex flex-col">
+              <h2 class="font-semibold text-lg">{a.name}</h2>
+              <p class="mt-1.5 text-[13px] text-gray-500 dark:text-gray-400 leading-relaxed">{a.requirement}</p>
+              <div class="mt-4 rounded-lg bg-gray-50 dark:bg-[#17171b] border border-gray-100 dark:border-gray-800 px-3 py-2 text-[11.5px] font-mono text-gray-600 dark:text-gray-400 break-all">
+                {a.file}
+              </div>
+              <a
+                href={`${latest}/${a.file}`}
+                class="mt-4 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#0071e3] hover:bg-[#0064c8] text-white text-sm font-medium px-5 py-2.5 transition-colors"
+              >
+                下载
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4.5-4.5M12 16l4.5-4.5M5 20h14" />
+                </svg>
+              </a>
+              <a
+                href={`${latest}/${a.file}.sha256`}
+                class="mt-2.5 text-center text-[11.5px] text-gray-500 hover:text-[#0071e3] transition-colors mono"
+              >
+                sha256 校验文件
+              </a>
+            </div>
+          ))
+        }
+      </div>
+      <p class="mt-5 text-center text-xs text-gray-500 dark:text-gray-500">
+        所有版本与历史记录见
+        <a href={social.releases} target="_blank" rel="noopener noreferrer" class="text-[#0071e3] hover:underline"
+          >GitHub Releases</a
+        >。国内下载慢时可用镜像前缀 <span class="mono">https://ghfast.top/</span>。
+      </p>
+    </div>
+  </section>
+
+  <section class="pb-16 bg-gray-50 dark:bg-[#0f0f12] border-y border-gray-100 dark:border-gray-900">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <h2 class="text-2xl md:text-3xl font-bold tracking-tight">{downloadPage.install.title}</h2>
+      <p class="mt-3 text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{downloadPage.install.note}</p>
+      <div class="np-pre mt-6 p-5 text-[13px] leading-relaxed">
+        <pre class="whitespace-pre-wrap break-all text-gray-200"><code><span class="text-[#7ee787]">curl</span> -fsSL https://npanel.lacs.cc/install.sh | <span class="text-[#7ee787]">sudo bash</span>
+<span class="text-gray-500"># 安装完成后</span>
+<span class="text-[#7ee787]">sudo systemctl</span> status nanopanel</code></pre>
+      </div>
+      <p class="mt-4 text-xs text-gray-500">
+        脚本会读取 <span class="mono">GITHUB_MIRROR</span> 环境变量；国内机器可先
+        <span class="mono">export GITHUB_MIRROR=https://ghfast.top/https://github.com</span> 再执行。
+      </p>
+    </div>
+  </section>
+
+  <section class="pb-24">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <h2 class="text-2xl md:text-3xl font-bold tracking-tight">{downloadPage.manual.title}</h2>
+      <div class="np-pre mt-6 p-5 text-[13px] leading-relaxed">
+        <pre class="whitespace-pre-wrap break-all text-gray-200"><code><span class="text-[#7ee787]">wget</span> {latest}/nanopanel-linux-amd64
+<span class="text-[#7ee787]">chmod</span> +x nanopanel-linux-amd64
+<span class="text-[#7ee787]">sudo</span> ./nanopanel-linux-amd64 -config /etc/nanopanel/config.json</code></pre>
+      </div>
+      <div class="mt-6 grid sm:grid-cols-2 gap-4 text-sm">
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+          <div class="font-medium">忘记密码？</div>
+          <p class="mt-1.5 text-gray-600 dark:text-gray-400 text-[13px] leading-relaxed">
+            删除 <span class="mono">config.json</span> 中的 <span class="mono">password_hash</span> 字段并重启，面板会重新生成初始密码。
+          </p>
+        </div>
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+          <div class="font-medium">升级版本？</div>
+          <p class="mt-1.5 text-gray-600 dark:text-gray-400 text-[13px] leading-relaxed">
+            面板「关于」页有「立即升级」按钮，也可执行 <span class="mono">sudo npctl upgrade</span>。
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+</MainLayout>

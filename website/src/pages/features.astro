@@ -1,0 +1,71 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { SITE_CONFIG } from "@/config/site";
+
+const { featuresPage } = SITE_CONFIG;
+---
+
+<MainLayout title="功能特性" description={featuresPage.hero.subtitle}>
+  <section class="relative overflow-hidden pt-16 pb-12">
+    <div class="absolute inset-0 -z-10 np-grid-bg"></div>
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h1 class="text-4xl md:text-5xl font-bold tracking-tight">{featuresPage.hero.title}</h1>
+      <p class="mt-5 text-gray-600 dark:text-gray-400 leading-relaxed">{featuresPage.hero.subtitle}</p>
+    </div>
+  </section>
+
+  <section class="pb-24">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      {
+        featuresPage.sections.map((s, i) => (
+          <div
+            class:list={[
+              "grid lg:grid-cols-2 gap-8 lg:gap-12 items-center rounded-3xl border border-gray-100 dark:border-gray-900 p-7 md:p-10",
+              i % 2 === 1 ? "bg-gray-50/70 dark:bg-[#0f0f12]" : "bg-white dark:bg-[#0b0b0d]",
+            ]}
+          >
+            <div class:list={[i % 2 === 1 ? "lg:order-2" : ""]}>
+              <div class="text-xs font-mono text-[#0071e3]">0{i + 1}</div>
+              <h2 class="mt-2.5 text-2xl md:text-3xl font-bold tracking-tight">{s.title}</h2>
+              <p class="mt-3.5 text-gray-600 dark:text-gray-400 leading-relaxed text-[15px]">{s.desc}</p>
+            </div>
+            <ul class="space-y-3">
+              {s.bullets.map((b) => (
+                <li class="flex items-start gap-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#141418] px-4 py-3 text-sm">
+                  <svg
+                    class="w-4 h-4 mt-0.5 shrink-0 text-[#34c759]"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 12.5l5 5L20 6.5" />
+                  </svg>
+                  <span class="text-gray-700 dark:text-gray-300">{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="pb-24">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h2 class="text-2xl md:text-3xl font-bold tracking-tight">还想要别的功能？</h2>
+      <p class="mt-3 text-gray-600 dark:text-gray-400">在 GitHub 提 Issue，说清场景与设备型号，合适的会排进版本。</p>
+      <a
+        href={SITE_CONFIG.social.issues}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mt-7 inline-flex items-center gap-2 rounded-full bg-[#0071e3] hover:bg-[#0064c8] text-white font-medium px-7 py-3 transition-colors"
+      >
+        提交需求
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m0 0l-6-6m6 6l-6 6" />
+        </svg>
+      </a>
+    </div>
+  </section>
+</MainLayout>

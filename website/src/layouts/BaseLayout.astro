@@ -1,0 +1,150 @@
+---
+import { SITE_CONFIG } from "@/config/site";
+
+export interface Props {
+  title?: string;
+  description?: string;
+  keywords?: string[];
+  noindex?: boolean;
+}
+
+const {
+  title = SITE_CONFIG.name,
+  description = SITE_CONFIG.description,
+  keywords = SITE_CONFIG.keywords,
+  noindex = false,
+} = Astro.props;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const fullTitle = title === SITE_CONFIG.name ? `${title} · 轻量服务器运维面板` : `${title} | ${SITE_CONFIG.name}`;
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: SITE_CONFIG.name,
+  description: SITE_CONFIG.description,
+  url: SITE_CONFIG.url,
+  applicationCategory: "SystemApplication",
+  operatingSystem: SITE_CONFIG.product.platforms.join(", "),
+  softwareVersion: SITE_CONFIG.product.version,
+  datePublished: SITE_CONFIG.product.releaseDate,
+  author: {
+    "@type": "Organization",
+    name: SITE_CONFIG.author,
+    url: SITE_CONFIG.social.studio,
+  },
+  offers: { "@type": "Offer", price: "0", priceCurrency: "CNY" },
+};
+---
+
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+
+    <title>{fullTitle}</title>
+    <meta name="title" content={fullTitle} />
+    <meta name="description" content={description} />
+    <meta name="keywords" content={keywords.join(", ")} />
+    <meta name="author" content={SITE_CONFIG.author} />
+    <link rel="canonical" href={canonicalURL} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:site_name" content={SITE_CONFIG.name} />
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content={fullTitle} />
+    <meta property="twitter:description" content={description} />
+
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(structuredData)} />
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <script is:inline>
+      (function () {
+        try {
+          var saved = localStorage.getItem("theme");
+          var dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.classList[dark ? "add" : "remove"]("dark");
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+
+  <body class="bg-white dark:bg-[#0b0b0d] text-gray-900 dark:text-gray-100 transition-colors duration-300 antialiased">
+    <slot />
+
+    <style is:global>
+      body {
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+        overflow-x: hidden;
+      }
+      code, pre, .mono {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      ::selection {
+        background: rgba(0, 113, 227, 0.18);
+      }
+      .np-gradient-text {
+        background: linear-gradient(100deg, #0a84ff 0%, #0055d4 45%, #34c759 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .np-card {
+        border: 1px solid rgb(0 0 0 / 0.07);
+        background: #fff;
+        border-radius: 20px;
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+      }
+      .np-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 18px 40px -18px rgb(16 42 80 / 0.22);
+        border-color: rgb(0 113 227 / 0.3);
+      }
+      .dark .np-card {
+        background: #141418;
+        border-color: rgb(255 255 255 / 0.08);
+      }
+      .dark .np-card:hover {
+        box-shadow: 0 18px 40px -18px rgb(0 0 0 / 0.7);
+        border-color: rgb(10 132 255 / 0.45);
+      }
+      .np-pre {
+        border-radius: 16px;
+        background: #0f1014;
+        color: #e8e8ea;
+        border: 1px solid rgb(255 255 255 / 0.08);
+        overflow-x: auto;
+      }
+      .np-grid-bg {
+        background-image: linear-gradient(rgb(0 0 0 / 0.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgb(0 0 0 / 0.045) 1px, transparent 1px);
+        background-size: 44px 44px;
+        -webkit-mask-image: radial-gradient(760px 520px at 50% 30%, #000 12%, transparent 76%);
+        mask-image: radial-gradient(760px 520px at 50% 30%, #000 12%, transparent 76%);
+      }
+      .dark .np-grid-bg {
+        background-image: linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+      }
+      .np-fade-up {
+        animation: npFadeUp 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+      }
+      @keyframes npFadeUp {
+        from { opacity: 0; transform: translateY(18px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .np-fade-up { animation: none; }
+      }
+    </style>
+  </body>
+</html>

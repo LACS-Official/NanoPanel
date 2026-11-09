@@ -1,0 +1,122 @@
+---
+import { SITE_CONFIG } from "@/config/site";
+import ThemeToggle from "./ThemeToggle.astro";
+
+const currentPath = Astro.url.pathname;
+const nav = SITE_CONFIG.navigation;
+const isActive = (href: string) =>
+  href === "/" ? currentPath === "/" : currentPath.startsWith(href);
+---
+
+<header
+  class="sticky top-0 z-[100] bg-white/80 dark:bg-[#0b0b0d]/80 backdrop-blur-xl border-b border-gray-100 dark:border-gray-900"
+>
+  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-16 md:h-[72px]">
+      <a href="/" class="flex items-center gap-2.5 group">
+        <svg viewBox="0 0 64 64" class="w-8 h-8 md:w-9 md:h-9" aria-hidden="true">
+          <defs>
+            <linearGradient id="npgHead" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#0a84ff"></stop>
+              <stop offset="1" stop-color="#0055d4"></stop>
+            </linearGradient>
+          </defs>
+          <circle cx="34" cy="30" r="20" fill="url(#npgHead)"></circle>
+          <path
+            d="M27 40V20l14 20V20"
+            fill="none"
+            stroke="#fff"
+            stroke-width="6.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
+          <path
+            d="M10 30A24 24 0 0 0 34 54"
+            fill="none"
+            stroke="#34c759"
+            stroke-width="5"
+            stroke-linecap="round"></path>
+        </svg>
+        <span class="font-bold text-xl md:text-[22px] tracking-tight group-hover:text-[#0071e3] transition-colors">
+          {SITE_CONFIG.name}
+        </span>
+      </a>
+
+      <div class="hidden md:flex items-center gap-1">
+        {
+          nav.map((item) => (
+            <a
+              href={item.href}
+              class:list={[
+                "px-3.5 py-2 rounded-lg text-[14px] font-medium transition-colors",
+                isActive(item.href)
+                  ? "text-[#0071e3] bg-[#0071e3]/8"
+                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/70",
+              ]}
+            >
+              {item.name}
+            </a>
+          ))
+        }
+      </div>
+
+      <div class="flex items-center gap-2 md:gap-3">
+        <ThemeToggle />
+        <a
+          href={SITE_CONFIG.social.github}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hidden sm:inline-flex p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label="GitHub"
+        >
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+            <path
+              fill-rule="evenodd"
+              clip-rule="evenodd"
+              d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+            ></path>
+          </svg>
+        </a>
+        <a
+          href="/download"
+          class="inline-flex items-center rounded-full bg-[#0071e3] hover:bg-[#0064c8] text-white text-[13px] font-medium px-4 py-2 transition-colors"
+        >
+          下载
+        </a>
+        <button
+          type="button"
+          id="navToggle"
+          class="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label="菜单"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div id="navMobile" class="md:hidden hidden pb-3">
+      {
+        nav.map((item) => (
+          <a
+            href={item.href}
+            class:list={[
+              "block px-3 py-2.5 rounded-lg text-[14px] font-medium",
+              isActive(item.href)
+                ? "text-[#0071e3] bg-[#0071e3]/8"
+                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
+            ]}
+          >
+            {item.name}
+          </a>
+        ))
+      }
+    </div>
+  </nav>
+</header>
+
+<script>
+  const toggle = document.getElementById("navToggle");
+  const menu = document.getElementById("navMobile");
+  toggle?.addEventListener("click", () => menu?.classList.toggle("hidden"));
+</script>

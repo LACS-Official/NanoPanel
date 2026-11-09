@@ -1,0 +1,105 @@
+---
+import { SITE_CONFIG } from "@/config/site";
+
+const year = new Date().getFullYear();
+---
+
+<footer class="bg-gray-50 dark:bg-[#111114] border-t border-gray-200 dark:border-gray-900">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-10">
+      <div class="md:col-span-2">
+        <div class="flex items-center gap-2.5 mb-4">
+          <svg viewBox="0 0 64 64" class="w-8 h-8" aria-hidden="true">
+            <defs>
+              <linearGradient id="npgFoot" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#0a84ff"></stop>
+                <stop offset="1" stop-color="#0055d4"></stop>
+              </linearGradient>
+            </defs>
+            <circle cx="34" cy="30" r="20" fill="url(#npgFoot)"></circle>
+            <path
+              d="M27 40V20l14 20V20"
+              fill="none"
+              stroke="#fff"
+              stroke-width="6.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+            <path
+              d="M10 30A24 24 0 0 0 34 54"
+              fill="none"
+              stroke="#34c759"
+              stroke-width="5"
+              stroke-linecap="round"></path>
+          </svg>
+          <span class="font-bold text-xl">{SITE_CONFIG.name}</span>
+        </div>
+        <p class="text-gray-600 dark:text-gray-400 mb-5 max-w-md leading-relaxed text-sm">
+          {SITE_CONFIG.description}。{SITE_CONFIG.tagline}。
+        </p>
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
+          <a
+            href={SITE_CONFIG.social.github}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+              <path
+                fill-rule="evenodd"
+                clip-rule="evenodd"
+                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+              ></path>
+            </svg>
+            GitHub 仓库
+          </a>
+          <span class="text-gray-300 dark:text-gray-700">•</span>
+          <a
+            href={SITE_CONFIG.social.studio}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hover:text-gray-900 dark:hover:text-white transition-colors">领创工作室 lacs.cc</a
+          >
+        </div>
+      </div>
+
+      <div>
+        <h3 class="font-semibold text-sm mb-3.5">产品</h3>
+        <ul class="space-y-2.5 text-sm text-gray-600 dark:text-gray-400">
+          <li><a href="/features" class="hover:text-gray-900 dark:hover:text-white transition-colors">功能特性</a></li>
+          <li><a href="/download" class="hover:text-gray-900 dark:hover:text-white transition-colors">下载</a></li>
+          <li>
+            <a
+              href={SITE_CONFIG.social.releases}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-gray-900 dark:hover:text-white transition-colors">Release 记录</a
+            >
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 class="font-semibold text-sm mb-3.5">资源</h3>
+        <ul class="space-y-2.5 text-sm text-gray-600 dark:text-gray-400">
+          <li><a href="/docs" class="hover:text-gray-900 dark:hover:text-white transition-colors">部署文档</a></li>
+          <li>
+            <a
+              href={SITE_CONFIG.social.issues}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-gray-900 dark:hover:text-white transition-colors">问题反馈</a
+            >
+          </li>
+          <li><a href="/docs#faq" class="hover:text-gray-900 dark:hover:text-white transition-colors">常见问题</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div
+      class="mt-12 pt-6 border-t border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-500"
+    >
+      <span>© {year} 领创工作室 LACS · MIT License</span>
+      <span class="font-mono">v{SITE_CONFIG.product.version} · npanel.lacs.cc</span>
+    </div>
+  </div>
+</footer>

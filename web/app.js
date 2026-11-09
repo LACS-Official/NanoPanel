@@ -499,7 +499,7 @@ function appCard(a, mode){
     ? '<button class="btn sm" title="在新标签页打开应用页面" data-open="1" data-port="'+esc(a.web_port)+
       '" data-path="'+esc(a.web_path||'')+'">打开</button>' : '';
   const cfgBtn = installed && a.config && a.config.length
-    ? '<button class="btn sm gray" data-cfg="'+esc(a.id)+'">配置</button> : '';
+    ? '<button class="btn sm gray" data-cfg="'+esc(a.id)+'">配置</button>' : '';
   const manageBtn = (a.id==='mihomo' && installed)
     ? '<button class="btn sm gray" data-manage="mihomo">管理面板</button>' : '';
   const upgBtn = upgradable && mode!=='upgradable'
@@ -1013,7 +1013,7 @@ async function loadHealth(){
     document.getElementById('aboutVer').textContent = v;
     const curVer = document.getElementById('aboutCurVer');
     if (curVer) curVer.textContent = npVersion;
-    document.getElementById('loginVersion').textContent = 'NanoPanel ' + v;
+    document.getElementById('loginVersion').textContent = v || 'NanoPanel';
     if(h.platform && h.platform !== 'linux'){
       const n = document.getElementById('platformNotice');
       n.textContent = '当前运行在 '+h.platform+' 环境，服务/进程/日志等依赖 Linux 的功能不可用。';

@@ -4,6 +4,11 @@
     --gray:#86868b; --line:#e9e9eb; --green:#34c759; --red:#ff3b30;
     --radius:18px; --shadow:0 1px 3px rgba(0,0,0,.05); --shadow-lg:0 12px 40px rgba(0,0,0,.18);
     --subtle:#fafafc; --subtle-hover:#f2f2f4; --seg:#e8e8ed; --danger-weak:#ffe3e0; --green-weak:#e4f8ea;
+    /* 登录页配色（深浅色各自覆盖） */
+    --lb-base:#f3f6fb; --lb-card:rgba(255,255,255,.82); --lb-border:rgba(255,255,255,.9);
+    --lb-glow1:rgba(10,132,255,.26); --lb-glow2:rgba(52,199,89,.18); --lb-glow3:rgba(124,92,255,.18);
+    --lb-shadow:0 28px 70px rgba(17,44,84,.15), 0 2px 10px rgba(17,44,84,.06);
+    --lb-line:rgba(29,29,31,.055);
   }
   ::selection { background:rgba(0,113,227,.18); }
   html { scrollbar-width:thin; scrollbar-color:#c7c7cc transparent; }
@@ -19,18 +24,40 @@
   a { color:var(--blue); text-decoration:none; }
 
   /* ===== 登录页 ===== */
-  #loginView { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
-    background:
-      radial-gradient(640px 420px at 18% 8%, rgba(10,132,255,.14), transparent 60%),
-      radial-gradient(560px 420px at 85% 92%, rgba(52,199,89,.10), transparent 60%),
-      var(--bg);
-  }
-  .login-box { background:var(--card); border-radius:24px; padding:40px 36px 32px; width:100%; max-width:380px;
-    box-shadow:0 8px 30px rgba(0,0,0,.08); text-align:center; }
-  .login-box .np-logo { width:64px; height:64px; margin:0 auto 14px; }
-  .login-box h1 { font-size:24px; margin-bottom:6px; letter-spacing:.2px; }
-  .login-box p { color:var(--gray); margin-bottom:24px; font-size:13px; }
-  .login-box .ver { color:var(--gray); font-size:11px; margin-top:20px; }
+  #loginView { position:relative; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:24px; overflow:hidden; background:var(--lb-base); }
+  .login-bg { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+  .login-bg .orb { position:absolute; border-radius:50%; filter:blur(70px); }
+  .login-bg .o1 { width:460px; height:460px; left:-130px; top:-150px;
+    background:radial-gradient(circle,var(--lb-glow1),transparent 68%); animation:lbFloatA 18s ease-in-out infinite; }
+  .login-bg .o2 { width:560px; height:560px; right:-170px; bottom:-190px;
+    background:radial-gradient(circle,var(--lb-glow2),transparent 68%); animation:lbFloatB 22s ease-in-out infinite; }
+  .login-bg .o3 { width:390px; height:390px; right:14%; top:-170px;
+    background:radial-gradient(circle,var(--lb-glow3),transparent 68%); animation:lbFloatA 26s ease-in-out infinite reverse; }
+  .login-grid { position:absolute; inset:0;
+    background-image:linear-gradient(var(--lb-line) 1px, transparent 1px),
+                     linear-gradient(90deg, var(--lb-line) 1px, transparent 1px);
+    background-size:40px 40px;
+    -webkit-mask-image:radial-gradient(680px 520px at 50% 46%, #000 18%, transparent 78%);
+            mask-image:radial-gradient(680px 520px at 50% 46%, #000 18%, transparent 78%); }
+  @keyframes lbFloatA { 0%,100% { transform:translate3d(0,0,0); } 50% { transform:translate3d(26px,34px,0); } }
+  @keyframes lbFloatB { 0%,100% { transform:translate3d(0,0,0); } 50% { transform:translate3d(-30px,-26px,0); } }
+  .login-box { position:relative; z-index:1; background:var(--lb-card); border:1px solid var(--lb-border);
+    border-radius:26px; padding:44px 36px 24px; width:100%; max-width:384px; text-align:center;
+    backdrop-filter:blur(26px) saturate(1.6); -webkit-backdrop-filter:blur(26px) saturate(1.6);
+    box-shadow:var(--lb-shadow); }
+  .login-box .np-logo { width:66px; height:66px; margin:0 auto 16px; }
+  .login-box h1 { font-size:25px; margin-bottom:6px; letter-spacing:.2px; }
+  .login-box p { color:var(--gray); margin-bottom:26px; font-size:13px; }
+  .login-box input { background:rgba(255,255,255,.92); }
+  .login-box .btn { margin-top:4px; padding:12px 20px; font-size:14px; }
+  .login-foot { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px;
+    margin-top:22px; padding-top:16px; border-top:1px solid var(--lb-line);
+    font-size:11.5px; color:var(--gray); }
+  .login-foot .lf-ver { font-variant-numeric:tabular-nums; letter-spacing:.2px; }
+  .login-foot .lf-sep { opacity:.45; }
+  .login-foot .lf-link { color:var(--gray); border-bottom:1px solid transparent; transition:color .15s, border-color .15s; }
+  .login-foot .lf-link:hover { color:var(--blue); border-bottom-color:var(--blue); }
   input { width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:12px; font-size:14px;
     font-family:inherit; outline:none; margin-bottom:12px; background:#fff; color:var(--text);
     transition:border-color .15s, box-shadow .15s; }
@@ -258,15 +285,23 @@
     --bg:#161618; --card:#232326; --text:#f2f2f4; --gray:#9a9aa0; --line:#333336;
     --shadow:0 1px 3px rgba(0,0,0,.4); --shadow-lg:0 12px 40px rgba(0,0,0,.6);
     --subtle:#2a2a2e; --subtle-hover:#323236; --seg:#333338; --danger-weak:#4a2222; --green-weak:#1e3a28;
+    --lb-base:#0f1014; --lb-card:rgba(34,34,38,.78); --lb-border:rgba(255,255,255,.08);
+    --lb-glow1:rgba(10,132,255,.3); --lb-glow2:rgba(52,199,89,.16); --lb-glow3:rgba(124,92,255,.22);
+    --lb-shadow:0 30px 80px rgba(0,0,0,.6), 0 2px 10px rgba(0,0,0,.35);
+    --lb-line:rgba(255,255,255,.05);
   }
   html:not([data-theme="light"]) body { background:var(--bg); color:var(--text); }
   html:not([data-theme="light"]) input { background:#1d1d20; }
-  html:not([data-theme="light"]) .login-box { background:var(--card); }
+  html:not([data-theme="light"]) .login-box input { background:rgba(29,29,32,.9); }
 }
 html[data-theme="dark"] {
   --bg:#161618; --card:#232326; --text:#f2f2f4; --gray:#9a9aa0; --line:#333336;
   --shadow:0 1px 3px rgba(0,0,0,.4); --shadow-lg:0 12px 40px rgba(0,0,0,.6);
   --subtle:#2a2a2e; --subtle-hover:#323236; --seg:#333338; --danger-weak:#4a2222; --green-weak:#1e3a28;
+  --lb-base:#0f1014; --lb-card:rgba(34,34,38,.78); --lb-border:rgba(255,255,255,.08);
+  --lb-glow1:rgba(10,132,255,.3); --lb-glow2:rgba(52,199,89,.16); --lb-glow3:rgba(124,92,255,.22);
+  --lb-shadow:0 30px 80px rgba(0,0,0,.6), 0 2px 10px rgba(0,0,0,.35);
+  --lb-line:rgba(255,255,255,.05);
 }
 html[data-theme="dark"] body { background:var(--bg); color:var(--text); }
 html[data-theme="dark"] input { background:#1d1d20; }

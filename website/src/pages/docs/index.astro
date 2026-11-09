@@ -1,0 +1,158 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { SITE_CONFIG } from "@/config/site";
+
+const toc = [
+  { id: "requirement", name: "系统要求" },
+  { id: "install", name: "安装" },
+  { id: "login", name: "首次登录" },
+  { id: "config", name: "配置文件" },
+  { id: "https", name: "开启 HTTPS" },
+  { id: "apps", name: "应用商店" },
+  { id: "backup", name: "备份与定时任务" },
+  { id: "update", name: "自动更新" },
+  { id: "faq", name: "常见问题" },
+];
+
+const sampleConfig = `{
+  "listen": ":8080",
+  "username": "admin",
+  "password_hash": "...",
+  "secret": "...",
+  "file_roots": ["/", "/mnt"],
+  "temp_threshold_c": 75,
+  "auto_update": true,
+  "update_check_hour": 4
+}`;
+---
+
+<MainLayout title="文档" description="NanoPanel 安装、配置与常见问题。">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-20">
+    <div class="lg:grid lg:grid-cols-[220px_1fr] lg:gap-14">
+      <aside class="hidden lg:block">
+        <div class="sticky top-24">
+          <div class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">目录</div>
+          <nav class="space-y-1">
+            {
+              toc.map((t) => (
+                <a
+                  href={`#${t.id}`}
+                  class="block px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  {t.name}
+                </a>
+              ))
+            }
+          </nav>
+        </div>
+      </aside>
+
+      <div class="prose prose-gray dark:prose-invert max-w-none
+        prose-headings:tracking-tight prose-headings:font-bold
+        prose-h2:text-2xl prose-h2:mt-12 prose-h2:mb-4
+        prose-p:text-[14.5px] prose-p:leading-7
+        prose-li:text-[14.5px]
+        prose-code:text-[13px] prose-code:font-normal
+        prose-code:before:content-none prose-code:after:content-none
+        prose-pre:bg-[#0f1014] prose-pre:text-gray-200 prose-pre:rounded-xl">
+        <h1 class="text-3xl md:text-4xl !mt-0 !mb-3">部署文档</h1>
+        <p class="!mt-0 text-gray-600 dark:text-gray-400">
+          NanoPanel 是单二进制程序，所有前端资源都编译进可执行文件，部署只需要一个文件加一个 systemd 服务。
+        </p>
+
+        <h2 id="requirement">系统要求</h2>
+        <ul>
+          <li>Linux（x86_64 / aarch64 / armv7），内核 3.10 以上</li>
+          <li>systemd（用于开机自启与进程守护）</li>
+          <li>内存 128 MB 起，推荐 512 MB 以上</li>
+          <li>磁盘 50 MB 可用空间</li>
+        </ul>
+        <p>必须在 Linux 上运行；在 macOS / Windows 上启动时，依赖 Linux 的功能（进程、日志、服务）会自动降级。</p>
+
+        <h2 id="install">安装</h2>
+        <p>推荐使用一键脚本，它会自动识别架构、下载最新 Release、安装 systemd 服务并生成初始密码：</p>
+        <pre><code>curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash
+sudo systemctl enable --now nanopanel</code></pre>
+        <p>国内网络可指定镜像：</p>
+        <pre><code>export GITHUB_MIRROR=https://ghfast.top/https://github.com
+curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash</code></pre>
+        <p>也可以手动下载二进制，放到 <code>/opt/nanopanel/nanopanel</code>，用 <code>-config</code> 指定配置文件路径。</p>
+
+        <h2 id="login">首次登录</h2>
+        <p>
+          安装完成后浏览器访问 <code>http://设备IP:8080</code>，初始用户名 <code>admin</code>，初始密码在安装输出里，
+          也会写入 <code>/etc/nanopanel/config.json</code> 的 <code>initial_password</code> 字段（首次登录后请立即修改）。
+        </p>
+
+        <h2 id="config">配置文件</h2>
+        <p>配置位于 <code>/etc/nanopanel/config.json</code>，常用字段：</p>
+        <pre><code>{sampleConfig}</code></pre>
+        <p>
+          修改密码会在面板内完成（设置 → 安全），同时轮换签名密钥，所有旧登录态立即失效。
+          忘记密码时删除 <code>password_hash</code> 字段并重启即可重新生成。
+        </p>
+
+        <h2 id="https">开启 HTTPS</h2>
+        <p>
+          设置 → 安全 → 启用 HTTPS，面板会在 <code>/etc/nanopanel/tls</code> 生成 ECDSA P-256 自签证书（10 年有效，
+          SAN 覆盖主机名与全部网卡 IP），保存后自动重启并监听 8443。也可以命令行生成：
+        </p>
+        <pre><code>sudo nanopanel -gen-cert -cert-dir /etc/nanopanel/tls</code></pre>
+
+        <h2 id="apps">应用商店</h2>
+        <p>
+          应用商店内置 mihomo（含 metacubexd 面板）、AdGuard Home、Tailscale、frp、CUPS、WebDAV、Samba 等应用。
+          安装前会做架构、内存与磁盘预检；安装后卡片显示运行状态，带网页界面的应用可一键打开。
+        </p>
+        <p>更新可安装清单：应用商店 → 设置 → 更新清单，从仓库拉取最新 manifest.json。</p>
+
+        <h2 id="backup">备份与定时任务</h2>
+        <p>
+          设置 → 维护 → 导出备份，会打包面板配置、应用配置（含 <code>config.env</code>）、<code>mirror.conf</code> 与已安装版本记录，
+          生成 <code>tar.gz</code>。恢复时上传该文件即可，面板会在恢复后重启。
+        </p>
+        <p>
+          定时任务支持三种表达式：<code>every:30m</code>（间隔）、<code>hourly:15</code>（每小时第几分钟）、
+          <code>daily:03:30</code>（每天几点几分），执行结果可推送到 Webhook。
+        </p>
+
+        <h2 id="update">自动更新</h2>
+        <p>
+          面板启动后会定期检查 GitHub Release。发现新版本时推送「版本更新」通知；开启自动更新后，
+          会在设定的时间自动下载、校验可执行性、备份旧二进制（<code>.bak</code>）、替换并重启，失败自动回滚。
+        </p>
+        <p>
+          更新源优先使用 <code>GITHUB_MIRROR</code> 环境变量，其次 GitHub 官方，最后 ghfast 镜像。
+          也可以随时在「关于」页点「立即升级」，或执行 <code>sudo npctl upgrade</code>。
+        </p>
+
+        <h2 id="faq">常见问题</h2>
+        <h3>面板打不开？</h3>
+        <p>
+          先确认服务状态 <code>systemctl status nanopanel</code>，再看 <code>journalctl -u nanopanel -n 50</code>；
+          若开了 HTTPS，默认端口会变成 8443，且浏览器需要信任自签证书。
+        </p>
+        <h3>进程 / 日志页面空白？</h3>
+        <p>这些功能依赖 Linux 的 /proc 与 systemd，在非 Linux 环境会自动隐藏数据。</p>
+        <h3>应用装不上？</h3>
+        <p>
+          多为网络问题：确认 <code>/opt/nanopanel/mirror.conf</code> 里的镜像前缀是完整形式
+          （如 <code>https://ghfast.top/https://github.com</code>），或直接在应用商店里重试。
+        </p>
+        <h3>自动更新一直提示「无法连接更新源」？</h3>
+        <p>仓库尚未发布 Release 时属于预期行为；发布首个 Release 后即自动生效。</p>
+
+        <div class="not-prose mt-14 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
+          <div class="font-semibold">还有问题？</div>
+          <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            在
+            <a href={SITE_CONFIG.social.issues} target="_blank" rel="noopener noreferrer" class="text-[#0071e3] hover:underline"
+              >GitHub Issues</a
+            >
+            提问，附上设备型号、系统版本与相关日志，会更快定位。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</MainLayout>

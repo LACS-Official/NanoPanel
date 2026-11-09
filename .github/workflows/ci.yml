@@ -36,6 +36,11 @@ jobs:
       - name: gofmt check
         if: runner.os == 'Linux'
         run: test -z "$(gofmt -l .)"
+      - name: Frontend JS syntax check
+        if: runner.os == 'Linux'
+        run: |
+          node --check web/app.js
+          test -z "$(grep -n $'\r' web/app.js web/index.html web/style.css)"
 
   lint:
     name: golangci-lint
