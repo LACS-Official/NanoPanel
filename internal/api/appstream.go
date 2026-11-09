@@ -143,6 +143,16 @@ func (s *Server) AppActionStream(w http.ResponseWriter, r *http.Request) {
 		s.audit(r, "app", "应用"+actionLabel+"失败", id)
 		s.notifyAsync("app", "应用"+actionLabel+"失败: "+id, "exit: "+exitErr.Error())
 	} else {
+		// 安装成功记录脚本版本供「可升级」判断；卸载成功清除记录。
+		if state == "installed" && action == "install" {
+			if app := s.findApp(id); app != nil {
+				_ = os.MkdirAll(filepath.Dir(s.appVersionFile(id)), 0750)
+				_ = os.WriteFile(s.appVersionFile(id), []byte(app.Version), 0640)
+			}
+		}
+		if action == "remove" {
+			_ = os.Remove(s.appVersionFile(id))
+		}
 		s.audit(r, "app", "应用"+actionLabel, id)
 		s.notifyAsync("app", "应用"+actionLabel+"完成", "应用: "+id)
 	}

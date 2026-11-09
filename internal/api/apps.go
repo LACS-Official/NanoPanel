@@ -34,16 +34,17 @@ type AppConfigField struct {
 
 // AppMeta 应用商店里的应用信息。
 type AppMeta struct {
-	ID          string           `json:"id"`
-	Name        string           `json:"name"`
-	Description string           `json:"description"`
-	Version     string           `json:"version"`
-	Icon        string           `json:"icon"`
-	Category    string           `json:"category"`
-	Unit        string           `json:"unit,omitempty"`   // 对应的 systemd 单元，供日志筛选与存活检测
-	State       string           `json:"state"`            // installed / not_installed / unknown
-	Status      string           `json:"status,omitempty"` // running / down / unknown / not_installed
-	Config      []AppConfigField `json:"config,omitempty"` // 常用配置项声明
+	ID           string           `json:"id"`
+	Name         string           `json:"name"`
+	Description  string           `json:"description"`
+	Version      string           `json:"version"`
+	Icon         string           `json:"icon"`
+	Category     string           `json:"category"`
+	Unit         string           `json:"unit,omitempty"`              // 对应的 systemd 单元，供日志筛选与存活检测
+	State        string           `json:"state"`                       // installed / not_installed / unknown
+	Status       string           `json:"status,omitempty"`            // running / down / unknown / not_installed
+	InstalledVer string           `json:"installed_version,omitempty"` // 安装时记录的脚本版本，与 Version 不一致即可升级
+	Config       []AppConfigField `json:"config,omitempty"`            // 常用配置项声明
 }
 
 type appManifestFile struct {
@@ -116,6 +117,20 @@ func (s *Server) appState(ctx context.Context, id string) string {
 	return state
 }
 
+// appVersionFile 记录应用安装时的脚本版本，用于「可升级」判断。
+func (s *Server) appVersionFile(id string) string {
+	return filepath.Join(s.cfg.AppsDir, id, "installed_version")
+}
+
+// readInstalledVersion 返回记录的安装版本；无记录返回空串（不视为可升级）。
+func (s *Server) readInstalledVersion(id string) string {
+	b, err := os.ReadFile(s.appVersionFile(id))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
 // ListApps 列出应用商店中的应用及安装状态。
 func (s *Server) ListApps(w http.ResponseWriter, r *http.Request) {
 	m, err := s.loadManifest()
@@ -126,6 +141,9 @@ func (s *Server) ListApps(w http.ResponseWriter, r *http.Request) {
 	for i := range m.Apps {
 		m.Apps[i].State = s.appState(r.Context(), m.Apps[i].ID)
 		m.Apps[i].Status = s.appRuntimeStatus(r.Context(), &m.Apps[i]).Status
+		if m.Apps[i].State == "installed" {
+			m.Apps[i].InstalledVer = s.readInstalledVersion(m.Apps[i].ID)
+		}
 	}
 	ok(w, m.Apps)
 }

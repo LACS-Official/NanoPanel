@@ -202,3 +202,58 @@ func TestDiskNotifyEvent(t *testing.T) {
 		t.Fatal("前端事件选项里缺少 disk")
 	}
 }
+
+// TestInstalledVersionTracking 安装成功记录版本；与清单版本不一致时暴露 installed_version 供前端判断升级。
+func TestInstalledVersionTracking(t *testing.T) {
+	srv := newStreamTestServer(t)
+
+	// 安装前：无记录，不应视为可升级
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/apps", nil)
+	rec := httptest.NewRecorder()
+	srv.ListApps(rec, req)
+	if strings.Contains(rec.Body.String(), `"installed_version"`) {
+		t.Fatalf("无记录时不应返回 installed_version 字段: %s", rec.Body.String())
+	}
+
+	// 执行安装
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/app/action/stream?id=demo&action=install", nil)
+	rec = httptest.NewRecorder()
+	srv.AppActionStream(rec, req)
+	if !strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatalf("安装失败: %s", rec.Body.String())
+	}
+
+	// 安装后：记录的版本应等于清单版本 1.0.0
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/apps", nil)
+	rec = httptest.NewRecorder()
+	srv.ListApps(rec, req)
+	if !strings.Contains(rec.Body.String(), `"installed_version":"1.0.0"`) {
+		t.Fatalf("安装后应记录清单版本: %s", rec.Body.String())
+	}
+
+	// 手工回退记录为旧版本，应暴露旧版本供前端判断可升级
+	if err := os.WriteFile(filepath.Join(srv.cfg.AppsDir, "demo", "installed_version"),
+		[]byte("0.9.0"), 0640); err != nil {
+		t.Fatal(err)
+	}
+	rec = httptest.NewRecorder()
+	srv.ListApps(rec, httptest.NewRequest(http.MethodGet, "/api/v1/apps", nil))
+	if !strings.Contains(rec.Body.String(), `"installed_version":"0.9.0"`) {
+		t.Fatalf("应读取记录的旧版本: %s", rec.Body.String())
+	}
+}
+
+// TestMirrorSettings 镜像源信息端点返回注入的环境变量。
+func TestMirrorSettings(t *testing.T) {
+	srv, _ := newTestServer(t)
+	t.Setenv("GITHUB_MIRROR", "https://example-mirror.test/https://github.com")
+	t.Setenv("APT_MIRROR", "https://mirrors.example.test")
+	rec := httptest.NewRecorder()
+	srv.MirrorSettings(rec, httptest.NewRequest(http.MethodGet, "/api/v1/settings/mirror", nil))
+	body := rec.Body.String()
+	for _, want := range []string{"example-mirror.test", "mirrors.example.test"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("镜像源信息缺少 %s: %s", want, body)
+		}
+	}
+}

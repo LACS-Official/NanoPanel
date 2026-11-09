@@ -116,11 +116,11 @@ func main() {
 	mux.HandleFunc("POST /api/v1/apps/check", srv.AuthMiddleware(srv.CheckAppHealth))
 	mux.HandleFunc("GET /api/v1/settings/monitor", srv.AuthMiddleware(srv.GetMonitorSettings))
 	mux.HandleFunc("POST /api/v1/settings/monitor", srv.AuthMiddleware(srv.SaveMonitorSettings))
+	mux.HandleFunc("GET /api/v1/settings/mirror", srv.AuthMiddleware(srv.MirrorSettings))
 	mux.HandleFunc("GET /api/v1/settings/webhook", srv.AuthMiddleware(srv.GetWebhook))
 	mux.HandleFunc("POST /api/v1/settings/webhook", srv.AuthMiddleware(srv.SaveWebhook))
 	mux.HandleFunc("POST /api/v1/settings/webhook/test", srv.AuthMiddleware(srv.TestWebhook))
 	mux.HandleFunc("GET /api/v1/mihomo/status", srv.AuthMiddleware(srv.MihomoStatus))
-	mux.HandleFunc("/api/v1/mihomo", srv.AuthMiddleware(srv.MihomoProxy))
 
 	// 前端静态文件（SPA）
 	staticSub, err := fs.Sub(webFS, "web")

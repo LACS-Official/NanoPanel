@@ -265,13 +265,11 @@
       </div>
       <nav class="nav" id="nav">
         <button data-view="overview" class="active"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1.2"/><rect x="9" y="2" width="5" height="5" rx="1.2"/><rect x="2" y="9" width="5" height="5" rx="1.2"/><rect x="9" y="9" width="5" height="5" rx="1.2"/></svg>概览</button>
-        <button data-view="services"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M12.4 3.6L11 5M5 11l-1.4 1.4"/></svg>服务</button>
         <button data-view="processes"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5.5 4H14M5.5 8H14M5.5 12H14"/><circle cx="2.8" cy="4" r="1"/><circle cx="2.8" cy="8" r="1"/><circle cx="2.8" cy="12" r="1"/></svg>进程</button>
         <button data-view="logs"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="1.8" width="10" height="12.4" rx="1.6"/><path d="M5.6 5h4.8M5.6 8h4.8M5.6 11h2.8"/></svg>日志</button>
         <button data-view="network"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5.6"/><ellipse cx="8" cy="8" rx="2.4" ry="5.6"/><path d="M2.4 8h11.2"/></svg>网络</button>
         <button data-view="disks"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><ellipse cx="8" cy="3.8" rx="5.4" ry="2.2"/><path d="M2.6 3.8v8.4c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2V3.8"/><path d="M2.6 8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2"/></svg>磁盘</button>
         <button data-view="apps"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 5.4V4.2a2.8 2.8 0 015.6 0v1.2"/><rect x="2.8" y="5.4" width="10.4" height="8.4" rx="2"/></svg>应用商店</button>
-        <button data-view="mihomo"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 4.6h9M9.6 2.2L12 4.6 9.6 7M13.4 11.4h-9M6.4 8.9L4 11.4l2.4 2.5"/></svg>代理管理</button>
         <button data-view="settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 5h4.4M9.6 5H14M2 11h9.4"/><circle cx="8" cy="5" r="1.7"/><circle cx="13" cy="11" r="1.7"/></svg>设置</button>
       </nav>
       <div class="side-foot">
@@ -298,13 +296,6 @@
         <div class="card">
           <h2>资源占用</h2>
           <div id="resBars"></div>
-        </div>
-      </div>
-
-      <div class="view" id="view-services">
-        <div class="card">
-          <h2>系统服务</h2>
-          <div id="svcList"></div>
         </div>
       </div>
 
@@ -381,52 +372,51 @@
       </div>
 
       <div class="view" id="view-apps">
-        <div class="card">
-          <h2>应用商店</h2>
-          <div class="app-grid" id="appGrid"></div>
-        </div>
-      </div>
-
-      <div class="view" id="view-mihomo">
-        <div class="card">
-          <h2>Mihomo 代理内核</h2>
-          <div class="row-flex" style="margin-bottom:14px">
-            <button class="btn sm" onclick="loadMihomoAll()">刷新</button>
-            <button class="btn sm green hidden" id="mhMetacubexdBtn" onclick="openMetacubexd()">打开 metacubexd 面板</button>
-            <label class="mh-auto"><input type="checkbox" id="mhAuto"> 自动刷新（10 秒）</label>
-            <span class="state-tag" id="mhStatus"></span>
+        <div class="subpane" data-sub="all">
+          <div class="card">
+            <h2>系统服务</h2>
+            <div id="svcList"></div>
           </div>
-          <div class="grid2" id="mhMetrics"></div>
-        </div>
-        <div class="card">
-          <h2>运行模式</h2>
-          <div class="row-flex">
-            <select id="mhMode" class="sm">
-              <option value="rule">规则模式 (rule)</option>
-              <option value="global">全局模式 (global)</option>
-              <option value="direct">直连模式 (direct)</option>
-            </select>
-            <button class="btn sm" onclick="setMihomoMode()">切换模式</button>
-          </div>
-          <div style="font-size:12px;color:var(--gray);margin-top:10px">
-            代理接口仅监听 127.0.0.1，所有请求经面板转发；切换节点、测速、断开连接都会记入面板日志。
+          <div class="card">
+            <h2>全部应用</h2>
+            <div class="app-grid" id="allGrid"></div>
           </div>
         </div>
-        <div class="card">
-          <h2>代理组与节点</h2>
-          <div id="mhGroups"></div>
-        </div>
-        <div class="card">
-          <h2>活跃连接</h2>
-          <div class="row-flex" style="margin-bottom:12px">
-            <span class="state-tag" id="mhConnCount"></span>
-            <button class="btn sm danger" onclick="clearMihomoConns()">清空全部连接</button>
+        <div class="subpane hidden" data-sub="installed">
+          <div class="card">
+            <h2>已安装应用</h2>
+            <div class="app-grid" id="installedGrid"></div>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>目标</th><th>网络</th><th>规则</th><th>上传 / 下载</th><th>操作</th></tr></thead>
-              <tbody id="mhConns"></tbody>
-            </table>
+        </div>
+        <div class="subpane hidden" data-sub="upgradable">
+          <div class="card">
+            <h2>可升级应用</h2>
+            <div style="font-size:12px;color:var(--gray);margin-bottom:12px">
+              应用脚本有新版本时会出现在这里，点击「升级」会重新执行安装脚本（保留配置与数据）。
+            </div>
+            <div class="app-grid" id="upgradableGrid"></div>
+          </div>
+        </div>
+        <div class="subpane hidden" data-sub="store">
+          <div class="card">
+            <h2>下载源</h2>
+            <div class="grid2" id="mirrorMetrics"></div>
+            <div style="font-size:12px;color:var(--gray);margin-top:12px">
+              安装时自动测速选择的最优源；如需更换，编辑 /etc/nanopanel/mirror.conf 后重启面板服务。
+            </div>
+          </div>
+          <div class="card">
+            <h2>应用健康检测</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              定时检查已安装应用的 systemd 单元；从「运行中」变为「已停止」或恢复时，
+              会推送 Webhook 通知（需在「设置 → 通知」勾选「应用掉线 / 恢复」事件）并写入面板日志。
+            </div>
+            <div class="row-flex">
+              <select id="monInterval" class="sm"></select>
+              <button class="btn sm" onclick="saveMonitor()">保存设置</button>
+              <button class="btn sm gray" onclick="checkAppsNow()">立即检测并告警</button>
+            </div>
+            <div style="font-size:12px;color:var(--gray);margin-top:10px" id="monHint"></div>
           </div>
         </div>
       </div>
@@ -451,19 +441,9 @@
               <button class="btn" onclick="saveWebhook()">保存通知配置</button>
               <button class="btn gray" onclick="testWebhook()">发送测试通知</button>
             </div>
-          </div>
-          <div class="card">
-            <h2>应用健康检测</h2>
-            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
-              定时检查已安装应用的 systemd 单元；从「运行中」变为「已停止」或恢复时，
-              会推送 Webhook 通知并写入面板日志。需在上方勾选「应用掉线 / 恢复」事件。
+            <div style="font-size:12px;color:var(--gray);margin-top:12px">
+              应用健康检测与掉线告警的开关在「应用商店 → 设置」里。
             </div>
-            <div class="row-flex">
-              <select id="monInterval" class="sm"></select>
-              <button class="btn sm" onclick="saveMonitor()">保存设置</button>
-              <button class="btn sm gray" onclick="checkAppsNow()">立即检测并告警</button>
-            </div>
-            <div style="font-size:12px;color:var(--gray);margin-top:10px" id="monHint"></div>
           </div>
         </div>
         <div class="subpane hidden" data-sub="security">
@@ -558,7 +538,6 @@
 const API = '/api/v1';
 let token = localStorage.getItem('np_token') || '';
 let overviewTimer = null;
-let mhTimer = null;
 
 /* ===== Logo（登录页 / 侧栏 / 关于 共用）===== */
 const LOGO_SVG =
@@ -603,7 +582,6 @@ function showLogin(){
   document.getElementById('loginView').classList.remove('hidden');
   document.getElementById('mainView').classList.add('hidden');
   if (overviewTimer){ clearInterval(overviewTimer); overviewTimer=null; }
-  if (mhTimer){ clearInterval(mhTimer); mhTimer=null; }
 }
 function showMain(){
   document.getElementById('loginView').classList.add('hidden');
@@ -636,14 +614,13 @@ async function doLogout(){
 /* ===== 视图与二级页签 ===== */
 const viewMeta = {
   overview:  { t:'概览',     s:'系统状态与资源占用一览' },
-  services:  { t:'服务',     s:'管理系统服务' },
   processes: { t:'进程',     s:'按内存排序的进程快照' },
   logs:      { t:'日志中心', s:'系统日志与面板审计',
                tabs:[['system','系统日志'],['panel','面板日志']] },
   network:   { t:'网络',     s:'连通性测试' },
   disks:     { t:'磁盘',     s:'块设备挂载与用量管理' },
-  apps:      { t:'应用商店', s:'浏览、安装与配置应用' },
-  mihomo:    { t:'代理管理', s:'Mihomo 内核控制台' },
+  apps:      { t:'应用商店', s:'应用、系统服务与下载源管理',
+               tabs:[['all','全部'],['installed','已安装'],['upgradable','可升级'],['store','设置']] },
   settings:  { t:'设置',     s:'通知、安全与面板信息',
                tabs:[['notify','通知'],['security','安全'],['system','系统'],['about','关于']] },
 };
@@ -656,11 +633,10 @@ function switchView(v){
   document.getElementById('pageTitle').textContent = m.t || v;
   document.getElementById('pageSub').textContent = m.s || '';
   renderSubtabs(v);
-  if (v==='mihomo') loadMihomoAll();
+  if (v==='apps'){ loadApps(); if(!curSub.apps) setSub('apps','all'); }
   if (v==='logs' && !curSub.logs) setSub('logs','system');
   if (v==='settings' && !curSub.settings) setSub('settings','notify');
   if (v==='disks') loadDisks();
-  syncMihomoTimer();
 }
 function renderSubtabs(v){
   const box = document.getElementById('pageSubtabs');
@@ -676,19 +652,12 @@ function setSub(v,k){
   document.querySelectorAll('#pageSubtabs button').forEach(b=>b.classList.toggle('active', b.dataset.sub===k));
   document.querySelectorAll('#view-'+v+' .subpane').forEach(p=>p.classList.toggle('hidden', p.dataset.sub!==k));
   if (v==='logs') (k==='system') ? loadLogs() : loadPanelLogs();
+  if (v==='apps' && k==='store') loadMirrorSettings();
 }
 document.getElementById('pageSubtabs').addEventListener('click', e=>{
   const b = e.target.closest('button[data-sub]');
   if (b) setSub(currentView(), b.dataset.sub);
 });
-function syncMihomoTimer(){
-  if (mhTimer){ clearInterval(mhTimer); mhTimer=null; }
-  const box = document.getElementById('mhAuto');
-  if (box && box.checked && currentView()==='mihomo'){
-    mhTimer = setInterval(()=>{ if(currentView()==='mihomo') loadMihomoAll(); }, 10000);
-  }
-}
-document.getElementById('mhAuto').addEventListener('change', syncMihomoTimer);
 document.getElementById('nav').addEventListener('click',e=>{
   if(e.target.closest('button[data-view]')) switchView(e.target.closest('button[data-view]').dataset.view);
 });
@@ -847,151 +816,89 @@ async function checkAppsNow(){
   } catch(e){ toast(e.message); }
 }
 
-// ===== Mihomo 代理管理 =====
-let mhDelays = {};
-function fmtBytes(n){
-  n = Number(n) || 0;
-  if (n < 1024) return n + ' B';
-  if (n < 1048576) return (n/1024).toFixed(1) + ' KB';
-  if (n < 1073741824) return (n/1048576).toFixed(1) + ' MB';
-  return (n/1073741824).toFixed(2) + ' GB';
+// ===== 应用商店 =====
+const healthLabels = {running:'● 运行中', down:'● 已掉线', unknown:'○ 未监控', not_installed:'未安装'};
+const healthCls = {running:'st-run', down:'st-down', unknown:'st-unknown', not_installed:'st-unknown'};
+let appData = [];
+
+function appUpgradable(a){
+  return a.state==='installed' && a.installed_version && a.installed_version !== a.version;
 }
-// 内核返回的可能是 204 空响应，因此单独封装，不复用 call()
-async function mihomoCall(path, method, body, params){
-  let url = API + '/mihomo?path=' + encodeURIComponent(path);
-  if (params) Object.keys(params).forEach(k=>{ url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); });
-  const opt = { method: method || 'GET', headers: {'Content-Type':'application/json'} };
-  if (token) opt.headers['Authorization'] = 'Bearer ' + token;
-  if (body) opt.body = JSON.stringify(body);
-  const res = await fetch(url, opt);
-  if (res.status === 401){ token=''; localStorage.removeItem('np_token'); showLogin(); throw new Error('登录已过期'); }
-  if (res.status === 204 || res.status === 205) return {};
-  const text = await res.text();
-  let data = {};
-  try { data = text ? JSON.parse(text) : {}; } catch(e){ throw new Error('内核响应格式错误'); }
-  if (!res.ok) throw new Error(data.message || data.error || ('内核返回 HTTP ' + res.status));
-  return data;
+
+function appCard(a, mode){
+  const installed = a.state==='installed';
+  const upgradable = appUpgradable(a);
+  const cfgBtn = installed && a.config && a.config.length
+    ? '<button class="btn sm gray" data-cfg="'+esc(a.id)+'">配置</button>' : '';
+  const manageBtn = (a.id==='mihomo' && installed)
+    ? '<button class="btn sm gray" data-manage="mihomo">管理面板</button>' : '';
+  const upgBtn = upgradable && mode!=='upgradable'
+    ? '<button class="btn sm green" data-id="'+esc(a.id)+'" data-act="install" data-label="升级">升级</button>' : '';
+  let actionBtn;
+  if (mode==='upgradable'){
+    actionBtn = '<button class="btn sm green" data-id="'+esc(a.id)+'" data-act="install" data-label="升级">升级到 '+esc(a.version)+'</button>';
+  } else {
+    actionBtn = '<button class="btn sm '+(installed?'danger':'')+'" data-id="'+esc(a.id)+
+      '" data-act="'+(installed?'remove':'install')+'">'+(installed?'卸载':'安装')+'</button>';
+  }
+  const verLine = mode==='upgradable'
+    ? '<div class="ver">当前 '+esc(a.installed_version)+' → 最新 '+esc(a.version)+'</div>'
+    : '<div class="ver">'+esc(a.version)+(upgradable?' · <span style="color:#d70015">有新版本</span>':'')+'</div>';
+  const st = a.status || a.state;
+  return '<div class="app-card"><div class="app-head"><div class="app-icon">'+esc((a.name||'?')[0])+'</div>'+
+    '<div><div class="name">'+esc(a.name)+'</div>'+verLine+'</div></div>'+
+    '<div class="app-desc">'+esc(a.description)+'</div>'+
+    '<div class="app-foot"><span class="app-state '+(healthCls[st]||'st-unknown')+'">'+
+    esc(healthLabels[st]||st)+'</span>'+
+    '<span class="row-flex" style="gap:8px">'+manageBtn+cfgBtn+upgBtn+actionBtn+'</span></div></div>';
 }
-function mhMessage(msg){
-  document.getElementById('mhStatus').textContent = msg;
-  document.getElementById('mhMetacubexdBtn').classList.add('hidden');
-  document.getElementById('mhMetrics').innerHTML = '';
-  document.getElementById('mhGroups').innerHTML =
-    '<div class="empty-tip">'+esc(msg)+'</div>';
-  document.getElementById('mhConns').innerHTML = '<tr><td colspan="5" class="empty-tip">'+esc(msg)+'</td></tr>';
-  document.getElementById('mhConnCount').textContent = '';
-}
-async function loadMihomoAll(){
+
+async function loadApps(){
   try {
-    const st = await call('GET','/mihomo/status');
-    const mcdBtn = document.getElementById('mhMetacubexdBtn');
-    mcdBtn.classList.toggle('hidden', !(st.installed && st.ui_enabled && st.port));
-    mcdBtn._port = st.port || 9090;
-    if (!st.installed) return mhMessage('尚未安装 Mihomo，请先到「应用商店」安装');
-    if (!st.reachable) return mhMessage('内核控制接口不可达（' + esc(st.controller) + '），请检查应用状态与控制端口');
-    const [ver, cfg, px, conns] = await Promise.all([
-      mihomoCall('/version'), mihomoCall('/configs'), mihomoCall('/proxies'), mihomoCall('/connections')
-    ]);
-    document.getElementById('mhStatus').textContent = '已连接 · ' + (ver.version || ver.meta || '内核在线');
-    document.getElementById('mhMetrics').innerHTML =
-      metric('内核版本', ver.version || ver.meta || '-') +
-      metric('运行模式', cfg.mode || '-') +
-      metric('混合代理端口', cfg['mixed-port'] || '-') +
-      metric('活跃连接', (conns.connections||[]).length) +
-      metric('累计下载', fmtBytes(conns.downloadTotal)) +
-      metric('累计上传', fmtBytes(conns.uploadTotal));
-    const mode = cfg.mode || 'rule';
-    const sel = document.getElementById('mhMode');
-    if (sel.querySelector('option[value="'+CSS.escape(mode)+'"]')) sel.value = mode;
-    renderMihomoGroups(px.proxies || {});
-    renderMihomoConns(conns);
-  } catch(e){ mhMessage(e.message); }
+    appData = await call('GET','/apps');
+    const all = appData, inst = appData.filter(a=>a.state==='installed'), upg = appData.filter(appUpgradable);
+    document.getElementById('allGrid').innerHTML = all.length
+      ? all.map(a=>appCard(a,'all')).join('') : '<div class="empty-tip">应用清单为空</div>';
+    document.getElementById('installedGrid').innerHTML = inst.length
+      ? inst.map(a=>appCard(a,'installed')).join('') : '<div class="empty-tip">还没有安装任何应用</div>';
+    document.getElementById('upgradableGrid').innerHTML = upg.length
+      ? upg.map(a=>appCard(a,'upgradable')).join('') : '<div class="empty-tip">所有应用都是最新版本</div>';
+    refreshLogUnits();
+  } catch(e){
+    document.getElementById('allGrid').textContent = e.message;
+  }
 }
-const mhGroupTypes = ['Selector','URLTest','Fallback','LoadBalance','Relay'];
-function renderMihomoGroups(proxies){
-  const names = Object.keys(proxies).filter(n=>{
-    const p = proxies[n] || {};
-    return mhGroupTypes.indexOf(p.type) >= 0 && (p.all||[]).length > 0;
-  });
-  if (!names.length){
-    document.getElementById('mhGroups').innerHTML =
-      '<div class="empty-tip">当前配置没有可用的代理组，请先在应用配置里填写订阅链接。</div>';
+
+document.getElementById('view-apps').addEventListener('click', async e=>{
+  const manageBtn = e.target.closest('button[data-manage]');
+  if (manageBtn){
+    try {
+      const st = await call('GET','/mihomo/status');
+      if (st.installed && st.ui_enabled && st.port){
+        window.open('http://' + location.hostname + ':' + st.port + '/ui', '_blank');
+      } else {
+        toast('metacubexd 未开启，请在该应用的「配置」里开启后重试');
+      }
+    } catch(err){ toast(err.message); }
     return;
   }
-  document.getElementById('mhGroups').innerHTML = names.map(g=>{
-    const p = proxies[g], delays = mhDelays[g] || {};
-    const nodes = (p.all||[]).map(n=>{
-      const v = delays[n];
-      const d = (typeof v === 'number' && v > 0) ? v + 'ms' : '';
-      return '<button class="node'+(p.now===n?' cur':'')+'" data-group="'+esc(g)+'" data-node="'+esc(n)+'">'+
-        esc(n)+(d?'<span class="d">'+esc(d)+'</span>':'')+'</button>';
-    }).join('');
-    return '<div class="mh-group"><div class="row-flex" style="justify-content:space-between">'+
-      '<h3>'+esc(g)+'</h3><button class="btn sm gray" data-delay="'+esc(g)+'">测速</button></div>'+
-      '<div class="sub">'+esc(p.type||'')+' · 当前 '+esc(p.now||'-')+' · '+(p.all||[]).length+' 个节点</div>'+
-      '<div class="node-list">'+nodes+'</div></div>';
-  }).join('');
-}
-function renderMihomoConns(conns){
-  const list = conns.connections || [];
-  document.getElementById('mhConnCount').textContent = '共 ' + list.length + ' 条连接' + (list.length>50?'（仅显示前 50 条）':'');
-  document.getElementById('mhConns').innerHTML = list.length ? list.slice(0,50).map(c=>{
-    const m = c.metadata || {};
-    const target = (m.host || m.destinationIP || '-') + (m.destinationPort ? ':' + m.destinationPort : '');
-    const rule = (c.rule||'-') + (c.rulePayload ? ' ' + c.rulePayload : '');
-    return '<tr><td>'+esc(target)+'</td><td>'+esc(m.network||'-')+'</td><td>'+esc(rule)+'</td>'+
-      '<td>'+esc(fmtBytes(c.upload))+' / '+esc(fmtBytes(c.download))+'</td>'+
-      '<td><button class="btn sm danger" data-conn="'+esc(c.id)+'">断开</button></td></tr>';
-  }).join('') : '<tr><td colspan="5" class="empty-tip">暂无活跃连接</td></tr>';
-}
-document.getElementById('mhGroups').addEventListener('click', async e=>{
-  const delayBtn = e.target.closest('button[data-delay]');
-  if (delayBtn){
-    const group = delayBtn.dataset.delay;
-    delayBtn.disabled = true; toast('正在测速…');
-    try {
-      const d = await mihomoCall('/proxies/'+group+'/delay','GET',null,
-        {url:'http://www.gstatic.com/generate_204', timeout:'3000'});
-      mhDelays[group] = d || {};
-      Array.from(document.querySelectorAll('#mhGroups .node')).forEach(el=>{
-        if (el.dataset.group !== group) return;
-        const v = mhDelays[group][el.dataset.node];
-        let tag = el.querySelector('.d');
-        if (!tag){ tag = document.createElement('span'); tag.className='d'; el.appendChild(tag); }
-        tag.textContent = (typeof v === 'number' && v > 0) ? v+'ms' : '超时';
-      });
-      toast('测速完成');
-    } catch(err){ toast(err.message); }
-    delayBtn.disabled = false;
-    return;
-  }
-  const nodeBtn = e.target.closest('button[data-node]');
-  if (nodeBtn){
-    try {
-      await mihomoCall('/proxies/'+nodeBtn.dataset.group,'PUT',{name:nodeBtn.dataset.node});
-      toast('已切换到 ' + nodeBtn.dataset.node);
-      loadMihomoAll();
-    } catch(err){ toast(err.message); }
-  }
+  const cfgBtn = e.target.closest('button[data-cfg]');
+  if (cfgBtn) return openAppCfg(cfgBtn.dataset.cfg);
+  const b = e.target.closest('button[data-id]');
+  if (b) runAppAction(b.dataset.id, b.dataset.act, b.dataset.label);
 });
-document.getElementById('mhConns').addEventListener('click', async e=>{
-  const b = e.target.closest('button[data-conn]'); if(!b) return;
-  try { await mihomoCall('/connections/'+b.dataset.conn,'DELETE'); toast('连接已断开'); loadMihomoAll(); }
-  catch(err){ toast(err.message); }
-});
-async function setMihomoMode(){
-  const mode = document.getElementById('mhMode').value;
-  try { await mihomoCall('/configs','PATCH',{mode}); toast('模式已切换为 ' + mode); loadMihomoAll(); }
-  catch(e){ toast(e.message); }
-}
-function openMetacubexd(){
-  const port = document.getElementById('mhMetacubexdBtn')._port || 9090;
-  window.open('http://' + location.hostname + ':' + port + '/ui', '_blank');
-}
-async function clearMihomoConns(){
-  if(!confirm('确定清空全部活跃连接？')) return;
-  try { await mihomoCall('/connections','DELETE'); toast('连接已清空'); loadMihomoAll(); }
-  catch(e){ toast(e.message); }
+
+// ===== 应用商店设置 =====
+async function loadMirrorSettings(){
+  try {
+    const d = await call('GET','/settings/mirror');
+    const box = document.getElementById('mirrorMetrics');
+    box.innerHTML =
+      metric('GitHub 下载源', d.GITHUB_MIRROR || 'https://github.com（默认）')+
+      metric('apt 软件源', d.APT_MIRROR || '系统默认')+
+      metric('测速延迟', d.GITHUB_MIRROR_LATENCY ? (Number(d.GITHUB_MIRROR_LATENCY).toFixed(2)+' s') : '-')+
+      metric('选择时间', d.SELECTED_AT || '-');
+  } catch(e){ /* 静默 */ }
 }
 
 async function doPing(){
@@ -1004,42 +911,7 @@ async function doPing(){
   } catch(e){ document.getElementById('pingOutput').textContent = e.message; }
 }
 
-const healthLabels = {running:'● 运行中', down:'● 已掉线', unknown:'○ 未监控', not_installed:'未安装'};
-const healthCls = {running:'st-run', down:'st-down', unknown:'st-unknown', not_installed:'st-unknown'};
-async function loadApps(){
-  try {
-    const list = await call('GET','/apps');
-    appData = list;
-    document.getElementById('appGrid').innerHTML = list.map(a=>{
-      const installed = a.state==='installed';
-      const cfgBtn = installed && a.config && a.config.length
-        ? '<button class="btn sm gray" data-cfg="'+esc(a.id)+'">配置</button>' : '';
-      const manageBtn = (a.id==='mihomo' && installed)
-        ? '<button class="btn sm gray" data-manage="mihomo">管理</button>' : '';
-      const st = a.status || a.state;
-      return '<div class="app-card"><div class="app-head"><div class="app-icon">'+esc((a.name||'?')[0])+'</div>'+
-        '<div><div class="name">'+esc(a.name)+'</div><div class="ver">'+esc(a.version)+'</div></div></div>'+
-        '<div class="app-desc">'+esc(a.description)+'</div>'+
-        '<div class="app-foot"><span class="app-state '+(healthCls[st]||'st-unknown')+'">'+
-        esc(healthLabels[st]||st)+'</span>'+
-        '<span class="row-flex" style="gap:8px">'+manageBtn+cfgBtn+
-        '<button class="btn sm '+(installed?'danger':'')+'" data-id="'+esc(a.id)+'" data-act="'+(installed?'remove':'install')+'">'+
-        (installed?'卸载':'安装')+'</button></span></div></div>';
-    }).join('');
-    refreshLogUnits();
-  } catch(e){ document.getElementById('appGrid').textContent = e.message; }
-}
-let appData = [];
-document.getElementById('appGrid').addEventListener('click', async e=>{
-  const manageBtn = e.target.closest('button[data-manage]');
-  if (manageBtn){ switchView('mihomo'); return; }
-  const cfgBtn = e.target.closest('button[data-cfg]');
-  if (cfgBtn) return openAppCfg(cfgBtn.dataset.cfg);
-  const b = e.target.closest('button[data-id]'); if(!b) return;
-  runAppAction(b.dataset.id, b.dataset.act);
-});
-
-// ===== 应用安装 / 卸载实时输出 =====
+// ===== 应用安装 / 卸载 / 升级实时输出 =====
 let actDone = false;
 function closeActDlg(){ document.getElementById('actMask').classList.add('hidden'); }
 function actAppend(line){
@@ -1056,17 +928,18 @@ function finishAct(ok, label){
   document.getElementById('actClose').disabled = false;
   toast(ok ? '操作完成' : '操作失败');
 }
-async function runAppAction(id, action){
+async function runAppAction(id, action, label){
   const app = (appData||[]).find(a=>a.id===id);
   const name = app ? app.name : id;
+  const verb = label || (action==='install'?'安装':'卸载');
   actDone = false;
-  document.getElementById('actTitle').textContent = (action==='install'?'安装':'卸载') + ' · ' + name;
+  document.getElementById('actTitle').textContent = verb + ' · ' + name;
   const st = document.getElementById('actState');
   st.textContent = '正在执行…'; st.style.color = 'var(--gray)';
   document.getElementById('actOutput').textContent = '';
   document.getElementById('actClose').disabled = true;
   document.getElementById('actMask').classList.remove('hidden');
-  actAppend('[' + new Date().toLocaleTimeString() + '] 开始' + (action==='install'?'安装':'卸载') + ' ' + name);
+  actAppend('[' + new Date().toLocaleTimeString() + '] 开始' + verb + ' ' + name);
   try {
     const res = await fetch(API+'/app/action/stream?id='+encodeURIComponent(id)+'&action='+action,
       { method:'POST', headers:{'Authorization':'Bearer '+token} });

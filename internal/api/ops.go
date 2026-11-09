@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -68,4 +69,21 @@ func (s *Server) Logs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]string{"logs": string(out)})
+}
+
+// MirrorSettings 返回安装阶段探测并持久化的下载源信息。
+// 这些值由 systemd EnvironmentFile（/etc/nanopanel/mirror.conf）注入面板进程；
+// 手工修改该文件后重启面板即可生效。
+func (s *Server) MirrorSettings(w http.ResponseWriter, r *http.Request) {
+	keys := []string{
+		"GITHUB_MIRROR", "GITHUB_MIRROR_NAME", "GITHUB_MIRROR_LATENCY",
+		"APT_MIRROR", "APT_MIRROR_NAME", "APT_MIRROR_LATENCY", "SELECTED_AT",
+	}
+	data := map[string]string{}
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			data[k] = v
+		}
+	}
+	ok(w, data)
 }
