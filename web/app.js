@@ -87,7 +87,7 @@ const viewMeta = {
   network:   { t:'网络',     s:'连通性测试' },
   disks:     { t:'磁盘',     s:'块设备挂载与用量管理' },
   files:     { t:'文件',     s:'受限目录内的文件管理' },
-  apps:      { t:'应用商店', s:'应用、系统服务与下载源管理',
+  apps:      { t:'应用', s:'应用、系统服务与下载源管理',
                tabs:[['all','全部'],['installed','已安装'],['upgradable','可升级'],['store','设置']] },
   settings:  { t:'设置',     s:'通知、安全与面板信息',
                tabs:[['notify','通知'],['security','安全'],['maintain','维护'],['system','系统']] },
@@ -1002,13 +1002,19 @@ async function doReboot(){
   try { await call('POST','/reboot'); toast('系统正在重启'); } catch(e){ toast(e.message); }
 }
 
+// 版本号归一化：后端可能返回 "v0.1.0" 或 "0.1.0"，统一显示为 "v0.1.0"，避免出现 "vv0.1.0"。
+function fmtVersion(s){
+  const raw = String(s || '').replace(/^v+/i, '').trim();
+  return raw ? 'v' + raw : '';
+}
+
 async function loadHealth(){
   try {
     const res = await fetch(API+'/health');
     const d = await res.json();
     const h = d.data || {};
-    const v = h.version ? 'v'+h.version : '';
-    npVersion = h.version ? 'v'+h.version : 'dev';
+    const v = fmtVersion(h.version);
+    npVersion = v || 'dev';
     document.getElementById('appVersion').textContent = v;
     document.getElementById('aboutVer').textContent = v;
     const curVer = document.getElementById('aboutCurVer');
@@ -1026,6 +1032,24 @@ async function loadHealth(){
 function renderAbout(){
   const curVer = document.getElementById('aboutCurVer');
   if (curVer) curVer.textContent = npVersion || 'dev';
+  // 赞赏码点击放大
+  if (!document.getElementById('qrLightbox')){
+    const box = document.createElement('div');
+    box.id = 'qrLightbox';
+    box.className = 'qr-lightbox';
+    box.innerHTML = '<img alt="赞助二维码"><div class="qr-lightbox-cap"></div>';
+    box.addEventListener('click', ()=>{ box.classList.remove('show'); });
+    document.body.appendChild(box);
+    document.querySelectorAll('.donate-qr-row img').forEach(img=>{
+      img.addEventListener('click', ()=>{
+        const big = document.querySelector('#qrLightbox img');
+        const cap = document.querySelector('#qrLightbox .qr-lightbox-cap');
+        big.src = img.src;
+        if (cap) cap.textContent = img.alt || '';
+        box.classList.add('show');
+      });
+    });
+  }
   loadUpdateSettings();
 }
 
@@ -1073,11 +1097,11 @@ async function checkUpdate(){
       return;
     }
     if (u.has_update){
-      status.innerHTML = '发现新版本 <b style="color:var(--green)">v'+esc(u.latest_version)+
+      status.innerHTML = '发现新版本 <b style="color:var(--green)">'+esc(fmtVersion(u.latest_version))+
         '</b> · <a href="'+esc(u.release_url||'#')+'" target="_blank" rel="noopener">查看发布 ↗</a>';
       if (btn) btn.style.display = '';
     } else {
-      status.textContent = '已是最新版本（当前 v'+(u.current_version||npVersion)+'）';
+      status.textContent = '已是最新版本（当前 '+(fmtVersion(u.current_version)||npVersion)+'）';
     }
   } catch(e){
     status.textContent = '检查失败：'+e.message;
@@ -1101,7 +1125,7 @@ async function applyUpdate(){
       return;
     }
     toast('升级已开始，面板将在数秒后重启');
-    if (status) status.textContent = '正在升级到 v'+(u.latest_version||'')+'，面板即将重启…';
+    if (status) status.textContent = '正在升级到 '+(fmtVersion(u.latest_version)||'最新版本')+'，面板即将重启…';
   } catch(e){
     toast(e.message);
     if (status) status.textContent = '升级失败：'+e.message;

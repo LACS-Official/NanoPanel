@@ -233,9 +233,21 @@
   .donate-qr-row { display:flex; gap:20px; justify-content:center; flex-wrap:wrap; }
   .donate-qr-row figure { margin:0; text-align:center; }
   .donate-qr-row img { width:150px; height:150px; object-fit:contain; border-radius:12px;
-    background:#fff; padding:6px; border:1px solid var(--line); display:block; }
+    background:#fff; padding:6px; border:1px solid var(--line); display:block;
+    cursor:zoom-in; transition:transform .15s ease, box-shadow .15s ease; }
+  .donate-qr-row img:hover { transform:scale(1.05); box-shadow:0 6px 18px rgba(0,0,0,.18); }
   .donate-qr-row figcaption { font-size:12px; color:var(--gray); margin-top:8px; }
   .donate-thanks { margin-top:16px; font-size:12px; color:var(--gray); text-align:center; }
+
+  /* 赞赏码灯箱 */
+  .qr-lightbox { position:fixed; inset:0; z-index:999; display:none;
+    align-items:center; justify-content:center; flex-direction:column; gap:14px;
+    background:rgba(0,0,0,.72); backdrop-filter:blur(4px); cursor:zoom-out; }
+  .qr-lightbox.show { display:flex; }
+  .qr-lightbox img { max-width:min(78vw,420px); max-height:70vh; object-fit:contain;
+    background:#fff; padding:12px; border-radius:16px;
+    box-shadow:0 18px 60px rgba(0,0,0,.45); }
+  .qr-lightbox-cap { color:#fff; font-size:13px; text-shadow:0 1px 4px rgba(0,0,0,.5); }
 
   /* ===== 代理管理 ===== */
   .mh-group { border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px; }
