@@ -17,7 +17,7 @@ npm run preview  # 本地预览产物
 ```
 
 `dist/` 是纯静态文件，可直接丢给 Nginx / Caddy / 对象存储托管；
-仓库也配置了 GitHub Pages 自动部署（`.github/workflows/pages.yml`），域名 `npanel.lacs.cc`。
+官网当前托管在 **Vercel**（域名 `npanel.lacs.cc`），仓库不负责部署，推 `website/` 变更后由 Vercel 自动构建。
 
 ## 与项目 / GitHub 的联动
 
@@ -26,7 +26,7 @@ npm run preview  # 本地预览产物
 - **安装脚本不重复**：`scripts/sync-deploy.mjs` 在 `predev` / `prebuild` 时把
   `../deploy/install.sh` 与 `uninstall.sh` 复制到 `public/`，因此
   <https://npanel.lacs.cc/install.sh> 与仓库里的脚本永远一致。
-- **发布即上线**：Release 工作流完成后，`pages.yml` 通过 `workflow_run` 自动重建官网。
+- **发布即上线**：Vercel 连接本仓库，`website/` 有变更时自动重新构建并部署。
 
 相关环境变量：
 
@@ -57,7 +57,7 @@ src/
     ├── sitemap.xml.ts    # 站点地图
     └── 404.astro
 scripts/sync-deploy.mjs   # 同步 deploy/ 下的安装脚本
-public/                   # CNAME、robots.txt、favicon、构建时生成的 install.sh
+public/                   # robots.txt、favicon、赞助二维码、构建时生成的 install.sh
 ```
 
 ## 需要手工维护的地方

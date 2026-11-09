@@ -86,7 +86,7 @@ jobs:
       - name: Build
         working-directory: website
         env:
-          # CI 不依赖外网稳定性，使用兜底版本；真实版本解析由 pages.yml 负责
+          # CI 不依赖外网稳定性，使用兜底版本；官网实际部署由 Vercel 负责
           NP_RELEASE_SOURCE: static
         run: npm run build
       - name: Verify install script synced
