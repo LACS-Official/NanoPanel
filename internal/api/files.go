@@ -95,6 +95,11 @@ func canonicalPath(p string) string {
 	return p
 }
 
+// samePath 判断两个路径是否指向同一位置（解析软链与平台短名，Windows 忽略大小写）。
+func samePath(a, b string) bool {
+	return canonicalPath(a) == canonicalPath(b)
+}
+
 // resolveFilePath 校验面板操作的文件路径：必须落在某个根目录内，
 // 并解析软链防止借道越界。非存在路径按其最近存在祖先解析。
 func (s *Server) resolveFilePath(p string) (string, error) {
@@ -365,16 +370,11 @@ func (s *Server) DeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// 根目录本身不可删。
-	isRoot := false
 	for _, root := range s.fileRoots() {
-		if p == root {
-			isRoot = true
-			break
+		if samePath(p, root) {
+			fail(w, http.StatusBadRequest, "不允许删除根目录")
+			return
 		}
-	}
-	if isRoot {
-		fail(w, http.StatusBadRequest, "不允许删除根目录")
-		return
 	}
 	st, err := os.Stat(p)
 	if err != nil {
