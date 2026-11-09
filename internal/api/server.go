@@ -20,6 +20,8 @@ type Server struct {
 	configPath string
 	version    string
 	limiter    *auth.LoginLimiter
+	// logDir 面板操作日志目录，空值时按平台默认。
+	logDir string
 
 	// mu 保护运行期可变的配置字段（当前是 PasswordHash）。
 	mu sync.RWMutex

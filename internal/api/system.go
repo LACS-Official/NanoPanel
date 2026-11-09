@@ -44,6 +44,7 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.limiter.Reset(ip)
+	s.audit(r, "login", "登录成功", "来源 IP "+ip)
 	ok(w, map[string]string{
 		"token":     s.auth.Issue(),
 		"username":  req.Username,
@@ -98,6 +99,7 @@ func (s *Server) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.auth.RevokeAll()
+	s.audit(r, "settings", "修改登录密码", "全部登录态已吊销")
 	ok(w, map[string]string{
 		"msg":   "密码已修改，其他登录态已失效",
 		"token": s.auth.Issue(),

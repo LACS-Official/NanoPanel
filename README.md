@@ -15,7 +15,10 @@
 - **一键安装**：自动探测最优镜像源、自动生成随机初始密码、安装后直接打印访问地址与账号
 - **`npctl` 管理工具**：查看账号、重置密码、启停服务、查看镜像源、卸载
 - **WSL / systemd 自适应**：WSL2 Ubuntu 可直接安装；无 systemd 时自动回退为进程守护
-- 系统概览、服务启停、进程管理、日志、Ping、应用商店、系统重启、修改密码
+- 系统概览、服务启停、进程管理、日志中心、Ping、应用商店、系统重启、修改密码
+- **应用商店**：内置 CUPS、AdGuard Home、Tailscale、Mihomo 四个真实应用，面板内可视化配置常用参数（端口、订阅链接、AuthKey 等）
+- **Webhook 通知**：支持企业微信、钉钉、飞书、Server酱与通用 JSON 五种格式，按事件类别订阅推送
+- **日志中心**：系统日志可按服务与已安装应用筛选，面板操作全程留痕可审计
 - 用户名 + 密码登录、PBKDF2 加盐哈希、登录限速、输入白名单、安全响应头
 
 ## 快速开始
@@ -179,18 +182,40 @@ make build-all    # 交叉编译三个 Linux 架构
 | POST | `/process/kill?pid=&force=` | 结束进程 |
 | POST | `/reboot` | 重启系统 |
 | GET | `/ping?host=` | 连通性测试 |
-| GET | `/logs?unit=&n=` | journalctl 日志 |
+| GET | `/logs?unit=&n=` | journalctl 日志，可按服务/应用单元筛选 |
+| GET | `/panel-logs` | 面板操作审计日志（最近 300 条，新在前） |
 | GET | `/apps` | 应用列表 |
 | POST | `/app/action?id=&action=` | 安装 / 卸载应用 |
+| GET | `/apps/config?id=` | 读取应用配置项与当前值 |
+| POST | `/apps/config?id=` | 保存应用配置并调用 `config.sh` 应用 |
+| GET | `/settings/webhook` | 读取 Webhook 通知配置与可选项 |
+| POST | `/settings/webhook` | 保存通知地址 / 格式 / 订阅事件 |
+| POST | `/settings/webhook/test` | 立即发送一条测试通知 |
 
 ## 应用商店约定
 
 - 清单：`/opt/nanopanel/apps/manifest.json`
-- 每个应用一个目录 `/opt/nanopanel/apps/<id>/`，含 `install.sh`、`remove.sh`、`status.sh`
+- 每个应用一个目录 `/opt/nanopanel/apps/<id>/`，含 `install.sh`、`remove.sh`、`status.sh`、可选 `config.sh`
 - `status.sh` 只输出 `installed` 或 `not_installed`
 - 应用 ID 仅允许字母、数字、下划线、短横，用于防止路径穿越
 - 安装脚本退出码 0 表示成功，stdout 会回传到面板；执行超时为 5 分钟
 - 脚本可读取 `GITHUB_MIRROR` / `APT_MIRROR` 使用安装阶段探测出的最优镜像源
+
+### 内置应用
+
+| 应用 | 安装方式 | 常用配置 |
+|---|---|---|
+| CUPS | apt | 管理端口、局域网访问开关 |
+| AdGuard Home | GitHub 官方二进制 | 控制台端口、监听地址 |
+| Tailscale | 官方一键脚本 | AuthKey 自动入网、出口节点、DNS 设置 |
+| Mihomo (Clash.Meta) | GitHub 官方二进制 | 混合代理端口、局域网开关、控制端口、订阅链接 |
+
+### 应用配置约定
+
+- `manifest.json` 中每个应用可通过 `config` 数组声明配置字段（名称、类型、默认值、候选值），面板据此自动渲染配置表单
+- 字段类型支持 `text` / `password` / `select` / `textarea` / `number`，值经过白名单校验后保存到 `apps/<id>/config.env`（0600）
+- 后端拒绝一切未在清单中声明的字段，防止通过配置注入环境变量
+- 保存后自动以环境变量形式传给 `config.sh` 应用；安装/卸载脚本同样能读取已保存的配置值
 
 ## 目录结构
 

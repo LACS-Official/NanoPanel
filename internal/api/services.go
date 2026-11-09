@@ -71,6 +71,7 @@ func (s *Server) ServiceAction(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, "操作失败: "+err.Error())
 		return
 	}
+	s.audit(r, "service", "服务"+map[string]string{"start": "启动", "stop": "停止", "restart": "重启"}[action], name)
 	ok(w, map[string]string{
 		"svc": name, "action": action, "state": activeState(ctx, name),
 	})

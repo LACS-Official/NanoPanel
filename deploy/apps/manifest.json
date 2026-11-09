@@ -2,6 +2,131 @@
   "version": 1,
   "apps": [
     {
+      "id": "cups",
+      "name": "CUPS 打印服务",
+      "description": "Linux 标准打印服务，支持网页管理界面（http://IP:631），可共享打印机给局域网设备",
+      "version": "1.0.0",
+      "icon": "",
+      "category": "打印",
+      "unit": "cups",
+      "config": [
+        {
+          "name": "port",
+          "label": "管理界面端口",
+          "type": "number",
+          "default": "631",
+          "description": "CUPS 网页管理界面的监听端口"
+        },
+        {
+          "name": "remote_admin",
+          "label": "允许局域网访问管理界面",
+          "type": "select",
+          "default": "no",
+          "options": ["yes", "no"],
+          "description": "开启后可从局域网其他设备打开管理界面"
+        }
+      ]
+    },
+    {
+      "id": "adguardhome",
+      "name": "AdGuard Home",
+      "description": "全家庭去广告/去跟踪的 DNS 服务，带网页管理控制台，首次访问通过向导完成初始化",
+      "version": "1.0.0",
+      "icon": "",
+      "category": "网络",
+      "unit": "AdGuardHome",
+      "config": [
+        {
+          "name": "web_port",
+          "label": "管理控制台端口",
+          "type": "number",
+          "default": "3000",
+          "description": "网页管理控制台的监听端口"
+        },
+        {
+          "name": "bind",
+          "label": "监听地址",
+          "type": "select",
+          "default": "0.0.0.0",
+          "options": ["0.0.0.0", "127.0.0.1"],
+          "description": "0.0.0.0 允许局域网访问控制台；127.0.0.1 仅本机可访问"
+        }
+      ]
+    },
+    {
+      "id": "tailscale",
+      "name": "Tailscale",
+      "description": "基于 WireGuard 的零配置组网，让设备在任意网络下互通，可作出口节点",
+      "version": "1.0.0",
+      "icon": "",
+      "category": "网络",
+      "unit": "tailscaled",
+      "config": [
+        {
+          "name": "auth_key",
+          "label": "授权密钥 AuthKey",
+          "type": "password",
+          "default": "",
+          "placeholder": "tskey-auth-xxxx（从管理后台生成，可留空）",
+          "description": "填写后保存即可自动接入你的 Tailscale 网络"
+        },
+        {
+          "name": "exit_node",
+          "label": "通告为出口节点",
+          "type": "select",
+          "default": "no",
+          "options": ["yes", "no"]
+        },
+        {
+          "name": "accept_dns",
+          "label": "接受 Tailscale DNS 配置",
+          "type": "select",
+          "default": "yes",
+          "options": ["yes", "no"]
+        }
+      ]
+    },
+    {
+      "id": "mihomo",
+      "name": "Mihomo (Clash.Meta)",
+      "description": "Clash.Meta 内核代理，支持订阅链接自动更新，常用端口可在配置里调整",
+      "version": "1.0.0",
+      "icon": "",
+      "category": "网络",
+      "unit": "mihomo",
+      "config": [
+        {
+          "name": "mixed_port",
+          "label": "混合代理端口",
+          "type": "number",
+          "default": "7890",
+          "description": "HTTP/SOCKS5 混合代理监听端口"
+        },
+        {
+          "name": "allow_lan",
+          "label": "允许局域网使用代理",
+          "type": "select",
+          "default": "no",
+          "options": ["yes", "no"]
+        },
+        {
+          "name": "external_controller_port",
+          "label": "外部控制端口",
+          "type": "number",
+          "default": "9090",
+          "description": "RESTful API 控制端口，配合可视化面板使用"
+        },
+        {
+          "name": "subscribe_url",
+          "label": "订阅链接",
+          "type": "text",
+          "default": "",
+          "placeholder": "https://example.com/subscribe?token=…",
+          "description": "填写后保存会拉取订阅并替换配置文件"
+        }
+      ]
+    },
+    {
       "id": "hello",
       "name": "示例应用",
       "description": "演示应用商店的安装、卸载、状态脚本约定，安装后写一个标记文件",

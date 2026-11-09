@@ -60,5 +60,6 @@ func (s *Server) KillProcess(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, "结束失败: "+err.Error())
 		return
 	}
+	s.audit(r, "process", "结束进程", "PID "+strconv.Itoa(pid)+" 信号 "+strings.TrimPrefix(sig, "-"))
 	ok(w, map[string]int{"pid": pid})
 }

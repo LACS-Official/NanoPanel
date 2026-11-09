@@ -50,6 +50,27 @@ type Config struct {
 	Services     []ServiceDef `json:"services"`
 	AppsDir      string       `json:"apps_dir"`
 	ManifestPath string       `json:"manifest_path"`
+
+	// Webhook 通知配置。
+	WebhookURL    string   `json:"webhook_url,omitempty"`
+	WebhookFormat string   `json:"webhook_format,omitempty"`
+	WebhookEvents []string `json:"webhook_events,omitempty"`
+}
+
+// WebhookFormats 支持的通知推送格式。
+var WebhookFormats = []string{"generic", "wecom", "dingtalk", "feishu", "serverchan"}
+
+// NotifyEvents 可订阅的通知事件类别。
+var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system"}
+
+// ValidWebhookFormat 判断格式是否受支持。
+func ValidWebhookFormat(f string) bool {
+	for _, v := range WebhookFormats {
+		if v == f {
+			return true
+		}
+	}
+	return false
 }
 
 // Default 返回一份不含可用密码的默认配置。
@@ -108,6 +129,9 @@ func Load(path string) (*Config, error) {
 	if len(c.Services) == 0 {
 		c.Services = d.Services
 	}
+	if c.WebhookFormat == "" {
+		c.WebhookFormat = "generic"
+	}
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
@@ -136,7 +160,31 @@ func (c *Config) Validate() error {
 	if c.AppsDir == "" || c.ManifestPath == "" {
 		return fmt.Errorf("apps_dir / manifest_path 不能为空")
 	}
+	if c.WebhookURL != "" {
+		if len(c.WebhookURL) > 2048 ||
+			(!strings.HasPrefix(c.WebhookURL, "http://") && !strings.HasPrefix(c.WebhookURL, "https://")) {
+			return fmt.Errorf("webhook_url 不合法")
+		}
+	}
+	if c.WebhookFormat != "" && !ValidWebhookFormat(c.WebhookFormat) {
+		return fmt.Errorf("webhook_format 不支持: %q", c.WebhookFormat)
+	}
+	for _, e := range c.WebhookEvents {
+		if !ValidNotifyEvent(e) {
+			return fmt.Errorf("webhook_events 包含未知事件: %q", e)
+		}
+	}
 	return nil
+}
+
+// ValidNotifyEvent 判断事件类别是否受支持。
+func ValidNotifyEvent(e string) bool {
+	for _, v := range NotifyEvents {
+		if v == e {
+			return true
+		}
+	}
+	return false
 }
 
 func splitPort(listen string) (string, int, error) {

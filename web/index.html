@@ -107,7 +107,39 @@
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1d1d1f; color:#fff;
     padding:10px 20px; border-radius:980px; font-size:13px; opacity:0; transition:opacity .25s; z-index:99; pointer-events:none; }
   .toast.show { opacity:1; }
-  .row-flex { display:flex; gap:10px; flex-wrap:wrap; }
+  .row-flex { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+  select { padding:10px 12px; border:1px solid var(--line); border-radius:12px; font-size:14px;
+    font-family:inherit; outline:none; background:#fff; color:var(--text); min-width:120px; }
+  select:focus { border-color:var(--blue); }
+  select.sm { padding:7px 10px; font-size:13px; min-width:100px; }
+
+  /* 日志中心页签 */
+  .tabs { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--line); }
+  .tabs button { background:none; border:none; padding:10px 16px; font-family:inherit; font-size:13px;
+    color:var(--gray); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tabs button.active { color:var(--text); font-weight:600; border-bottom-color:var(--blue); }
+
+  .chk-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
+  .chk-row label { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;
+    background:#fafafc; border-radius:980px; padding:6px 14px; }
+  .chk-row input { width:auto; margin:0; accent-color:var(--blue); }
+
+  /* 应用配置弹窗 */
+  .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:90;
+    display:flex; align-items:center; justify-content:center; padding:20px; }
+  .modal { background:var(--card); border-radius:18px; padding:24px; width:100%; max-width:520px;
+    max-height:86vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,.18); }
+  .modal h2 { font-size:16px; margin-bottom:14px; }
+  .modal .field { margin-bottom:12px; }
+  .modal .field .fl { font-size:12px; color:var(--gray); margin-bottom:5px; }
+  .modal .field .fd { font-size:11px; color:var(--gray); margin-top:4px; }
+  .modal .field input, .modal .field select, .modal .field textarea { width:100%; margin:0; }
+  .modal textarea { padding:10px 12px; border:1px solid var(--line); border-radius:12px;
+    font-family:inherit; font-size:13px; outline:none; min-height:64px; resize:vertical; }
+  .modal textarea:focus { border-color:var(--blue); }
+  .modal pre { margin-top:12px; max-height:200px; }
+  .modal-actions { display:flex; gap:10px; margin-top:16px; }
 
   /* 窄屏：侧边栏降级为顶部横滑条 */
   @media (max-width:760px) {
@@ -193,12 +225,33 @@
 
       <div class="view" id="view-logs">
         <div class="card">
-          <h2>系统日志</h2>
-          <div class="row-flex" style="margin-bottom:14px">
-            <input id="logUnit" placeholder="单元名（可选，如 cups）" style="width:220px;margin:0">
-            <button class="btn" onclick="loadLogs()">刷新日志</button>
+          <h2>日志中心</h2>
+          <div class="tabs" id="logTabs">
+            <button data-log="system" class="active">系统日志</button>
+            <button data-log="panel">面板日志</button>
           </div>
-          <pre id="logOutput">点击“刷新日志”加载…</pre>
+          <div id="logSysBar" class="row-flex" style="margin-bottom:14px">
+            <select id="logUnit" class="sm"></select>
+            <select id="logN" class="sm">
+              <option value="100" selected>最近 100 行</option>
+              <option value="200">最近 200 行</option>
+              <option value="300">最近 300 行</option>
+              <option value="500">最近 500 行</option>
+            </select>
+            <button class="btn sm" onclick="loadLogs()">刷新日志</button>
+          </div>
+          <pre id="logOutput" class="hidden">点击“刷新日志”加载…</pre>
+          <div id="panelLogWrap" class="hidden">
+            <div class="row-flex" style="margin-bottom:14px">
+              <button class="btn sm" onclick="loadPanelLogs()">刷新面板日志</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>时间</th><th>类别</th><th>操作</th><th>详情</th><th>来源</th></tr></thead>
+                <tbody id="panelLogBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -222,6 +275,25 @@
 
       <div class="view" id="view-settings">
         <div class="card">
+          <h2>Webhook 通知</h2>
+          <input id="whUrl" placeholder="Webhook 地址（企业微信 / 钉钉 / 飞书 / Server酱 / 自定义）">
+          <select id="whFormat" style="width:100%;margin-bottom:14px">
+            <option value="generic">通用 JSON</option>
+            <option value="wecom">企业微信机器人</option>
+            <option value="dingtalk">钉钉机器人</option>
+            <option value="feishu">飞书机器人</option>
+            <option value="serverchan">Server酱</option>
+          </select>
+          <div class="chk-row" id="whEvents"></div>
+          <div style="font-size:12px;color:var(--gray);margin-bottom:14px">
+            推送失败不影响面板操作本身；在下方勾选要推送的事件类别。
+          </div>
+          <div class="row-flex">
+            <button class="btn" onclick="saveWebhook()">保存通知配置</button>
+            <button class="btn gray" onclick="testWebhook()">发送测试通知</button>
+          </div>
+        </div>
+        <div class="card">
           <h2>修改密码</h2>
           <input id="oldPwd" type="password" placeholder="原密码" autocomplete="current-password">
           <input id="newPwd" type="password" placeholder="新密码（至少 8 位）" autocomplete="new-password">
@@ -241,6 +313,18 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="modal-mask hidden" id="appCfgMask" onclick="if(event.target===this)closeAppCfg()">
+  <div class="modal">
+    <h2 id="appCfgTitle">应用配置</h2>
+    <div id="appCfgFields"></div>
+    <div class="modal-actions">
+      <button class="btn" id="appCfgSave" onclick="saveAppCfg()">保存并应用</button>
+      <button class="btn gray" onclick="closeAppCfg()">取消</button>
+    </div>
+    <pre id="appCfgOutput" class="hidden"></pre>
+  </div>
+</div>
 
 <script>
 'use strict';
@@ -289,7 +373,7 @@ function showMain(){
   document.getElementById('mainView').classList.remove('hidden');
   const saved = localStorage.getItem('np_user');
   document.getElementById('sideUser').textContent = saved ? '已登录：' + saved : '';
-  switchView('overview'); loadOverview(); loadServices(); loadProcesses(); loadApps();
+  switchView('overview'); loadOverview(); loadServices(); loadProcesses(); loadApps(); loadWebhook();
   overviewTimer = setInterval(()=>{ if(currentView()==='overview') loadOverview(); }, 5000);
 }
 
@@ -384,14 +468,80 @@ document.getElementById('procBody').addEventListener('click', async e=>{
   } catch(err){ toast(err.message); }
 });
 
+// ===== 日志中心 =====
+document.getElementById('logTabs').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-log]'); if(!b) return;
+  document.querySelectorAll('#logTabs button').forEach(x=>x.classList.toggle('active', x===b));
+  const sys = b.dataset.log === 'system';
+  document.getElementById('logSysBar').classList.toggle('hidden', !sys);
+  document.getElementById('logOutput').classList.toggle('hidden', !sys);
+  document.getElementById('panelLogWrap').classList.toggle('hidden', sys);
+  if (sys) loadLogs(); else loadPanelLogs();
+});
+
+// 单元下拉：服务白名单 + 已安装应用
+async function refreshLogUnits(){
+  const sel = document.getElementById('logUnit');
+  const current = sel.value;
+  let options = '<option value="">全部单元</option>';
+  try {
+    const svcs = await call('GET','/services');
+    if (svcs.length) options += '<optgroup label="系统服务">'+
+      svcs.map(s=>'<option value="'+esc(s.name)+'">'+esc(s.label||s.name)+'（'+esc(s.name)+'）</option>').join('')+'</optgroup>';
+  } catch(e){ /* 服务列表加载失败时仍显示应用 */ }
+  const units = (appData||[]).filter(a=>a.state==='installed' && a.unit);
+  if (units.length) options += '<optgroup label="已安装应用">'+
+    units.map(a=>'<option value="'+esc(a.unit)+'">'+esc(a.name)+'（'+esc(a.unit)+'）</option>').join('')+'</optgroup>';
+  sel.innerHTML = options;
+  if (current && sel.querySelector('option[value="'+CSS.escape(current)+'"]')) sel.value = current;
+}
+
 async function loadLogs(){
-  const unit = document.getElementById('logUnit').value.trim();
-  let path='/logs?n=150';
+  const unit = document.getElementById('logUnit').value;
+  const n = document.getElementById('logN').value;
+  let path='/logs?n='+n;
   if(unit) path+='&unit='+encodeURIComponent(unit);
+  document.getElementById('logOutput').textContent='加载中…';
   try {
     const d = await call('GET',path);
     document.getElementById('logOutput').textContent = d.logs || '（无日志）';
   } catch(e){ document.getElementById('logOutput').textContent = e.message; }
+}
+
+const catLabels = {login:'登录', service:'服务', process:'进程', app:'应用', settings:'设置', system:'系统'};
+async function loadPanelLogs(){
+  try {
+    const list = await call('GET','/panel-logs');
+    document.getElementById('panelLogBody').innerHTML = list.length
+      ? list.map(e=>'<tr><td>'+esc(e.time)+'</td><td>'+esc(catLabels[e.category]||e.category)+
+        '</td><td>'+esc(e.action)+'</td><td>'+esc(e.detail||'-')+'</td><td>'+esc(e.ip)+'</td></tr>').join('')
+      : '<tr><td colspan="5" style="color:var(--gray)">暂无面板操作日志</td></tr>';
+  } catch(e){ document.getElementById('panelLogBody').innerHTML = '<tr><td colspan="5">'+esc(e.message)+'</td></tr>'; }
+}
+
+// ===== Webhook 通知 =====
+async function loadWebhook(){
+  try {
+    const d = await call('GET','/settings/webhook');
+    document.getElementById('whUrl').value = d.url || '';
+    document.getElementById('whFormat').value = d.format || 'generic';
+    document.getElementById('whEvents').innerHTML = (d.event_options||[]).map(o=>
+      '<label><input type="checkbox" value="'+esc(o.key)+'"'+
+      ((d.events||[]).indexOf(o.key)>=0?' checked':'')+'>'+esc(o.label)+'</label>').join('');
+  } catch(e){ /* 加载失败不打扰 */ }
+}
+function whSelectedEvents(){
+  return Array.from(document.querySelectorAll('#whEvents input:checked')).map(x=>x.value);
+}
+async function saveWebhook(){
+  const body = { url: document.getElementById('whUrl').value.trim(),
+    format: document.getElementById('whFormat').value, events: whSelectedEvents() };
+  try { const d = await call('POST','/settings/webhook', body); toast(d.msg || '已保存'); }
+  catch(e){ toast(e.message); }
+}
+async function testWebhook(){
+  try { const d = await call('POST','/settings/webhook/test'); toast(d.msg); }
+  catch(e){ toast(e.message); }
 }
 
 async function doPing(){
@@ -407,24 +557,85 @@ async function doPing(){
 async function loadApps(){
   try {
     const list = await call('GET','/apps');
+    appData = list;
     document.getElementById('appGrid').innerHTML = list.map(a=>{
       const installed = a.state==='installed';
+      const cfgBtn = installed && a.config && a.config.length
+        ? '<button class="btn sm gray" data-cfg="'+esc(a.id)+'">配置</button>' : '';
       return '<div class="app-card"><div class="app-head"><div class="app-icon">'+esc((a.name||'?')[0])+'</div>'+
         '<div><div class="name">'+esc(a.name)+'</div><div class="ver">'+esc(a.version)+'</div></div></div>'+
         '<div class="app-desc">'+esc(a.description)+'</div>'+
         '<div class="app-foot"><span class="state-tag">'+esc(a.state)+'</span>'+
+        '<span class="row-flex" style="gap:8px">'+cfgBtn+
         '<button class="btn sm '+(installed?'danger':'')+'" data-id="'+esc(a.id)+'" data-act="'+(installed?'remove':'install')+'">'+
-        (installed?'卸载':'安装')+'</button></div></div>';
+        (installed?'卸载':'安装')+'</button></span></div></div>';
     }).join('');
+    refreshLogUnits();
   } catch(e){ document.getElementById('appGrid').textContent = e.message; }
 }
+let appData = [];
 document.getElementById('appGrid').addEventListener('click', async e=>{
+  const cfgBtn = e.target.closest('button[data-cfg]');
+  if (cfgBtn) return openAppCfg(cfgBtn.dataset.cfg);
   const b = e.target.closest('button[data-id]'); if(!b) return;
   toast(b.dataset.act==='install'?'正在安装…':'正在卸载…');
   try { await call('POST','/app/action?id='+encodeURIComponent(b.dataset.id)+'&action='+b.dataset.act);
     toast('操作完成'); loadApps();
   } catch(err){ toast(err.message); }
 });
+
+// ===== 应用配置弹窗 =====
+let cfgAppId = '';
+function closeAppCfg(){
+  document.getElementById('appCfgMask').classList.add('hidden');
+  document.getElementById('appCfgOutput').classList.add('hidden');
+}
+async function openAppCfg(id){
+  try {
+    const d = await call('GET','/apps/config?id='+encodeURIComponent(id));
+    cfgAppId = id;
+    document.getElementById('appCfgTitle').textContent = d.name + ' · 配置';
+    document.getElementById('appCfgFields').innerHTML = d.fields.map(f=>{
+      let input;
+      if (f.type==='select'){
+        input = '<select id="cf_'+esc(f.name)+'">'+f.options.map(o=>
+          '<option value="'+esc(o)+'"'+(d.values[f.name]===o?' selected':'')+'>'+esc(o)+'</option>').join('')+'</select>';
+      } else if (f.type==='textarea'){
+        input = '<textarea id="cf_'+esc(f.name)+'" placeholder="'+esc(f.placeholder||'')+'">'+esc(d.values[f.name]||'')+'</textarea>';
+      } else {
+        input = '<input id="cf_'+esc(f.name)+'" type="'+(f.type==='password'?'password':'text')+
+          '" value="'+esc(d.values[f.name]||'')+'" placeholder="'+esc(f.placeholder||'')+'">';
+      }
+      return '<div class="field"><div class="fl">'+esc(f.label)+'</div>'+input+
+        (f.description?'<div class="fd">'+esc(f.description)+'</div>':'')+'</div>';
+    }).join('');
+    document.getElementById('appCfgOutput').classList.add('hidden');
+    document.getElementById('appCfgMask').classList.remove('hidden');
+  } catch(e){ toast(e.message); }
+}
+async function saveAppCfg(){
+  const app = appData.find(a=>a.id===cfgAppId);
+  if (!app) return;
+  const values = {};
+  app.config.forEach(f=>{
+    const el = document.getElementById('cf_'+f.name);
+    if (el) values[f.name] = el.value;
+  });
+  const btn = document.getElementById('appCfgSave');
+  btn.disabled = true;
+  try {
+    const d = await call('POST','/apps/config?id='+encodeURIComponent(cfgAppId), {values});
+    toast(d.msg || '已保存');
+    if (d.output){
+      const pre = document.getElementById('appCfgOutput');
+      pre.textContent = d.output; pre.classList.remove('hidden');
+    } else {
+      closeAppCfg();
+    }
+    loadApps();
+  } catch(e){ toast(e.message); }
+  btn.disabled = false;
+}
 
 async function doChangePassword(){
   const oldP=document.getElementById('oldPwd').value, newP=document.getElementById('newPwd').value;

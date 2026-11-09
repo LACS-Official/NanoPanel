@@ -16,6 +16,7 @@ var (
 
 // Reboot 重启系统，延迟 1 秒让响应先返回
 func (s *Server) Reboot(w http.ResponseWriter, r *http.Request) {
+	s.audit(r, "system", "重启系统", "操作来自面板")
 	go func() {
 		time.Sleep(time.Second)
 		_ = exec.Command("systemctl", "reboot").Run()
