@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"nanopanel/internal/config"
+	"nanopanel/internal/sysinfo"
 )
 
 // AppHealth 是单个应用的运行状态快照。
@@ -178,6 +179,12 @@ func (s *Server) StartMonitor(ctx context.Context) {
 				return
 			case <-time.After(wait):
 			}
+			// 温度告警独立于应用检测：只要配置了阈值就检查。
+			if s.tempThreshold() > 0 {
+				checkCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+				s.checkTemp(checkCtx)
+				cancel()
+			}
 			if s.monitorInterval() <= 0 {
 				continue // 自动检测已关闭
 			}
@@ -191,14 +198,77 @@ func (s *Server) StartMonitor(ctx context.Context) {
 	}()
 }
 
+// tempThreshold 返回温度告警阈值（0=关闭）。
+func (s *Server) tempThreshold() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg.TempThresholdC
+}
+
+// checkTemp 检查设备温度：超过阈值推送一次告警，
+// 回落 5℃ 以下（滞回带）才允许下次告警，避免反复触发。
+func (s *Server) checkTemp(ctx context.Context) {
+	threshold := float64(s.tempThreshold())
+	if threshold <= 0 {
+		return
+	}
+	temps := sysinfo.Temperatures()
+	if s.tempProbe != nil {
+		temps = s.tempProbe()
+	}
+	max, label := 0.0, ""
+	for _, z := range temps {
+		if z.Celsius > max {
+			max, label = z.Celsius, z.Label
+		}
+	}
+	if max <= 0 {
+		return
+	}
+
+	s.healthMu.Lock()
+	was := s.tempAlerted
+	if max >= threshold && !was {
+		s.tempAlerted = true
+	} else if max < threshold-5 && was {
+		s.tempAlerted = false
+		s.healthMu.Unlock()
+		s.notifyAsync("temp", "温度已回落", "设备温度已回落至 "+formatCelsius(max))
+		go s.appendAudit(auditEntry{
+			Time: time.Now().Format("2006-01-02 15:04:05"), IP: "monitor",
+			User: s.username(), Category: "temp", Action: "温度回落",
+			Detail: label + " " + formatCelsius(max),
+		})
+		return
+	}
+	alerting := max >= threshold && !was
+	s.healthMu.Unlock()
+
+	if alerting {
+		s.notifyAsync("temp", "设备温度过高",
+			"热区 "+label+" 当前 "+formatCelsius(max)+"，已超过阈值 "+
+				strconv.Itoa(int(threshold))+"℃")
+		go s.appendAudit(auditEntry{
+			Time: time.Now().Format("2006-01-02 15:04:05"), IP: "monitor",
+			User: s.username(), Category: "temp", Action: "温度告警",
+			Detail: label + " " + formatCelsius(max) + "（阈值 " + strconv.Itoa(int(threshold)) + "℃）",
+		})
+	}
+}
+
+func formatCelsius(c float64) string {
+	return strconv.FormatFloat(c, 'f', 1, 64) + "℃"
+}
+
 // AppHealthStatus 返回所有应用的当前运行状态与监控配置。
 func (s *Server) AppHealthStatus(w http.ResponseWriter, r *http.Request) {
 	states, _ := s.checkHealth(r.Context(), false, false)
 	interval := s.monitorInterval()
 	ok(w, map[string]interface{}{
-		"apps":            states,
-		"interval_sec":    interval,
-		"monitor_enabled": interval > 0,
+		"apps":             states,
+		"interval_sec":     interval,
+		"monitor_enabled":  interval > 0,
+		"temp_threshold_c": s.tempThreshold(),
 	})
 }
 
@@ -217,9 +287,10 @@ func (s *Server) CheckAppHealth(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetMonitorSettings(w http.ResponseWriter, r *http.Request) {
 	interval := s.monitorInterval()
 	ok(w, map[string]interface{}{
-		"interval_sec":    interval,
-		"monitor_enabled": interval > 0,
-		"default_sec":     config.DefaultMonitorIntervalSec,
+		"interval_sec":     interval,
+		"monitor_enabled":  interval > 0,
+		"default_sec":      config.DefaultMonitorIntervalSec,
+		"temp_threshold_c": s.tempThreshold(),
 		"options": []map[string]interface{}{
 			{"value": -1, "label": "关闭自动检测"},
 			{"value": 30, "label": "每 30 秒"},
@@ -231,10 +302,11 @@ func (s *Server) GetMonitorSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 type monitorReq struct {
-	IntervalSec int `json:"interval_sec"`
+	IntervalSec   int `json:"interval_sec"`
+	TempThreshold int `json:"temp_threshold_c"` // 0 关闭
 }
 
-// SaveMonitorSettings 保存检测间隔并持久化。
+// SaveMonitorSettings 保存检测间隔与温度告警阈值并持久化。
 func (s *Server) SaveMonitorSettings(w http.ResponseWriter, r *http.Request) {
 	var req monitorReq
 	if err := decodeJSON(w, r, &req); err != nil {
@@ -246,12 +318,17 @@ func (s *Server) SaveMonitorSettings(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "检测间隔需为 10-3600 秒，或 -1 关闭")
 		return
 	}
+	if req.TempThreshold != 0 && (req.TempThreshold < 40 || req.TempThreshold > 100) {
+		fail(w, http.StatusBadRequest, "温度阈值需为 40-100 ℃，或 0 关闭")
+		return
+	}
 
 	s.mu.Lock()
-	old := s.cfg.MonitorIntervalSec
+	oldInterval, oldTemp := s.cfg.MonitorIntervalSec, s.cfg.TempThresholdC
 	s.cfg.MonitorIntervalSec = v
+	s.cfg.TempThresholdC = req.TempThreshold
 	if err := s.cfg.Save(s.configPath); err != nil {
-		s.cfg.MonitorIntervalSec = old
+		s.cfg.MonitorIntervalSec, s.cfg.TempThresholdC = oldInterval, oldTemp
 		s.mu.Unlock()
 		fail(w, http.StatusInternalServerError, "保存失败: "+err.Error())
 		return
@@ -262,6 +339,9 @@ func (s *Server) SaveMonitorSettings(w http.ResponseWriter, r *http.Request) {
 	if v > 0 {
 		label = "检测间隔 " + strconv.Itoa(v) + " 秒"
 	}
-	s.audit(r, "settings", "修改应用健康检测设置", label)
+	if req.TempThreshold > 0 {
+		label += "，温度阈值 " + strconv.Itoa(req.TempThreshold) + "℃"
+	}
+	s.audit(r, "settings", "修改健康检测与温度告警设置", label)
 	ok(w, map[string]interface{}{"msg": "已保存", "interval_sec": v})
 }

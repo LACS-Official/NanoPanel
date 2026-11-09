@@ -12,6 +12,7 @@ import (
 
 	"nanopanel/internal/auth"
 	"nanopanel/internal/config"
+	"nanopanel/internal/sysinfo"
 )
 
 // Server 持有面板运行所需的依赖。
@@ -28,14 +29,18 @@ type Server struct {
 	mu sync.RWMutex
 
 	// healthMu 保护应用健康状态快照，避免定时检测与手动检测并发。
-	healthMu   sync.Mutex
-	lastHealth map[string]string // appID -> running / down / unknown / not_installed
+	healthMu    sync.Mutex
+	lastHealth  map[string]string // appID -> running / down / unknown / not_installed
+	tempAlerted bool              // 温度告警去重标记（滞回带内只告警一次）
 
 	// mihomoBase 仅用于测试注入，为空时按配置的控制端口拼装。
 	mihomoBase string
 
 	// unitProbe 仅用于测试注入，为空时通过 systemctl 查询单元状态。
 	unitProbe func(context.Context, string) string
+
+	// tempProbe 仅用于测试注入，为空时读取 sysinfo 热区温度。
+	tempProbe func() []sysinfo.TempZone
 
 	// selfRestart 仅用于测试注入，为空时通过 systemctl 重启面板服务。
 	selfRestart func() error

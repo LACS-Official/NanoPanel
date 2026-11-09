@@ -60,6 +60,9 @@ type Config struct {
 	// 0 表示使用默认值，小于 0 表示关闭自动检测。
 	MonitorIntervalSec int `json:"monitor_interval_sec,omitempty"`
 
+	// TempThresholdC 是温度告警阈值（摄氏度），0 表示关闭温度告警。
+	TempThresholdC int `json:"temp_threshold_c,omitempty"`
+
 	// TLS 证书路径。两者都非空时面板以 HTTPS 启动。
 	TLSCert string `json:"tls_cert,omitempty"`
 	TLSKey  string `json:"tls_key,omitempty"`
@@ -72,7 +75,7 @@ const DefaultMonitorIntervalSec = 60
 var WebhookFormats = []string{"generic", "wecom", "dingtalk", "feishu", "serverchan"}
 
 // NotifyEvents 可订阅的通知事件类别。
-var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system", "health", "disk", "security"}
+var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system", "health", "disk", "security", "temp"}
 
 // ValidWebhookFormat 判断格式是否受支持。
 func ValidWebhookFormat(f string) bool {
@@ -195,6 +198,9 @@ func (c *Config) Validate() error {
 	}
 	if (c.TLSCert == "") != (c.TLSKey == "") {
 		return fmt.Errorf("tls_cert 与 tls_key 必须同时设置或同时留空")
+	}
+	if c.TempThresholdC != 0 && (c.TempThresholdC < 40 || c.TempThresholdC > 100) {
+		return fmt.Errorf("temp_threshold_c 超出范围（40-100，或 0 关闭）: %d", c.TempThresholdC)
 	}
 	return nil
 }

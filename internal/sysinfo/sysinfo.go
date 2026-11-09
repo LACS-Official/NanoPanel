@@ -9,6 +9,12 @@ import (
 	"time"
 )
 
+// TempZone 一个热区的温度读数。
+type TempZone struct {
+	Label   string  `json:"label"` // 如 cpu-thermal / gpu-thermal
+	Celsius float64 `json:"celsius"`
+}
+
 // Overview 系统概览数据
 type Overview struct {
 	Hostname    string  `json:"hostname"`
@@ -26,6 +32,10 @@ type Overview struct {
 	DiskAvailMB int     `json:"disk_avail_mb"`
 	DiskUsedPct float64 `json:"disk_used_pct"`
 	ServerTime  string  `json:"server_time"`
+
+	// 温度（热区）与 CPU 当前频率；平台不支持时为空。
+	Temps    []TempZone `json:"temps,omitempty"`
+	CPUFreqs []float64  `json:"cpu_freqs,omitempty"`
 }
 
 // GetOverview 采集当前系统概览
@@ -57,6 +67,8 @@ func GetOverview() Overview {
 	if total > 0 {
 		o.DiskUsedPct = round1(float64(total-avail) / float64(total) * 100)
 	}
+	o.Temps = Temperatures()
+	o.CPUFreqs = CPUFreqs()
 	return o
 }
 

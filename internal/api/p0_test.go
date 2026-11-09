@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"nanopanel/internal/sysinfo"
 )
 
 // TestGenerateSelfSignedCert 生成证书后应能用 crypto/tls 加载，SAN 含 localhost。
@@ -202,4 +204,35 @@ func TestLoginLockAlert(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	t.Fatal("审计日志未记录登录锁定告警")
+}
+
+// TestTempAlertAndRecovery 超过阈值只告警一次，回落滞回带后恢复可再告警。
+func TestTempAlertAndRecovery(t *testing.T) {
+	srv, _ := newTestServer(t)
+	srv.logDir = t.TempDir()
+	srv.mu.Lock()
+	srv.cfg.TempThresholdC = 50
+	srv.mu.Unlock()
+	current := 55.0 // 高于阈值 50
+	srv.tempProbe = func() []sysinfo.TempZone {
+		return []sysinfo.TempZone{{Label: "cpu-thermal", Celsius: current}}
+	}
+
+	srv.checkTemp(context.Background())
+	if !srv.tempAlerted {
+		t.Fatal("超过阈值应置位告警标记")
+	}
+
+	// 持续高温不再重复告警（标记保持，不会二次推送）
+	srv.checkTemp(context.Background())
+	if !srv.tempAlerted {
+		t.Fatal("高温期间标记应保持")
+	}
+
+	// 回落到滞回带以下（阈值-5）清除标记
+	current = 44
+	srv.checkTemp(context.Background())
+	if srv.tempAlerted {
+		t.Fatal("回落后应清除告警标记")
+	}
 }

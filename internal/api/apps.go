@@ -443,5 +443,6 @@ func notifyEventOptions() []map[string]string {
 		{"key": "health", "label": "应用掉线 / 恢复"},
 		{"key": "disk", "label": "磁盘挂载"},
 		{"key": "security", "label": "安全告警（登录锁定）"},
+		{"key": "temp", "label": "温度告警（超温 / 回落）"},
 	}
 }
