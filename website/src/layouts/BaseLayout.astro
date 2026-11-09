@@ -158,5 +158,46 @@ const structuredData = {
         .np-fade-up { animation: none; }
       }
     </style>
+    <!-- 版本实时同步：页面加载时向 GitHub 查询最新 Release，修正构建时固化的版本号、
+         Release 链接与资产下载链接；查询失败则静默保留构建时数值。 -->
+    <script is:inline>
+      (function () {
+        var REPO = "LACS-Official/NanoPanel";
+        var TTL = 30 * 60 * 1000;
+        var hasTargets = document.querySelector("[data-np-ver],[data-np-release-url],[data-np-asset]");
+        if (!hasTargets) return;
+        function apply(tag) {
+          var m = /^v?(\d+\.\d+.*)$/.exec(tag || "");
+          if (!m) return;
+          var ver = m[1];
+          document.querySelectorAll("[data-np-ver]").forEach(function (el) { el.textContent = ver; });
+          var rel = "https://github.com/" + REPO + "/releases/tag/" + (tag.charAt(0) === "v" ? tag : "v" + tag);
+          document.querySelectorAll("[data-np-release-url]").forEach(function (a) { a.href = rel; });
+          document.querySelectorAll("[data-np-asset]").forEach(function (a) {
+            if (a.href && a.href.indexOf("/releases/download/") !== -1) {
+              a.href = a.href.replace(/\/releases\/download\/[^/]+\//, "/releases/download/" + (tag.charAt(0) === "v" ? tag : "v" + tag) + "/");
+            }
+          });
+        }
+        var cached = false;
+        try {
+          var ts = Number(localStorage.getItem("np-ver-ts") || 0);
+          var tag = localStorage.getItem("np-ver-tag") || "";
+          if (tag && Date.now() - ts < TTL) { apply(tag); cached = true; }
+        } catch (e) {}
+        if (cached) return;
+        fetch("https://api.github.com/repos/" + REPO + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (!d || !d.tag_name) return;
+            apply(d.tag_name);
+            try {
+              localStorage.setItem("np-ver-tag", d.tag_name);
+              localStorage.setItem("np-ver-ts", String(Date.now()));
+            } catch (e) {}
+          })
+          .catch(function () {});
+      })();
+    </script>
   </body>
 </html>

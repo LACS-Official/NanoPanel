@@ -76,7 +76,7 @@ const sampleConfig = `{
         <h2 id="install">安装</h2>
         <p>
           推荐使用一键脚本。当前最新版本为
-          <a href={release.releaseUrl} target="_blank" rel="noopener noreferrer"><code>v{release.version}</code></a>，
+          <a href={release.releaseUrl} target="_blank" rel="noopener noreferrer" data-np-release-url><code>v<span data-np-ver>{release.version}</span></code></a>，
           脚本会自动识别架构、下载对应 Release、校验 SHA256、安装 systemd 服务并生成初始密码：
         </p>
         <pre><code>{install.command}</code></pre>
@@ -86,7 +86,7 @@ sudo systemctl status nanopanel</code></pre>
 
         <h3>可选参数</h3>
         <p>全部通过环境变量传入，放在 <code>sudo</code> 之后：</p>
-        <pre><code>curl -fsSL {install.scriptUrl} | sudo NP_VERSION=v{release.version} NP_PORT=9090 bash</code></pre>
+        <pre><code>curl -fsSL {install.scriptUrl} | sudo NP_VERSION=v<span data-np-ver>{release.version}</span> NP_PORT=9090 bash</code></pre>
         <ul>
           <li><code>NP_VERSION</code>：指定版本（默认 <code>latest</code>）</li>
           <li><code>NP_PORT</code>：面板端口，默认 <code>8080</code></li>
@@ -103,7 +103,7 @@ sudo systemctl status nanopanel</code></pre>
 
         <h3>离线安装</h3>
         <p>
-          下载 <code>nanopanel-v{release.version}-linux-amd64.tar.gz</code>（或其他架构），解压后进入目录执行
+          下载 <code>nanopanel-v<span data-np-ver>{release.version}</span>-linux-amd64.tar.gz</code>（或其他架构），解压后进入目录执行
           <code>sudo ./install.sh</code>，脚本会优先使用同目录下的二进制，无需联网。
         </p>
         <p>

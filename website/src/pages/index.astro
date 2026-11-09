@@ -39,7 +39,7 @@ const icons: Record<string, string> = {
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70"></span>
             <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
-          <span>v{release.version} 已发布 · 开源 MIT</span>
+          <span>v<span data-np-ver>{release.version}</span> 已发布 · 开源 MIT</span>
           <span class="text-gray-400">→</span>
         </a>
 
@@ -190,7 +190,8 @@ const icons: Record<string, string> = {
             target="_blank"
             rel="noopener noreferrer"
             class="mono text-[#0a84ff] hover:underline"
-            >v{release.version} Release ↗</a
+            data-np-release-url
+            >v<span data-np-ver>{release.version}</span> Release ↗</a
           >
         </div>
       </div>

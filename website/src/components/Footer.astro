@@ -102,7 +102,7 @@ const release = await getRelease();
     >
       <span>© {year} 领创工作室（LAC Studio）· MIT License</span>
       <span class="font-mono"
-        >v{release.version} · <a href={release.releaseUrl} target="_blank" rel="noopener noreferrer" class="hover:text-gray-800 dark:hover:text-gray-200">Release</a
+        >v<span data-np-ver>{release.version}</span> · <a href={release.releaseUrl} target="_blank" rel="noopener noreferrer" data-np-release-url class="hover:text-gray-800 dark:hover:text-gray-200">Release</a
         > · npanel.lacs.cc</span
       >
     </div>
