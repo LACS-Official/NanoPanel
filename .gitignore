@@ -1,0 +1,24 @@
+# 构建产物
+/dist/
+/micropanel
+/micropanel-*
+/deploy/micropanel-amd64
+/deploy/micropanel-arm64
+/deploy/micropanel-armv7
+/deploy/micropanel-*.sha256
+*.exe
+*.test
+*.out
+coverage.*
+*.log
+
+# 本地开发配置（含随机密码，切勿提交）
+/dev/
+.env
+.env.*
+
+# 编辑器与系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

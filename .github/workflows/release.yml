@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 版本号（如 v0.1.0）
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Resolve version
+        id: ver
+        run: echo "value=${{ github.event.inputs.version || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build all architectures
+        run: make build-all VERSION=${{ steps.ver.outputs.value }}
+
+      - name: Create release bundles
+        run: |
+          for a in amd64 arm64 armv7; do
+            tar -czf "micropanel-${{ steps.ver.outputs.value }}-linux-${a}.tar.gz" \
+              -C deploy "micropanel-${a}" "micropanel-${a}.sha256" \
+              install.sh uninstall.sh mpctl micropanel.service apps
+          done
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MicroPanel ${{ steps.ver.outputs.value }}
+          generate_release_notes: true
+          files: |
+            deploy/micropanel-amd64
+            deploy/micropanel-amd64.sha256
+            deploy/micropanel-arm64
+            deploy/micropanel-arm64.sha256
+            deploy/micropanel-armv7
+            deploy/micropanel-armv7.sha256
+            micropanel-*.tar.gz

@@ -1,0 +1,56 @@
+name: Bug 报告
+description: 报告 MicroPanel 的异常行为
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请先确认：面板是否运行在可信内网、是否为最新版本。
+        **不要在此粘贴密码、token 或凭据文件内容。**
+  - type: input
+    id: version
+    attributes:
+      label: 面板版本
+      description: 执行 `mpctl version` 的输出
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 运行环境
+      options:
+        - OpenStick / MSM8916 (arm64)
+        - 其它 ARM Linux 设备
+        - x86_64 Linux 服务器
+        - WSL2
+        - 其它
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 系统与架构
+      placeholder: "Ubuntu 24.04 / aarch64"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 复现步骤
+      description: 1. … 2. … 3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志
+      description: "`journalctl -u micropanel -n 50 --no-pager` 的输出（请脱敏）"
+      render: shell

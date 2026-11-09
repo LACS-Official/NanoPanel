@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+# mpctl - MicroPanel 命令行管理工具（用法对标 1pctl）
+set -euo pipefail
+
+BIN="/opt/micropanel/micropanel"
+CONF_DIR="/etc/micropanel"
+CONF="${CONF_DIR}/config.json"
+CRED="${CONF_DIR}/credentials.json"
+MIRROR_CONF="${CONF_DIR}/mirror.conf"
+PIDFILE="/opt/micropanel/micropanel.pid"
+SERVICE="micropanel"
+
+die()  { echo "[mpctl] 错误: $*" >&2; exit 1; }
+info() { echo "[mpctl] $*"; }
+
+has_systemd() {
+  command -v systemctl >/dev/null 2>&1 && \
+    [ "$(ps -p 1 -o comm= 2>/dev/null | tr -d '[:space:]')" = "systemd" ]
+}
+
+json_field() {
+  [ -f "$2" ] || return 0
+  grep -o "\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$2" 2>/dev/null | head -n1 | cut -d'"' -f4
+}
+
+port_of() {
+  local listen
+  listen="$(json_field listen "$CONF")"
+  echo "${listen##*:}"
+}
+
+[ -x "$BIN" ] || die "未找到 $BIN，请先运行 install.sh"
+
+usage() {
+  cat <<'EOF'
+mpctl - MicroPanel 管理工具
+
+用法: mpctl <命令>
+
+  status                 查看运行状态与访问地址
+  start | stop | restart 启动 / 停止 / 重启面板
+  logs                   查看最近 100 行日志
+  user-info              查看面板地址、用户名、密码
+  reset-password [密码]  重置密码（不传则生成随机密码）
+  version                查看面板版本
+  mirror-info            查看当前使用的镜像源
+  uninstall              卸载面板
+  help                   显示本帮助
+EOF
+}
+
+cmd_status() {
+  if has_systemd; then
+    systemctl status "$SERVICE" --no-pager -l || true
+  else
+    if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+      info "运行中 (PID $(cat "$PIDFILE"))"
+    else
+      info "未运行"
+    fi
+  fi
+  info "访问地址: http://127.0.0.1:$(port_of)"
+}
+
+cmd_start() {
+  if has_systemd; then
+    systemctl start "$SERVICE"
+  else
+    nohup "$BIN" -c "$CONF" >> /var/log/micropanel.log 2>&1 &
+    echo $! > "$PIDFILE"
+  fi
+  info "已启动"
+}
+
+cmd_stop() {
+  if has_systemd; then
+    systemctl stop "$SERVICE"
+  elif [ -f "$PIDFILE" ]; then
+    kill "$(cat "$PIDFILE")" 2>/dev/null || true
+    rm -f "$PIDFILE"
+  fi
+  info "已停止"
+}
+
+cmd_restart() {
+  cmd_stop
+  sleep 1
+  cmd_start
+}
+
+cmd_logs() {
+  if has_systemd; then
+    journalctl -u "$SERVICE" -n 100 --no-pager
+  else
+    tail -n 100 /var/log/micropanel.log 2>/dev/null || echo "暂无日志"
+  fi
+}
+
+cmd_user_info() {
+  [ -f "$CRED" ] || die "凭据文件不存在: $CRED"
+  local user pass port ip
+  user="$(json_field username "$CRED")"
+  pass="$(json_field password "$CRED")"
+  port="$(port_of)"
+  ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  cat <<EOF
+========================================
+  面板地址 : http://${ip:-127.0.0.1}:${port}
+  本机访问 : http://127.0.0.1:${port}
+  用户名   : ${user}
+  密码     : ${pass}
+========================================
+EOF
+}
+
+cmd_reset_password() {
+  local pw="${1:-}"
+  if [ -z "$pw" ]; then pw="$("$BIN" -genpw 16)"; fi
+  if [ "${#pw}" -lt 8 ]; then die "密码至少 8 位"; fi
+  "$BIN" -reset-password "$pw" -c "$CONF" >/dev/null
+  cmd_restart >/dev/null
+  cat <<EOF
+密码已重置并重启面板
+  用户名 : $(json_field username "$CRED")
+  密码   : ${pw}
+EOF
+}
+
+cmd_version() {
+  "$BIN" -version
+  if has_systemd; then
+    systemctl is-active "$SERVICE" >/dev/null 2>&1 && info "服务状态: 运行中" || info "服务状态: 未运行"
+  fi
+}
+
+cmd_mirror_info() {
+  if [ ! -f "$MIRROR_CONF" ]; then die "镜像配置不存在: $MIRROR_CONF"; fi
+  cat "$MIRROR_CONF"
+}
+
+cmd_uninstall() {
+  [ -x /opt/micropanel/uninstall.sh ] || die "卸载脚本不存在"
+  exec /opt/micropanel/uninstall.sh
+}
+
+case "${1:-help}" in
+  status)          cmd_status ;;
+  start)           cmd_start ;;
+  stop)            cmd_stop ;;
+  restart)         cmd_restart ;;
+  logs)            cmd_logs ;;
+  user-info)       cmd_user_info ;;
+  reset-password)  cmd_reset_password "${2:-}" ;;
+  version)         cmd_version ;;
+  mirror-info)     cmd_mirror_info ;;
+  uninstall)       cmd_uninstall ;;
+  help|-h|--help)  usage ;;
+  *)               die "未知命令: $1（执行 mpctl help 查看用法）" ;;
+esac

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<title>MicroPanel</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --blue:#0071e3; --bg:#f5f5f7; --card:#fff; --text:#1d1d1f;
+    --gray:#86868b; --line:#e9e9eb; --green:#34c759; --red:#ff3b30;
+  }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--text); min-height:100vh; font-size:14px;
+  }
+  .hidden { display:none !important; }
+
+  #loginView { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .login-box { background:var(--card); border-radius:20px; padding:36px 32px; width:100%; max-width:360px;
+    box-shadow:0 8px 30px rgba(0,0,0,.08); }
+  .login-box h1 { font-size:24px; text-align:center; margin-bottom:6px; }
+  .login-box p { text-align:center; color:var(--gray); margin-bottom:24px; font-size:13px; }
+  .login-box .ver { text-align:center; color:var(--gray); font-size:11px; margin-top:18px; }
+  input { width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:12px; font-size:14px;
+    font-family:inherit; outline:none; margin-bottom:12px; }
+  input:focus { border-color:var(--blue); }
+
+  .btn { background:var(--blue); color:#fff; border:none; border-radius:980px; padding:10px 20px;
+    font-size:13px; cursor:pointer; font-family:inherit; white-space:nowrap; }
+  .btn:hover { opacity:.9; }
+  .btn.gray { background:#e8e8ed; color:var(--text); }
+  .btn.sm { padding:6px 12px; font-size:12px; }
+  .btn.danger { background:#ffe3e0; color:#d70015; }
+  .btn.green { background:#e4f8ea; color:#1a9e44; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+  .topbar { background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:10; }
+  .topbar-inner { max-width:1080px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; gap:16px; }
+  .brand { font-weight:700; font-size:17px; }
+  .brand .v { font-size:11px; color:var(--gray); font-weight:400; margin-left:6px; }
+  .nav { display:flex; gap:4px; overflow-x:auto; flex:1; }
+  .nav button { background:none; border:none; padding:8px 14px; border-radius:980px; cursor:pointer;
+    font-family:inherit; font-size:13px; color:var(--gray); white-space:nowrap; }
+  .nav button.active { background:#e8e8ed; color:var(--text); font-weight:600; }
+  .container { max-width:1080px; margin:0 auto; padding:24px 20px 60px; }
+  .view { display:none; }
+  .view.active { display:block; }
+
+  .card { background:var(--card); border-radius:18px; padding:22px; margin-bottom:16px;
+    box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .card h2 { font-size:16px; margin-bottom:16px; }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
+
+  .metric { background:#fafafc; border-radius:14px; padding:14px 16px; }
+  .metric .k { font-size:12px; color:var(--gray); }
+  .metric .v { font-size:18px; font-weight:600; margin-top:4px; word-break:break-all; }
+
+  .notice { background:#fff8e6; color:#705400; border-radius:12px; padding:10px 14px; font-size:13px; margin-bottom:16px; }
+  .bar-row { margin-bottom:14px; }
+  .bar-row .lab { display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px; }
+  .bar-track { height:6px; background:var(--line); border-radius:3px; overflow:hidden; }
+  .bar-fill { height:100%; background:var(--blue); border-radius:3px; transition:width .5s; }
+
+  table { width:100%; border-collapse:collapse; }
+  th,td { text-align:left; padding:10px 8px; font-size:13px; border-bottom:1px solid var(--line); }
+  th { color:var(--gray); font-weight:600; }
+  .table-wrap { overflow-x:auto; }
+
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#c7c7cc; margin-right:6px; }
+  .dot.active { background:var(--green); }
+  .dot.inactive, .dot.failed, .dot.unknown { background:#c7c7cc; }
+
+  .svc-row { display:flex; align-items:center; gap:10px; padding:12px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .svc-row:last-child { border-bottom:none; }
+  .svc-name { flex:1; min-width:120px; }
+  .svc-name .lbl { font-size:12px; color:var(--gray); }
+  .svc-actions { display:flex; gap:8px; }
+
+  pre { background:#1d1d1f; color:#e5e5e7; border-radius:12px; padding:14px; font-size:12px;
+    line-height:1.5; max-height:420px; overflow:auto; white-space:pre-wrap; word-break:break-all;
+    font-family:"SF Mono",Menlo,Consolas,monospace; }
+
+  .app-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+  .app-card { background:#fafafc; border-radius:14px; padding:16px; }
+  .app-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .app-icon { width:38px; height:38px; border-radius:10px; background:var(--blue); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; }
+  .app-head .name { font-weight:600; }
+  .app-head .ver { font-size:12px; color:var(--gray); }
+  .app-desc { font-size:12px; color:var(--gray); line-height:1.5; margin-bottom:12px; min-height:34px; }
+  .app-foot { display:flex; justify-content:space-between; align-items:center; }
+  .state-tag { font-size:12px; color:var(--gray); }
+
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1d1d1f; color:#fff;
+    padding:10px 20px; border-radius:980px; font-size:13px; opacity:0; transition:opacity .25s; z-index:99; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .row-flex { display:flex; gap:10px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+
+<div id="loginView">
+  <div class="login-box">
+    <h1>MicroPanel</h1>
+    <p>轻量服务器运维面板</p>
+    <input id="loginUser" type="text" placeholder="用户名" autocomplete="username" value="admin"
+           onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
+    <input id="loginPwd" type="password" placeholder="登录密码" autocomplete="current-password"
+           onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn" style="width:100%" onclick="doLogin()">登 录</button>
+    <div class="ver" id="loginVersion">MicroPanel</div>
+  </div>
+</div>
+
+<div id="mainView" class="hidden">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">MicroPanel <span class="v" id="appVersion"></span></div>
+      <div class="nav" id="nav">
+        <button data-view="overview" class="active">概览</button>
+        <button data-view="services">服务</button>
+        <button data-view="processes">进程</button>
+        <button data-view="logs">日志</button>
+        <button data-view="network">网络</button>
+        <button data-view="apps">应用商店</button>
+        <button data-view="settings">设置</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="notice hidden" id="platformNotice"></div>
+
+    <div class="view active" id="view-overview">
+      <div class="card">
+        <h2>系统信息</h2>
+        <div class="grid2" id="sysMetrics"></div>
+      </div>
+      <div class="card">
+        <h2>资源占用</h2>
+        <div id="resBars"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-services">
+      <div class="card">
+        <h2>系统服务</h2>
+        <div id="svcList"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-processes">
+      <div class="card">
+        <h2>进程管理（按内存排序，前 100）</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>PID</th><th>用户</th><th>内存(KB)</th><th>命令</th><th>操作</th></tr></thead>
+            <tbody id="procBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-logs">
+      <div class="card">
+        <h2>系统日志</h2>
+        <div class="row-flex" style="margin-bottom:14px">
+          <input id="logUnit" placeholder="单元名（可选，如 cups）" style="width:220px;margin:0">
+          <button class="btn" onclick="loadLogs()">刷新日志</button>
+        </div>
+        <pre id="logOutput">点击“刷新日志”加载…</pre>
+      </div>
+    </div>
+
+    <div class="view" id="view-network">
+      <div class="card">
+        <h2>Ping 连通性测试</h2>
+        <div class="row-flex" style="margin-bottom:14px">
+          <input id="pingHost" placeholder="目标，如 192.168.1.1 或 baidu.com" style="width:260px;margin:0">
+          <button class="btn" onclick="doPing()">Ping</button>
+        </div>
+        <pre id="pingOutput">等待测试…</pre>
+      </div>
+    </div>
+
+    <div class="view" id="view-apps">
+      <div class="card">
+        <h2>应用商店</h2>
+        <div class="app-grid" id="appGrid"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-settings">
+      <div class="card">
+        <h2>修改密码</h2>
+        <input id="oldPwd" type="password" placeholder="原密码" autocomplete="current-password">
+        <input id="newPwd" type="password" placeholder="新密码（至少 8 位）" autocomplete="new-password">
+        <div style="font-size:12px;color:var(--gray);margin-bottom:12px">修改后其他设备的登录态会全部失效。</div>
+        <button class="btn" onclick="doChangePassword()">保存修改</button>
+      </div>
+      <div class="card">
+        <h2>系统操作</h2>
+        <div class="row-flex">
+          <button class="btn gray" onclick="doReboot()">重启系统</button>
+          <button class="btn danger" onclick="doLogout()">退出登录</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const API = '/api/v1';
+let token = localStorage.getItem('mp_token') || '';
+let overviewTimer = null;
+
+function esc(v){
+  return String(v == null ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+async function call(method, path, body){
+  const opt = { method, headers:{'Content-Type':'application/json'} };
+  if (token) opt.headers['Authorization'] = 'Bearer ' + token;
+  if (body) opt.body = JSON.stringify(body);
+  let res;
+  try { res = await fetch(API + path, opt); }
+  catch(e){ throw new Error('网络错误，连不上面板'); }
+  if (res.status === 401){
+    token=''; localStorage.removeItem('mp_token'); showLogin();
+    throw new Error('登录已过期');
+  }
+  let data;
+  try { data = await res.json(); }
+  catch(e){ throw new Error('响应格式错误 (HTTP ' + res.status + ')'); }
+  if (!data.ok) throw new Error(data.err || '请求失败 (HTTP ' + res.status + ')');
+  return data.data;
+}
+
+function showLogin(){
+  document.getElementById('loginView').classList.remove('hidden');
+  document.getElementById('mainView').classList.add('hidden');
+  if (overviewTimer){ clearInterval(overviewTimer); overviewTimer=null; }
+}
+function showMain(){
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('mainView').classList.remove('hidden');
+  switchView('overview'); loadOverview(); loadServices(); loadProcesses(); loadApps();
+  overviewTimer = setInterval(()=>{ if(currentView()==='overview') loadOverview(); }, 5000);
+}
+
+async function doLogin(){
+  const user = document.getElementById('loginUser').value.trim();
+  const pw = document.getElementById('loginPwd').value;
+  if (!user || !pw) return toast('请输入用户名和密码');
+  try {
+    const d = await call('POST','/login',{username:user, password:pw});
+    token = d.token;
+    localStorage.setItem('mp_token', token);
+    localStorage.setItem('mp_user', user);
+    document.getElementById('loginPwd').value = '';
+    showMain();
+  } catch(e){ toast(e.message); }
+}
+async function doLogout(){
+  try { await call('POST','/logout'); } catch(e){}
+  token=''; localStorage.removeItem('mp_token'); showLogin();
+}
+
+function currentView(){ const b=document.querySelector('.nav button.active'); return b?b.dataset.view:''; }
+function switchView(v){
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
+}
+document.getElementById('nav').addEventListener('click',e=>{
+  if(e.target.dataset.view) switchView(e.target.dataset.view);
+});
+
+function fmtUptime(sec){
+  const d=Math.floor(sec/86400), h=Math.floor(sec%86400/3600), m=Math.floor(sec%3600/60);
+  return d+'天 '+h+'时 '+m+'分';
+}
+function metric(k,v){ return '<div class="metric"><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div></div>'; }
+
+async function loadOverview(){
+  try {
+    const o = await call('GET','/overview');
+    document.getElementById('sysMetrics').innerHTML =
+      metric('主机名',o.hostname || '-')+
+      metric('系统',o.os || '-')+
+      metric('内核',o.kernel || '-')+
+      metric('运行时间',fmtUptime(o.uptime_sec))+
+      metric('CPU',o.cpu_model || '-')+
+      metric('核心数 / 负载',o.cpu_cores+' 核 / '+o.load1);
+    document.getElementById('resBars').innerHTML =
+      bar('内存',o.mem_used_pct,(o.mem_total_mb-o.mem_avail_mb)+' / '+o.mem_total_mb+' MB')+
+      bar('磁盘',o.disk_used_pct,(o.disk_total_mb-o.disk_avail_mb)+' / '+o.disk_total_mb+' MB');
+  } catch(e){ /* 定时刷新静默失败，避免打扰 */ }
+}
+function bar(label,pct,detail){
+  const w = Math.max(0, Math.min(100, Number(pct)||0));
+  return '<div class="bar-row"><div class="lab"><span>'+esc(label)+'</span><span>'+esc(detail)+'（'+w+'%）</span></div>'+
+    '<div class="bar-track"><div class="bar-fill" style="width:'+w+'%"></div></div></div>';
+}
+
+async function loadServices(){
+  try {
+    const list = await call('GET','/services');
+    document.getElementById('svcList').innerHTML = list.map(s=>
+      '<div class="svc-row"><div class="svc-name"><span class="dot '+esc(s.state)+'"></span>'+esc(s.label)+
+      '<div class="lbl">'+esc(s.name)+' · '+esc(s.state)+'</div></div>'+
+      '<div class="svc-actions">'+
+      '<button class="btn sm green" data-svc="'+esc(s.name)+'" data-act="start">启动</button>'+
+      '<button class="btn sm gray" data-svc="'+esc(s.name)+'" data-act="restart">重启</button>'+
+      '<button class="btn sm danger" data-svc="'+esc(s.name)+'" data-act="stop">停止</button>'+
+      '</div></div>').join('');
+  } catch(e){ document.getElementById('svcList').textContent = e.message; }
+}
+document.getElementById('svcList').addEventListener('click', async e=>{
+  const b = e.target.closest('button[data-svc]'); if(!b) return;
+  try { await call('POST','/service/action?svc='+encodeURIComponent(b.dataset.svc)+'&action='+b.dataset.act);
+    toast('操作成功'); loadServices();
+  } catch(err){ toast(err.message); }
+});
+
+async function loadProcesses(){
+  try {
+    const list = await call('GET','/processes');
+    document.getElementById('procBody').innerHTML = list.map(p=>
+      '<tr><td>'+esc(p.pid)+'</td><td>'+esc(p.user)+'</td><td>'+esc(p.rss_kb)+'</td><td>'+esc(p.comm)+'</td>'+
+      '<td><button class="btn sm danger" data-pid="'+esc(p.pid)+'">结束</button></td></tr>').join('');
+  } catch(e){ document.getElementById('procBody').innerHTML = '<tr><td colspan="5">'+esc(e.message)+'</td></tr>'; }
+}
+document.getElementById('procBody').addEventListener('click', async e=>{
+  const b = e.target.closest('button[data-pid]'); if(!b) return;
+  const pid = b.dataset.pid;
+  if(!confirm('确定结束进程 '+pid+'？')) return;
+  try { await call('POST','/process/kill?pid='+encodeURIComponent(pid)+'&force=0');
+    toast('已结束'); loadProcesses();
+  } catch(err){ toast(err.message); }
+});
+
+async function loadLogs(){
+  const unit = document.getElementById('logUnit').value.trim();
+  let path='/logs?n=150';
+  if(unit) path+='&unit='+encodeURIComponent(unit);
+  try {
+    const d = await call('GET',path);
+    document.getElementById('logOutput').textContent = d.logs || '（无日志）';
+  } catch(e){ document.getElementById('logOutput').textContent = e.message; }
+}
+
+async function doPing(){
+  const host = document.getElementById('pingHost').value.trim();
+  if(!host) return toast('请输入目标');
+  document.getElementById('pingOutput').textContent='测试中…';
+  try {
+    const d = await call('GET','/ping?host='+encodeURIComponent(host));
+    document.getElementById('pingOutput').textContent = d.output;
+  } catch(e){ document.getElementById('pingOutput').textContent = e.message; }
+}
+
+async function loadApps(){
+  try {
+    const list = await call('GET','/apps');
+    document.getElementById('appGrid').innerHTML = list.map(a=>{
+      const installed = a.state==='installed';
+      return '<div class="app-card"><div class="app-head"><div class="app-icon">'+esc((a.name||'?')[0])+'</div>'+
+        '<div><div class="name">'+esc(a.name)+'</div><div class="ver">'+esc(a.version)+'</div></div></div>'+
+        '<div class="app-desc">'+esc(a.description)+'</div>'+
+        '<div class="app-foot"><span class="state-tag">'+esc(a.state)+'</span>'+
+        '<button class="btn sm '+(installed?'danger':'')+'" data-id="'+esc(a.id)+'" data-act="'+(installed?'remove':'install')+'">'+
+        (installed?'卸载':'安装')+'</button></div></div>';
+    }).join('');
+  } catch(e){ document.getElementById('appGrid').textContent = e.message; }
+}
+document.getElementById('appGrid').addEventListener('click', async e=>{
+  const b = e.target.closest('button[data-id]'); if(!b) return;
+  toast(b.dataset.act==='install'?'正在安装…':'正在卸载…');
+  try { await call('POST','/app/action?id='+encodeURIComponent(b.dataset.id)+'&action='+b.dataset.act);
+    toast('操作完成'); loadApps();
+  } catch(err){ toast(err.message); }
+});
+
+async function doChangePassword(){
+  const oldP=document.getElementById('oldPwd').value, newP=document.getElementById('newPwd').value;
+  if(!oldP||!newP) return toast('请填写完整');
+  if(newP.length < 8) return toast('新密码至少 8 位');
+  try {
+    const d = await call('POST','/change-password',{old_password:oldP,new_password:newP});
+    if(d && d.token){ token=d.token; localStorage.setItem('mp_token', token); }
+    toast('密码已修改');
+    document.getElementById('oldPwd').value=''; document.getElementById('newPwd').value='';
+  } catch(e){ toast(e.message); }
+}
+async function doReboot(){
+  if(!confirm('确定重启系统？')) return;
+  try { await call('POST','/reboot'); toast('系统正在重启'); } catch(e){ toast(e.message); }
+}
+
+async function loadHealth(){
+  try {
+    const res = await fetch(API+'/health');
+    const d = await res.json();
+    const h = d.data || {};
+    const v = h.version ? 'v'+h.version : '';
+    document.getElementById('appVersion').textContent = v;
+    document.getElementById('loginVersion').textContent = 'MicroPanel ' + v;
+    if(h.platform && h.platform !== 'linux'){
+      const n = document.getElementById('platformNotice');
+      n.textContent = '当前运行在 '+h.platform+' 环境，服务/进程/日志等依赖 Linux 的功能不可用。';
+      n.classList.remove('hidden');
+    }
+  } catch(e){ /* 健康检查失败不影响主流程 */ }
+}
+
+loadHealth();
+const savedUser = localStorage.getItem('mp_user');
+if (savedUser) document.getElementById('loginUser').value = savedUser;
+if (token) showMain(); else showLogin();
+</script>
+</body>
+</html>

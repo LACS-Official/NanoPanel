@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "apps": [
+    {
+      "id": "hello",
+      "name": "示例应用",
+      "description": "演示应用商店的安装、卸载、状态脚本约定，安装后写一个标记文件",
+      "version": "1.0.0",
+      "icon": "",
+      "category": "demo"
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Build / vet / test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Test (with race detector)
+        if: runner.os == 'Linux'
+        run: go test -race -cover ./...
+      - name: Test
+        if: runner.os != 'Linux'
+        run: go test -cover ./...
+      - name: gofmt check
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l .)"
+
+  cross-build:
+    name: Cross build (linux/${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: amd64, goarch: amd64}
+          - {name: arm64, goarch: arm64}
+          - {name: armv7, goarch: arm}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: "7"
+        run: go build -trimpath -o micropanel-${{ matrix.name }} .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: micropanel-${{ matrix.name }}
+          path: micropanel-${{ matrix.name }}
+          if-no-files-found: error
