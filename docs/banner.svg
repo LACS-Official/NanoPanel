@@ -10,6 +10,8 @@
     <path d="M27 40V20l14 20V20" fill="none" stroke="#fff" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M10 30A24 24 0 0 0 34 54" fill="none" stroke="#34c759" stroke-width="5" stroke-linecap="round"/>
   </g>
-  <text x="120" y="56" font-family="-apple-system,'SF Pro Display','PingFang SC','Helvetica Neue',Arial,sans-serif" font-size="40" font-weight="700" fill="#1d1d1f">NanoPanel</text>
-  <text x="122" y="78" font-family="-apple-system,'SF Pro Text','PingFang SC',Arial,sans-serif" font-size="15" fill="#86868b">轻量运维面板 · npanel.lacs.cc</text>
+  <!-- 白色描边：透明背景放到深色/黑色底上时勾勒字形，保证主标题与简介仍可辨；
+       paint-order="stroke" 让描边绘制在填充之下，不侵蚀字形。 -->
+  <text x="120" y="56" font-family="-apple-system,'SF Pro Display','PingFang SC','Helvetica Neue',Arial,sans-serif" font-size="40" font-weight="700" fill="#1d1d1f" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" paint-order="stroke">NanoPanel</text>
+  <text x="122" y="78" font-family="-apple-system,'SF Pro Text','PingFang SC',Arial,sans-serif" font-size="15" fill="#86868b" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round" paint-order="stroke">轻量运维面板 · npanel.lacs.cc</text>
 </svg>
