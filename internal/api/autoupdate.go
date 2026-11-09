@@ -1,14 +1,18 @@
 package api
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"nanopanel/internal/version"
@@ -108,6 +112,7 @@ func (s *Server) checkAndApplyUpdate(apply bool) (UpdateInfo, error) {
 }
 
 // applyUpdate 下载新版本、校验、备份当前二进制、替换并重启面板；失败回滚。
+// 优先下载稳定名完整安装包（可一并升级 npctl 与卸载脚本），失败回退单二进制。
 func (s *Server) applyUpdate(tag string) error {
 	s.updateMu.Lock()
 	defer s.updateMu.Unlock()
@@ -116,8 +121,30 @@ func (s *Server) applyUpdate(tag string) error {
 	if arch == "" {
 		return fmt.Errorf("当前架构 %s 暂不支持自动更新", runtime.GOARCH)
 	}
-	asset := "nanopanel-" + arch
+	bin, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("获取当前路径失败: %w", err)
+	}
+	if bin, err = filepath.EvalSymlinks(bin); err != nil {
+		return fmt.Errorf("解析可执行路径失败: %w", err)
+	}
+	backup := bin + ".bak"
+	if err := copyFile(bin, backup); err != nil {
+		return fmt.Errorf("备份当前版本失败: %w", err)
+	}
 
+	// 1) 完整安装包：主程序 + npctl + uninstall.sh
+	if err := s.applyFullPackage(tag, arch, bin, backup); err == nil {
+		if rerr := s.restartSelf(); rerr != nil {
+			return fmt.Errorf("升级文件已就位，但重启面板失败（请手动重启）: %w", rerr)
+		}
+		return nil
+	} else {
+		log.Printf("完整包升级不可用，回退单二进制: %v", err)
+	}
+
+	// 2) 回退：仅下载单二进制
+	asset := "nanopanel-" + arch
 	tmp, err := os.CreateTemp("", "nanopanel-update-")
 	if err != nil {
 		return fmt.Errorf("创建临时文件失败: %w", err)
@@ -135,18 +162,6 @@ func (s *Server) applyUpdate(tag string) error {
 	if !verifyBinary(tmpName) {
 		return fmt.Errorf("下载的文件无法执行，已取消升级（可能为损坏或不兼容的版本）")
 	}
-
-	bin, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("获取当前路径失败: %w", err)
-	}
-	if bin, err = filepath.EvalSymlinks(bin); err != nil {
-		return fmt.Errorf("解析可执行路径失败: %w", err)
-	}
-	backup := bin + ".bak"
-	if err := copyFile(bin, backup); err != nil {
-		return fmt.Errorf("备份当前版本失败: %w", err)
-	}
 	if err := replaceBinary(tmpName, bin); err != nil {
 		_ = copyFile(backup, bin) // 替换失败回滚到备份
 		return fmt.Errorf("替换二进制失败，已回滚: %w", err)
@@ -156,6 +171,119 @@ func (s *Server) applyUpdate(tag string) error {
 		return fmt.Errorf("升级文件已就位，但重启面板失败（请手动重启）: %w", rerr)
 	}
 	return nil
+}
+
+// applyFullPackage 下载稳定名完整安装包并就地升级主程序与配套工具。
+// 下载或解压失败时返回错误，由调用方回退到单二进制路径。
+func (s *Server) applyFullPackage(tag, arch, bin, backup string) error {
+	asset := "nanopanel-linux-" + arch + ".tar.gz"
+	tmp, err := os.CreateTemp("", "nanopanel-pkg-")
+	if err != nil {
+		return fmt.Errorf("创建临时文件失败: %w", err)
+	}
+	tmpName := tmp.Name()
+	tmp.Close()
+	defer os.Remove(tmpName)
+	if err := s.downloadReleaseAsset(tag, asset, tmpName); err != nil {
+		return err
+	}
+	dir, err := os.MkdirTemp("", "nanopanel-pkgdir-")
+	if err != nil {
+		return fmt.Errorf("创建临时目录失败: %w", err)
+	}
+	defer os.RemoveAll(dir)
+	n, err := extractTarGz(tmpName, dir)
+	if err != nil {
+		return fmt.Errorf("解压安装包失败: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("安装包内容为空")
+	}
+	newBin := filepath.Join(dir, "nanopanel-"+arch)
+	if _, err := os.Stat(newBin); err != nil {
+		return fmt.Errorf("安装包内缺少二进制")
+	}
+	if err := os.Chmod(newBin, 0755); err != nil {
+		return fmt.Errorf("设置可执行权限失败: %w", err)
+	}
+	if !verifyBinary(newBin) {
+		return fmt.Errorf("新二进制自检失败")
+	}
+	if err := replaceBinary(newBin, bin); err != nil {
+		_ = copyFile(backup, bin) // 替换失败回滚到备份
+		return fmt.Errorf("替换二进制失败，已回滚: %w", err)
+	}
+	// 配套工具：npctl 与卸载脚本就位（不存在对应文件或不可写时静默跳过）
+	if src := filepath.Join(dir, "npctl"); regularFile(src) {
+		if err := replaceBinary(src, "/usr/local/bin/npctl"); err != nil {
+			log.Printf("更新 npctl 失败（忽略）: %v", err)
+		}
+	}
+	if src := filepath.Join(dir, "uninstall.sh"); regularFile(src) {
+		if err := replaceBinary(src, filepath.Join(filepath.Dir(bin), "uninstall.sh")); err != nil {
+			log.Printf("更新 uninstall.sh 失败（忽略）: %v", err)
+		}
+	}
+	return nil
+}
+
+// extractTarGz 把 src 的 tar.gz 内容解压到 dir，返回解出的普通文件数。
+// 跳过绝对路径、.. 穿越与软链，保证解压内容始终位于 dir 内。
+func extractTarGz(src, dir string) (int, error) {
+	f, err := os.Open(src)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return 0, err
+	}
+	defer gz.Close()
+	tr := tar.NewReader(gz)
+	count := 0
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return count, err
+		}
+		name := filepath.Clean(hdr.Name)
+		if filepath.IsAbs(name) || strings.HasPrefix(name, "..") {
+			continue
+		}
+		target := filepath.Join(dir, filepath.ToSlash(name))
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, 0755); err != nil {
+				return count, err
+			}
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				return count, err
+			}
+			mode := hdr.FileInfo().Mode().Perm()
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+			if err != nil {
+				return count, err
+			}
+			if _, err := io.Copy(out, tr); err != nil {
+				out.Close()
+				return count, err
+			}
+			out.Close()
+			count++
+		}
+	}
+	return count, nil
+}
+
+// regularFile 判断路径存在且为普通文件。
+func regularFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular()
 }
 
 // verifyBinary 运行 <path> -version 校验其可执行且为本项目二进制（早期退出，不绑定端口）。

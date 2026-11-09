@@ -3,6 +3,9 @@ package api
 // 文件管理器测试：白名单约束、越界拒绝、软链借道、增删改查链路。
 
 import (
+	"archive/tar"
+	"compress/gzip"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -60,6 +63,8 @@ func fileBody(t *testing.T, srv *Server, method, url, body string) *httptest.Res
 		srv.ListFiles(rec, req)
 	case "/download":
 		srv.DownloadFile(rec, req)
+	case "/archive":
+		srv.DownloadArchive(rec, req)
 	case "/read":
 		srv.ReadTextFile(rec, req)
 	case "/write":
@@ -194,4 +199,82 @@ func symlinksSupported() bool {
 	}
 	defer os.RemoveAll(tmp)
 	return os.Symlink(tmp, tmp+"/link") == nil
+}
+
+// TestFileArchive 目录打包下载：内容完整、跳过软链、白名单外的目录被拒绝。
+func TestFileArchive(t *testing.T) {
+	srv, root := newFileTestServer(t)
+	sub := filepath.Join(root, "docs")
+	if err := os.MkdirAll(filepath.Join(sub, "nested"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sub, "a.txt"), []byte("hello archive"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sub, "nested", "b.txt"), []byte("inner"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// 软链不应被打包
+	if symlinksSupported() {
+		outside := t.TempDir()
+		_ = os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("x"), 0o644)
+		_ = os.Symlink(outside, filepath.Join(sub, "link"))
+	}
+
+	rec := fileBody(t, srv, http.MethodGet, "/api/v1/files/archive?path="+filepath.ToSlash(sub), "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("打包下载应成功，got %d: %s", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/gzip" {
+		t.Fatalf("Content-Type 应为 application/gzip，got %q", ct)
+	}
+
+	// 解包校验
+	gr, err := gzip.NewReader(rec.Body)
+	if err != nil {
+		t.Fatalf("gzip 头解析失败: %v", err)
+	}
+	defer gr.Close()
+	tr := tar.NewReader(gr)
+	found := map[string]string{}
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("tar 解析失败: %v", err)
+		}
+		if hdr.Typeflag == tar.TypeReg {
+			data, _ := io.ReadAll(tr)
+			found[hdr.Name] = string(data)
+		}
+	}
+	if found["a.txt"] != "hello archive" {
+		t.Fatalf("a.txt 内容不符: %q", found["a.txt"])
+	}
+	if found[filepath.ToSlash(filepath.Join("nested", "b.txt"))] != "inner" {
+		t.Fatalf("nested/b.txt 内容不符: %v", found)
+	}
+	for name := range found {
+		if strings.Contains(name, "link") {
+			t.Fatalf("软链不应被打包: %s", name)
+		}
+	}
+
+	// 空目录应被拒绝
+	empty := filepath.Join(root, "empty")
+	if err := os.MkdirAll(empty, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rec = fileBody(t, srv, http.MethodGet, "/api/v1/files/archive?path="+filepath.ToSlash(empty), "")
+	if rec.Code == http.StatusOK {
+		t.Fatal("空目录打包应被拒绝")
+	}
+
+	// 根外目录应被拒绝
+	rec = fileBody(t, srv, http.MethodGet, "/api/v1/files/archive?path="+filepath.ToSlash(t.TempDir()), "")
+	if rec.Code == http.StatusOK {
+		t.Fatal("白名单外目录打包应被拒绝")
+	}
 }

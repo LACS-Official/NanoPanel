@@ -35,7 +35,9 @@ async function call(method, path, body){
   try { res = await fetch(API + path, opt); }
   catch(e){ throw new Error('网络错误，连不上面板'); }
   if (res.status === 401){
+    const expired = !!token;
     token=''; localStorage.removeItem('np_token'); showLogin();
+    if (expired) toast('登录已过期，请重新登录');
     throw new Error('登录已过期');
   }
   let data;
@@ -101,6 +103,7 @@ function switchView(v){
   const m = viewMeta[v] || {};
   document.getElementById('pageTitle').textContent = m.t || v;
   document.getElementById('pageSub').textContent = m.s || '';
+  document.title = (m.t ? m.t + ' · ' : '') + 'NanoPanel';
   renderSubtabs(v);
   if (v==='apps'){ loadApps(); if(!curSub.apps) setSub('apps','all'); }
   if (v==='logs' && !curSub.logs) setSub('logs','system');
@@ -461,7 +464,7 @@ async function checkAppsNow(){
   } catch(e){ toast(e.message); }
 }
 
-// ===== 应用商店 =====
+// ===== 应用 =====
 const healthLabels = {running:'● 运行中', down:'● 已掉线', unknown:'○ 未监控', not_installed:'未安装'};
 const healthCls = {running:'st-run', down:'st-down', unknown:'st-unknown', not_installed:'st-unknown'};
 let appData = [];
@@ -565,7 +568,7 @@ document.getElementById('view-apps').addEventListener('click', async e=>{
   if (b) runAppAction(b.dataset.id, b.dataset.act, b.dataset.label);
 });
 
-// ===== 应用商店设置 =====
+// ===== 应用设置 =====
 async function loadMirrorSettings(){
   try {
     const d = await call('GET','/settings/mirror');
@@ -678,7 +681,7 @@ async function runAppAction(id, action, label){
   try {
     const res = await fetch(API+'/app/action/stream?id='+encodeURIComponent(id)+'&action='+action,
       { method:'POST', headers:{'Authorization':'Bearer '+token} });
-    if (res.status === 401){ token=''; localStorage.removeItem('np_token'); showLogin(); return; }
+    if (res.status === 401){ token=''; localStorage.removeItem('np_token'); showLogin(); toast('登录已过期，请重新登录'); return; }
     const ct = res.headers.get('Content-Type') || '';
     if (ct.indexOf('text/event-stream') < 0){
       let d = {}; try { d = await res.json(); } catch(e){}
@@ -745,6 +748,7 @@ async function loadFiles(path){
       const acts = [];
       if (e.is_dir){
         acts.push('<button class="btn sm gray" data-fmgo="'+esc(p)+'">进入</button>');
+        acts.push('<button class="btn sm gray" data-fmarch="'+esc(p)+'">打包下载</button>');
       } else {
         acts.push('<button class="btn sm gray" data-fmdl="'+esc(p)+'">下载</button>');
         if (e.text) acts.push('<button class="btn sm gray" data-fmedit="'+esc(p)+'">编辑</button>');
@@ -803,18 +807,27 @@ async function fmRename(p){
 }
 
 // 下载走 blob（请求需带 Authorization 头，无法用直链）
-async function fmDownload(p){
+// asArchive=true 时请求目录打包端点，保存名带 .tar.gz
+async function fmDownload(p, asArchive){
   try {
-    const res = await fetch(API+'/files/download?path='+encodeURIComponent(p), {
+    toast(asArchive ? '正在打包，请稍候…' : '开始下载');
+    const res = await fetch(API+(asArchive
+      ? '/files/archive?path='
+      : '/files/download?path=')+encodeURIComponent(p), {
       headers:{'Authorization':'Bearer '+token}
     });
-    if (!res.ok) throw new Error('下载失败 HTTP '+res.status);
+    if (!res.ok){
+      let msg = '下载失败 HTTP '+res.status;
+      try { const d = await res.json(); if (d.err) msg = d.err; } catch(e){}
+      throw new Error(msg);
+    }
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = p.split('/').pop();
+    a.download = p.split('/').pop() + (asArchive ? '.tar.gz' : '');
     a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+    setTimeout(()=>URL.revokeObjectURL(a.href), 8000);
+    if (asArchive) toast('打包完成');
   } catch(e){ toast(e.message); }
 }
 
@@ -838,13 +851,14 @@ async function fmSaveEdit(){
 }
 
 document.getElementById('fmList').addEventListener('click', e=>{
-  const el = e.target.closest('[data-fmgo],[data-fmdel],[data-fmren],[data-fmdl],[data-fmedit]');
+  const el = e.target.closest('[data-fmgo],[data-fmdel],[data-fmren],[data-fmdl],[data-fmedit],[data-fmarch]');
   if (!el) return;
   if (el.dataset.fmgo)   loadFiles(el.dataset.fmgo);
   if (el.dataset.fmdel)  fmDelete(el.dataset.fmdel, el.dataset.rec);
   if (el.dataset.fmren)  fmRename(el.dataset.fmren);
   if (el.dataset.fmdl)   fmDownload(el.dataset.fmdl);
   if (el.dataset.fmedit) fmEdit(el.dataset.fmedit);
+  if (el.dataset.fmarch) fmDownload(el.dataset.fmarch, true);
 });
 document.getElementById('fmCrumb').addEventListener('click', e=>{
   const el = e.target.closest('[data-fmgo]');

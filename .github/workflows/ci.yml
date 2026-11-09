@@ -106,6 +106,11 @@ jobs:
           bash -n deploy/uninstall.sh
           bash deploy/install.sh --help > /dev/null
           echo "::notice title=install.sh::语法检查通过"
+      - name: shellcheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck >/dev/null
+          shellcheck -S warning deploy/*.sh deploy/npctl
+          echo "::notice title=shellcheck::部署脚本静态检查通过"
 
   cross-build:
     name: Cross build (linux/${{ matrix.name }})

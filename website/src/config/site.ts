@@ -113,7 +113,7 @@ export const SITE_CONFIG = {
         icon: "list",
       },
       {
-        title: "应用商店",
+        title: "应用",
         desc: "mihomo、AdGuard Home、Tailscale、frp、CUPS… 一键安装、升级与配置。",
         icon: "apps",
       },
@@ -187,7 +187,7 @@ export const SITE_CONFIG = {
         bullets: ["CPU 使用率双采样计算", "温度阈值告警（滞回防抖）", "网卡实时速率曲线", "磁盘挂载与容量水位"],
       },
       {
-        title: "应用商店：装软件不用记命令",
+        title: "应用：装软件不用记命令",
         desc: "内置应用清单，安装前自动做架构、内存、磁盘预检；安装后卡片直接显示运行状态与网页入口，支持一键升级到清单新版本。",
         bullets: ["mihomo + metacubexd 管理面板", "AdGuard Home / Tailscale / frp", "CUPS 打印服务 / WebDAV / Samba", "已安装应用一键打开网页"],
       },

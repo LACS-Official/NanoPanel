@@ -12,7 +12,7 @@ const toc = [
   { id: "login", name: "首次登录" },
   { id: "config", name: "配置文件" },
   { id: "https", name: "开启 HTTPS" },
-  { id: "apps", name: "应用商店" },
+  { id: "apps", name: "应用" },
   { id: "backup", name: "备份与定时任务" },
   { id: "update", name: "自动更新" },
   { id: "faq", name: "常见问题" },
@@ -137,12 +137,12 @@ sudo systemctl status nanopanel</code></pre>
         </p>
         <pre><code>sudo nanopanel -gen-cert -cert-dir /etc/nanopanel/tls</code></pre>
 
-        <h2 id="apps">应用商店</h2>
+        <h2 id="apps">应用</h2>
         <p>
-          应用商店内置 mihomo（含 metacubexd 面板）、AdGuard Home、Tailscale、frp、CUPS、WebDAV、Samba 等应用。
+          应用商店（应用页）内置 mihomo（含 metacubexd 面板）、AdGuard Home、Tailscale、frp、CUPS、WebDAV、Samba 等应用。
           安装前会做架构、内存与磁盘预检；安装后卡片显示运行状态，带网页界面的应用可一键打开。
         </p>
-        <p>更新可安装清单：应用商店 → 设置 → 更新清单，从仓库拉取最新 manifest.json。</p>
+        <p>更新可安装清单：应用 → 设置 → 更新清单，从仓库拉取最新 manifest.json。</p>
 
         <h2 id="backup">备份与定时任务</h2>
         <p>
@@ -175,7 +175,7 @@ sudo systemctl status nanopanel</code></pre>
         <h3>应用装不上？</h3>
         <p>
           多为网络问题：确认 <code>/opt/nanopanel/mirror.conf</code> 里的镜像前缀是完整形式
-          （如 <code>https://ghfast.top/https://github.com</code>），或直接在应用商店里重试。
+          （如 <code>https://ghfast.top/https://github.com</code>），或直接在应用页里重试。
         </p>
         <h3>自动更新提示「无法连接更新源」？</h3>
         <p>

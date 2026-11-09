@@ -4,8 +4,11 @@ package api
 // 以及小文本文件的在线编辑。所有变更操作写审计日志并按 file 事件推送。
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path"
@@ -222,6 +225,104 @@ func (s *Server) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition",
 		fmt.Sprintf("attachment; filename=%q", path.Base(p)))
 	http.ServeFile(w, r, p)
+}
+
+// archiveLimit 打包下载的目录总大小上限（1GB）。
+const archiveLimit = int64(1) << 30
+
+// DownloadArchive 把目录打包为 tar.gz 流式下载。
+// 跳过软链与非常规文件；打包前预扫描总大小，超过 1GB 时拒绝。
+func (s *Server) DownloadArchive(w http.ResponseWriter, r *http.Request) {
+	p, err := s.resolveFilePath(r.URL.Query().Get("path"))
+	if err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	st, err := os.Stat(p)
+	if err != nil || !st.IsDir() {
+		fail(w, http.StatusNotFound, "目录不存在")
+		return
+	}
+	// 预扫描：统计常规文件总大小与数量，超限直接拒绝（避免边打包边发现超限）。
+	var total int64
+	var files int
+	var tooBig bool
+	_ = filepath.WalkDir(p, func(fp string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // 不可读的条目直接跳过
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		info, ierr := d.Info()
+		if ierr != nil {
+			return nil
+		}
+		total += info.Size()
+		files++
+		if total > archiveLimit {
+			tooBig = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	if tooBig {
+		fail(w, http.StatusBadRequest, "目录总大小超过 1GB，拒绝打包下载")
+		return
+	}
+	if files == 0 {
+		fail(w, http.StatusBadRequest, "目录内没有可打包的常规文件")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/gzip")
+	w.Header().Set("Content-Disposition",
+		fmt.Sprintf("attachment; filename=%q", path.Base(p)+".tar.gz"))
+	gzw := gzip.NewWriter(w)
+	tw := tar.NewWriter(gzw)
+	_ = filepath.WalkDir(p, func(fp string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		rel, rerr := filepath.Rel(p, fp)
+		if rerr != nil || rel == "." {
+			return nil
+		}
+		info, ierr := d.Info()
+		if ierr != nil || !info.Mode().IsRegular() && !d.IsDir() {
+			return nil
+		}
+		hdr, herr := tar.FileInfoHeader(info, "")
+		if herr != nil {
+			return nil
+		}
+		hdr.Name = filepath.ToSlash(rel)
+		if d.IsDir() {
+			hdr.Name += "/"
+		} else {
+			hdr.Mode = int64(info.Mode().Perm())
+		}
+		if tw.WriteHeader(hdr) != nil {
+			return nil
+		}
+		if !d.IsDir() {
+			f, ferr := os.Open(fp)
+			if ferr != nil {
+				return nil
+			}
+			_, _ = io.Copy(tw, f)
+			f.Close()
+		}
+		return nil
+	})
+	tw.Close()
+	gzw.Close()
 }
 
 // ReadTextFile 返回小文本文件内容（≤1MB）。

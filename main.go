@@ -142,6 +142,7 @@ func main() {
 	// 文件管理器
 	mux.HandleFunc("GET /api/v1/files", srv.AuthMiddleware(srv.ListFiles))
 	mux.HandleFunc("GET /api/v1/files/download", srv.AuthMiddleware(srv.DownloadFile))
+	mux.HandleFunc("GET /api/v1/files/archive", srv.AuthMiddleware(srv.DownloadArchive))
 	mux.HandleFunc("GET /api/v1/files/read", srv.AuthMiddleware(srv.ReadTextFile))
 	mux.HandleFunc("POST /api/v1/files/write", srv.AuthMiddleware(srv.WriteTextFile))
 	mux.HandleFunc("POST /api/v1/files/upload", srv.AuthMiddleware(srv.UploadFiles))

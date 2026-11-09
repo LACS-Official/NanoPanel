@@ -126,7 +126,7 @@ func VersionGreater(a, b string) bool {
 // parseSemver 将 "v1.2.3-rc1" 之类解析为 [major, minor, patch] 三个整数。
 func parseSemver(v string) [3]int {
 	var r [3]int
-	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
+	v = strings.TrimLeft(strings.TrimSpace(v), "vV")
 	if i := strings.IndexAny(v, "-+"); i >= 0 {
 		v = v[:i]
 	}

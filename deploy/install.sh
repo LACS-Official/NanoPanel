@@ -367,12 +367,12 @@ FINAL_PASS="$(json_field password "${CONF_DIR}/credentials.json")"
 if [ -z "$FINAL_USER" ]; then FINAL_USER="$NP_USERNAME"; fi
 if [ -z "$FINAL_PASS" ]; then FINAL_PASS="$NP_PASSWORD"; fi
 
-step "6/8 安装应用商店与管理工具"
+step "6/8 安装应用与管理工具"
 if [ -d "${AUX_DIR}/apps" ]; then
   cp -a "${AUX_DIR}/apps/." "${INSTALL_DIR}/apps/"
   find "${INSTALL_DIR}/apps" -name '*.sh' -exec chmod 0755 {} +
 else
-  warn "未获取到 apps 目录，应用商店清单将为空（可稍后从仓库 deploy/apps 复制到 ${INSTALL_DIR}/apps）"
+  warn "未获取到 apps 目录，应用清单将为空（可稍后从仓库 deploy/apps 复制到 ${INSTALL_DIR}/apps）"
 fi
 if [ ! -f "${INSTALL_DIR}/apps/manifest.json" ]; then
   echo '{"version":1,"apps":[]}' > "${INSTALL_DIR}/apps/manifest.json"
@@ -398,7 +398,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# 安装脚本探测出的最优镜像源会作为环境变量传给应用商店脚本。
+# 安装脚本探测出的最优镜像源会作为环境变量传给应用脚本。
 EnvironmentFile=-${CONF_DIR}/mirror.conf
 WorkingDirectory=${INSTALL_DIR}
 ExecStart=${INSTALL_DIR}/nanopanel -c ${CONF_DIR}/config.json

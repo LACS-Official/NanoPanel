@@ -103,6 +103,12 @@ func (s *Server) SecurityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "no-referrer")
 		h.Set("X-XSS-Protection", "0")
+		// CSP：仅允许同源脚本与连接、内联样式（页面大量 style="" 属性）、
+		// data: 图片（内嵌 SVG 图标）；禁 object / 插件，禁止被嵌入与提交外部表单。
+		h.Set("Content-Security-Policy",
+			"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "+
+				"img-src 'self' data:; connect-src 'self'; object-src 'none'; "+
+				"base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			h.Set("Cache-Control", "no-store")
 		}

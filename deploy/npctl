@@ -140,13 +140,14 @@ cmd_mirror_info() {
 }
 
 cmd_upgrade() {
-  local arch tmp tag asset
+  local arch tmp tag asset pkg_tmp pkg_dir
   case "$(uname -m)" in
     x86_64)        arch=amd64 ;;
     aarch64|arm64) arch=arm64 ;;
     armv7l)        arch=armv7 ;;
     *)             die "不支持的架构: $(uname -m)" ;;
   esac
+  # shellcheck disable=SC1090
   [ -f "$MIRROR_CONF" ] && . "$MIRROR_CONF" 2>/dev/null || true
   local GH="${GITHUB_MIRROR:-https://github.com}"
   local REPO="LACS-Official/NanoPanel"
@@ -158,6 +159,49 @@ cmd_upgrade() {
     [ -n "$tag" ] && break
   done
   [ -n "$tag" ] || die "无法解析最新版本（仓库可能尚未发布 Release）"
+
+  # 优先下载完整安装包：主程序 + npctl + uninstall.sh 一起升级
+  pkg="nanopanel-linux-${arch}.tar.gz"
+  pkg_tmp="$(mktemp /tmp/nanopanel-pkg-XXXXXX)"
+  pkg_dir="$(mktemp -d)"
+  info "下载 ${tag} 完整安装包…"
+  pkg_ok=""
+  for base in "$GH" "https://github.com" "https://ghfast.top/https://github.com"; do
+    if curl -fsL --connect-timeout 8 --max-time 300 -o "$pkg_tmp" \
+       "${base}/${REPO}/releases/download/${tag}/${pkg}"; then
+      pkg_ok=1
+      break
+    fi
+  done
+  if [ -n "$pkg_ok" ] && tar -xzf "$pkg_tmp" -C "$pkg_dir" 2>/dev/null \
+     && [ -f "$pkg_dir/nanopanel-${arch}" ]; then
+    chmod 0755 "$pkg_dir/nanopanel-${arch}"
+    info "校验新版本…"
+    if ! "$pkg_dir/nanopanel-${arch}" -version >/dev/null 2>&1; then
+      rm -rf "$pkg_tmp" "$pkg_dir"
+      die "新版本自检失败，已回滚"
+    fi
+    info "替换二进制与配套工具并重启…"
+    if has_systemd; then
+      systemctl stop "$SERVICE"
+      install -m 0755 "$pkg_dir/nanopanel-${arch}" "$BIN"
+      [ -f "$pkg_dir/npctl" ] && install -m 0755 "$pkg_dir/npctl" /usr/local/bin/npctl 2>/dev/null || true
+      [ -f "$pkg_dir/uninstall.sh" ] && install -m 0755 "$pkg_dir/uninstall.sh" "$(dirname "$BIN")/uninstall.sh" 2>/dev/null || true
+      systemctl start "$SERVICE"
+    else
+      install -m 0755 "$pkg_dir/nanopanel-${arch}" "$BIN"
+      [ -f "$pkg_dir/npctl" ] && install -m 0755 "$pkg_dir/npctl" /usr/local/bin/npctl 2>/dev/null || true
+      [ -f "$pkg_dir/uninstall.sh" ] && install -m 0755 "$pkg_dir/uninstall.sh" "$(dirname "$BIN")/uninstall.sh" 2>/dev/null || true
+      cmd_start >/dev/null
+    fi
+    rm -rf "$pkg_tmp" "$pkg_dir"
+    "$BIN" -version
+    info "升级完成"
+    return
+  fi
+  rm -rf "$pkg_tmp" "$pkg_dir"
+  info "完整安装包不可用，回退单二进制…"
+
   asset="nanopanel-${arch}"
   tmp="$(mktemp /tmp/nanopanel-XXXXXX)"
   info "下载 ${tag} / linux-${arch}…"
