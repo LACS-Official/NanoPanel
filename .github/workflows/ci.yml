@@ -70,6 +70,43 @@ jobs:
           version: latest
           args: --timeout=5m
 
+  website:
+    name: Website build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Install dependencies
+        working-directory: website
+        run: npm ci
+      - name: Build
+        working-directory: website
+        env:
+          # CI 不依赖外网稳定性，使用兜底版本；真实版本解析由 pages.yml 负责
+          NP_RELEASE_SOURCE: static
+        run: npm run build
+      - name: Verify install script synced
+        run: |
+          diff -q deploy/install.sh website/dist/install.sh \
+            || { echo "::error title=install-script-drift::dist/install.sh 与 deploy/install.sh 不一致"; exit 1; }
+          test -f website/dist/sitemap.xml
+
+  install-script:
+    name: install.sh syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash syntax check
+        run: |
+          bash -n deploy/install.sh
+          bash -n deploy/uninstall.sh
+          bash deploy/install.sh --help > /dev/null
+          echo "::notice title=install.sh::语法检查通过"
+
   cross-build:
     name: Cross build (linux/${{ matrix.name }})
     runs-on: ubuntu-latest

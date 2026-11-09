@@ -1,9 +1,21 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
 import { SITE_CONFIG } from "@/config/site";
+import { getRelease } from "@/lib/release";
 
-const { downloadPage, product, social } = SITE_CONFIG;
-const latest = `${social.releases}/latest/download`;
+const { downloadPage, install, social } = SITE_CONFIG;
+const release = await getRelease();
+
+const cards = downloadPage.assets.map((a, i) => {
+  const asset = release.assets.find((x) => x.name === a.file) ?? release.assets[i];
+  return { ...a, asset };
+});
+
+const releaseLabel = release.publishedAt
+  ? `${release.publishedAt} 发布`
+  : release.source === "api"
+    ? "GitHub 最新版"
+    : "最新稳定版";
 ---
 
 <MainLayout title="下载" description="下载 NanoPanel 单二进制，支持 amd64 / arm64 / armv7。">
@@ -13,13 +25,27 @@ const latest = `${social.releases}/latest/download`;
       <h1 class="text-4xl md:text-5xl font-bold tracking-tight">{downloadPage.hero.title}</h1>
       <p class="mt-5 text-gray-600 dark:text-gray-400">{downloadPage.hero.subtitle}</p>
       <div
-        class="mt-6 inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-800/60 px-4 py-1.5 text-xs text-gray-600 dark:text-gray-300"
+        class="mt-6 inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-800/60 px-4 py-1.5 text-xs text-gray-600 dark:text-gray-300"
       >
+        <span class="relative flex h-1.5 w-1.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+        </span>
         最新版本
-        <span class="font-mono font-medium text-[#0071e3]">v{product.version}</span>
+        <a
+          href={release.releaseUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="font-mono font-medium text-[#0071e3] hover:underline">v{release.version}</a
+        >
         <span class="text-gray-300 dark:text-gray-600">·</span>
-        {product.releaseDate}
+        {releaseLabel}
       </div>
+      {release.source === "fallback" && (
+        <p class="mt-3 text-[11px] text-amber-600 dark:text-amber-500">
+          当前展示的是站点兜底版本号，实际下载地址始终指向 GitHub 最新 Release。
+        </p>
+      )}
     </div>
   </section>
 
@@ -27,28 +53,37 @@ const latest = `${social.releases}/latest/download`;
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid md:grid-cols-3 gap-5">
         {
-          downloadPage.assets.map((a) => (
+          cards.map((a) => (
             <div class="np-card p-6 flex flex-col">
-              <h2 class="font-semibold text-lg">{a.name}</h2>
+              <div class="flex items-start justify-between gap-3">
+                <h2 class="font-semibold text-lg">{a.name}</h2>
+                {a.asset?.size && (
+                  <span class="shrink-0 mt-1 rounded-md bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10.5px] font-mono text-gray-500 dark:text-gray-400">
+                    {a.asset.sizeText}
+                  </span>
+                )}
+              </div>
               <p class="mt-1.5 text-[13px] text-gray-500 dark:text-gray-400 leading-relaxed">{a.requirement}</p>
               <div class="mt-4 rounded-lg bg-gray-50 dark:bg-[#17171b] border border-gray-100 dark:border-gray-800 px-3 py-2 text-[11.5px] font-mono text-gray-600 dark:text-gray-400 break-all">
                 {a.file}
               </div>
-              <a
-                href={`${latest}/${a.file}`}
-                class="mt-4 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#0071e3] hover:bg-[#0064c8] text-white text-sm font-medium px-5 py-2.5 transition-colors"
-              >
-                下载
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4.5-4.5M12 16l4.5-4.5M5 20h14" />
-                </svg>
-              </a>
-              <a
-                href={`${latest}/${a.file}.sha256`}
-                class="mt-2.5 text-center text-[11.5px] text-gray-500 hover:text-[#0071e3] transition-colors mono"
-              >
-                sha256 校验文件
-              </a>
+              <div class="mt-auto pt-4">
+                <a
+                  href={a.asset?.url ?? `${social.releases}/latest/download/${a.file}`}
+                  class="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#0071e3] hover:bg-[#0064c8] text-white text-sm font-medium px-5 py-2.5 transition-colors"
+                >
+                  下载
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4.5-4.5M12 16l4.5-4.5M5 20h14" />
+                  </svg>
+                </a>
+                <a
+                  href={a.asset?.sha256Url ?? `${social.releases}/latest/download/${a.file}.sha256`}
+                  class="mt-2.5 block text-center text-[11.5px] text-gray-500 hover:text-[#0071e3] transition-colors mono"
+                >
+                  sha256 校验文件
+                </a>
+              </div>
             </div>
           ))
         }
@@ -62,18 +97,55 @@ const latest = `${social.releases}/latest/download`;
     </div>
   </section>
 
-  <section class="pb-16 bg-gray-50 dark:bg-[#0f0f12] border-y border-gray-100 dark:border-gray-900">
+  <section class="bg-gray-50 dark:bg-[#0f0f12] border-y border-gray-100 dark:border-gray-900">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <h2 class="text-2xl md:text-3xl font-bold tracking-tight">{downloadPage.install.title}</h2>
       <p class="mt-3 text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{downloadPage.install.note}</p>
-      <div class="np-pre mt-6 p-5 text-[13px] leading-relaxed">
-        <pre class="whitespace-pre-wrap break-all text-gray-200"><code><span class="text-[#7ee787]">curl</span> -fsSL https://npanel.lacs.cc/install.sh | <span class="text-[#7ee787]">sudo bash</span>
-<span class="text-gray-500"># 安装完成后</span>
-<span class="text-[#7ee787]">sudo systemctl</span> status nanopanel</code></pre>
+
+      <div class="np-pre mt-6">
+        <div class="flex items-center gap-1.5 px-5 pt-4">
+          <span class="w-3 h-3 rounded-full bg-[#ff5f57]"></span>
+          <span class="w-3 h-3 rounded-full bg-[#febc2e]"></span>
+          <span class="w-3 h-3 rounded-full bg-[#28c840]"></span>
+          <span class="ml-auto text-[11px] text-gray-500">bash</span>
+          <button
+            type="button"
+            data-copy={install.command}
+            class="ml-3 rounded-md border border-white/10 px-2 py-1 text-[11px] text-gray-400 hover:text-white hover:border-white/30 transition-colors"
+            >复制</button
+          >
+        </div>
+        <pre class="px-5 pb-5 pt-3 text-[13px] leading-relaxed whitespace-pre-wrap break-all text-gray-200"><code><span class="text-[#7ee787]">curl</span> -fsSL {install.scriptUrl} | <span class="text-[#7ee787]">sudo bash</span></code></pre>
       </div>
+
+      <div class="mt-4 grid sm:grid-cols-2 gap-4 text-sm">
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 p-4 bg-white/60 dark:bg-transparent">
+          <div class="font-medium text-[13.5px]">国内网络较慢</div>
+          <div class="mt-2 rounded-lg bg-[#0f1014] px-3 py-2 text-[11.5px] font-mono text-gray-300 break-all">
+            export GITHUB_MIRROR=https://ghfast.top/https://github.com
+          </div>
+          <p class="mt-2 text-[12px] text-gray-500 dark:text-gray-400 leading-relaxed">
+            脚本也会自动测速，从 GitHub / ghfast / ghproxy 中挑最快的源。
+          </p>
+        </div>
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 p-4 bg-white/60 dark:bg-transparent">
+          <div class="font-medium text-[13.5px]">安装指定版本 / 目录</div>
+          <div class="mt-2 rounded-lg bg-[#0f1014] px-3 py-2 text-[11.5px] font-mono text-gray-300 break-all">
+            curl -fsSL {install.scriptUrl} | sudo NP_VERSION=v{release.version} bash
+          </div>
+          <p class="mt-2 text-[12px] text-gray-500 dark:text-gray-400 leading-relaxed">
+            还可用 <span class="mono">NP_PORT</span>、<span class="mono">NP_USERNAME</span>、<span class="mono">NP_PASSWORD</span>、
+            <span class="mono">NP_INSTALL_DIR</span> 覆盖默认值。
+          </p>
+        </div>
+      </div>
+
       <p class="mt-4 text-xs text-gray-500">
-        脚本会读取 <span class="mono">GITHUB_MIRROR</span> 环境变量；国内机器可先
-        <span class="mono">export GITHUB_MIRROR=https://ghfast.top/https://github.com</span> 再执行。
+        脚本内容与仓库 <span class="mono">deploy/install.sh</span> 完全一致，构建时自动同步；
+        也可以直接从
+        <a href={install.sourceUrl} target="_blank" rel="noopener noreferrer" class="text-[#0071e3] hover:underline"
+          >GitHub 源码</a
+        > 查看或下载。
       </p>
     </div>
   </section>
@@ -82,15 +154,22 @@ const latest = `${social.releases}/latest/download`;
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <h2 class="text-2xl md:text-3xl font-bold tracking-tight">{downloadPage.manual.title}</h2>
       <div class="np-pre mt-6 p-5 text-[13px] leading-relaxed">
-        <pre class="whitespace-pre-wrap break-all text-gray-200"><code><span class="text-[#7ee787]">wget</span> {latest}/nanopanel-linux-amd64
-<span class="text-[#7ee787]">chmod</span> +x nanopanel-linux-amd64
-<span class="text-[#7ee787]">sudo</span> ./nanopanel-linux-amd64 -config /etc/nanopanel/config.json</code></pre>
+        <pre class="whitespace-pre-wrap break-all text-gray-200"><code><span class="text-[#7ee787]">cd</span> /tmp
+<span class="text-[#7ee787]">wget</span> {social.releases}/latest/download/nanopanel-amd64
+<span class="text-[#7ee787]">wget</span> {social.releases}/latest/download/nanopanel-amd64.sha256
+<span class="text-[#7ee787]">sha256sum</span> -c nanopanel-amd64.sha256
+<span class="text-[#7ee787]">chmod</span> +x nanopanel-amd64
+<span class="text-[#7ee787]">sudo</span> install -m 0755 nanopanel-amd64 /opt/nanopanel/nanopanel
+<span class="text-gray-500"># 首次运行前先生成配置（会打印初始密码）</span>
+<span class="text-[#7ee787]">sudo</span> /opt/nanopanel/nanopanel -init -c /etc/nanopanel/config.json -port 8080
+<span class="text-[#7ee787]">sudo</span> /opt/nanopanel/nanopanel -c /etc/nanopanel/config.json</code></pre>
       </div>
       <div class="mt-6 grid sm:grid-cols-2 gap-4 text-sm">
         <div class="rounded-xl border border-gray-200 dark:border-gray-800 p-4">
           <div class="font-medium">忘记密码？</div>
           <p class="mt-1.5 text-gray-600 dark:text-gray-400 text-[13px] leading-relaxed">
-            删除 <span class="mono">config.json</span> 中的 <span class="mono">password_hash</span> 字段并重启，面板会重新生成初始密码。
+            删除 <span class="mono">config.json</span> 中的 <span class="mono">password_hash</span> 字段并重启，面板会重新生成初始密码；
+            或执行 <span class="mono">sudo npctl reset-password</span>。
           </p>
         </div>
         <div class="rounded-xl border border-gray-200 dark:border-gray-800 p-4">
@@ -103,3 +182,20 @@ const latest = `${social.releases}/latest/download`;
     </div>
   </section>
 </MainLayout>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const text = btn.dataset.copy ?? "";
+      try {
+        await navigator.clipboard.writeText(text);
+        const prev = btn.textContent;
+        btn.textContent = "已复制";
+        setTimeout(() => (btn.textContent = prev), 1500);
+      } catch {
+        btn.textContent = "复制失败";
+        setTimeout(() => (btn.textContent = "复制"), 1500);
+      }
+    });
+  });
+</script>

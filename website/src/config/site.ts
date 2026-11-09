@@ -36,14 +36,47 @@ export const SITE_CONFIG = {
     docs: "/docs",
   },
 
+  /**
+   * 版本数据源。官网构建时自动向 GitHub 查询最新 Release，
+   * 这里的版本号仅在「完全离线 / API 与重定向都失败」时兜底。
+   * 数据解析见 src/lib/release.ts。
+   */
+  release: {
+    repo: "LACS-Official/NanoPanel",
+    apiBase: "https://api.github.com",
+    fallbackVersion: "0.1.2",
+    fallbackDate: "2026-11-09",
+  },
+
   // 产品信息
   product: {
-    version: "0.9.0",
+    // 展示用兜底版本；页面实际使用 release.ts 解析出的真实版本
+    version: "0.1.2",
     releaseDate: "2026-11-09",
     platforms: ["Linux amd64", "Linux arm64", "Linux armv7"],
     license: "MIT License",
     size: "约 12 MB",
     memory: "常驻 < 30 MB",
+  },
+
+  // 一键安装（全站唯一来源，install.sh 同步自 deploy/install.sh）
+  install: {
+    scriptUrl: "https://npanel.lacs.cc/install.sh",
+    sourceUrl: "https://github.com/LACS-Official/NanoPanel/blob/main/deploy/install.sh",
+    rawUrl:
+      "https://raw.githubusercontent.com/LACS-Official/NanoPanel/main/deploy/install.sh",
+    command: "curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash",
+    mirrorCommand:
+      "export GITHUB_MIRROR=https://ghfast.top/https://github.com\ncurl -fsSL https://npanel.lacs.cc/install.sh | sudo bash",
+  },
+
+  // 站点统计（Umami）
+  analytics: {
+    umami: {
+      enabled: true,
+      scriptUrl: "https://umami.lacs.cc/script.js",
+      websiteId: "952a5878-d4bd-4e17-9aea-9edb286d2089",
+    },
   },
 
   // 导航
@@ -111,9 +144,9 @@ export const SITE_CONFIG = {
     ],
     quickstart: {
       title: "30 秒完成部署",
-      desc: "一条命令下载二进制、装好 systemd 服务，浏览器打开 8080 端口即可登录。",
+      desc: "一条命令识别架构、下载最新 Release、装好 systemd 服务并生成初始密码。",
       command:
-        "curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash\nsudo systemctl enable --now nanopanel",
+        "curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash",
     },
     why: {
       title: "为什么是单二进制",
@@ -176,36 +209,38 @@ export const SITE_CONFIG = {
       title: "下载 NanoPanel",
       subtitle: "选择设备架构，下载单个二进制文件即可运行。",
     },
+    // 顺序与 release.ts 中 ARCH_ASSETS 一致（amd64 / arm64 / armv7）
     assets: [
       {
         id: "amd64",
         name: "x86_64 / amd64",
+        arch: "x86_64",
         requirement: "普通 VPS、软路由、x86 小主机",
-        file: "nanopanel-linux-amd64",
+        file: "nanopanel-amd64",
       },
       {
         id: "arm64",
         name: "ARM64 / aarch64",
+        arch: "aarch64",
         requirement: "树莓派 4/5、N1 盒子、ARM 云服务器",
-        file: "nanopanel-linux-arm64",
+        file: "nanopanel-arm64",
       },
       {
         id: "armv7",
         name: "ARMv7",
+        arch: "armv7l",
         requirement: "树莓派 2/3、老式 ARM 开发板",
-        file: "nanopanel-linux-armv7",
+        file: "nanopanel-armv7",
       },
     ],
     install: {
       title: "一键安装（推荐）",
-      command:
-        "curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash\n# 安装完成后\nsudo systemctl status nanopanel",
-      note: "脚本会自动识别架构、下载最新 Release、安装 systemd 服务并生成初始密码。",
+      note: "脚本会自动识别架构、从 GitHub Release 下载最新版本、校验 SHA256、安装 systemd 服务并生成初始密码。",
     },
     manual: {
       title: "手动安装",
       command:
-        "wget https://github.com/LACS-Official/NanoPanel/releases/latest/download/nanopanel-linux-amd64\nchmod +x nanopanel-linux-amd64\nsudo ./nanopanel-linux-amd64 -config /etc/nanopanel/config.json",
+        "wget https://github.com/LACS-Official/NanoPanel/releases/latest/download/nanopanel-amd64\nchmod +x nanopanel-amd64\nsudo install -m 0755 nanopanel-amd64 /opt/nanopanel/nanopanel\nsudo /opt/nanopanel/nanopanel -c /etc/nanopanel/config.json",
     },
   },
 };

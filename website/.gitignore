@@ -6,3 +6,7 @@ dist/
 .env.local
 .DS_Store
 npm-debug.log*
+
+# 构建时由 scripts/sync-deploy.mjs 从 deploy/ 复制，不重复入库
+/public/install.sh
+/public/uninstall.sh

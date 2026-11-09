@@ -37,13 +37,36 @@ jobs:
             tar -czf "nanopanel-${{ steps.ver.outputs.value }}-linux-${a}.tar.gz" \
               -C deploy "nanopanel-${a}" "nanopanel-${a}.sha256" \
               install.sh uninstall.sh npctl nanopanel.service apps
+            # 稳定文件名：install.sh 用 /releases/latest/download/ 时无需知道版本号
+            cp "nanopanel-${{ steps.ver.outputs.value }}-linux-${a}.tar.gz" \
+              "nanopanel-linux-${a}.tar.gz"
           done
+          cp deploy/install.sh install.sh
+          cp deploy/uninstall.sh uninstall.sh
+          cp deploy/npctl npctl
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: NanoPanel ${{ steps.ver.outputs.value }}
           generate_release_notes: true
+          body: |
+            ## 一键安装
+
+            ```bash
+            curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash
+            ```
+
+            国内网络会自动测速切换镜像，也可指定：
+
+            ```bash
+            export GITHUB_MIRROR=https://ghfast.top/https://github.com
+            curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash
+            ```
+
+            官网 <https://npanel.lacs.cc> · 文档 <https://npanel.lacs.cc/docs>
+
+            > 发布说明由 GitHub 自动生成，见下方。
           files: |
             deploy/nanopanel-amd64
             deploy/nanopanel-amd64.sha256
@@ -52,3 +75,6 @@ jobs:
             deploy/nanopanel-armv7
             deploy/nanopanel-armv7.sha256
             nanopanel-*.tar.gz
+            install.sh
+            uninstall.sh
+            npctl

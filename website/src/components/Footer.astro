@@ -1,7 +1,9 @@
 ---
 import { SITE_CONFIG } from "@/config/site";
+import { getRelease } from "@/lib/release";
 
 const year = new Date().getFullYear();
+const release = await getRelease();
 ---
 
 <footer class="bg-gray-50 dark:bg-[#111114] border-t border-gray-200 dark:border-gray-900">
@@ -99,7 +101,10 @@ const year = new Date().getFullYear();
       class="mt-12 pt-6 border-t border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-500"
     >
       <span>© {year} 领创工作室 LACS · MIT License</span>
-      <span class="font-mono">v{SITE_CONFIG.product.version} · npanel.lacs.cc</span>
+      <span class="font-mono"
+        >v{release.version} · <a href={release.releaseUrl} target="_blank" rel="noopener noreferrer" class="hover:text-gray-800 dark:hover:text-gray-200">Release</a
+        > · npanel.lacs.cc</span
+      >
     </div>
   </div>
 </footer>

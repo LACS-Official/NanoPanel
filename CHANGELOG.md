@@ -8,6 +8,31 @@
 
 - 暂无
 
+## [0.1.3] - 2026-11-09
+
+一条命令装完面板：官网、仓库、GitHub Release 与面板自动更新现在共用同一份版本数据。
+
+### 新增
+
+- **一键安装真正可用**：`install.sh` 默认仓库改为 `LACS-Official/NanoPanel`、默认版本 `latest`，可直接 `curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash`；在线安装改为下载 Release 完整包（含 `apps/`、`npctl`、卸载脚本），修复此前 `curl | bash` 场景因脚本目录没有配套文件而无法注册服务的问题
+- **在线 SHA256 校验**：下载后自动取同源 `.sha256` 校验，失败即中止；离线安装同样校验
+- **安装参数扩展**：新增 `NP_INSTALL_DIR` / `NP_CONF_DIR` / `NP_ARCH` / `-h|--help`；systemd 单元按实际路径动态生成，支持自定义目录
+- **官网与 GitHub 联动**：官网构建时自动解析最新 Release（API → `releases/latest` 重定向 → 兜底配置，fetch 失败时回退系统 curl），版本号、下载文件名、资产大小全部来自真实 Release，不再手写
+- **官网 Umami 统计**：接入 Umami（`websiteId 952a5878-d4bd-4e17-9aea-9edb286d2089`），仅生产构建注入
+- **官网自动部署**：新增 `.github/workflows/pages.yml`，`website/` 变更或 Release 完成后自动构建并部署到 GitHub Pages（`npanel.lacs.cc`）
+- 官网新增 `sitemap.xml`、`robots.txt`、`CNAME`；下载页增加复制按钮、国内镜像与指定版本用法、手动安装校验步骤
+
+### 修复
+
+- **官网下载链接 404**：下载页资产名写作 `nanopanel-linux-*`，与 Release 实际资产 `nanopanel-*` 不一致，现已对齐并改为 `latest/download` 稳定路径
+- **官网版本号失真**：此前硬编码 `0.9.0`，现随 Release 自动更新
+
+### 工程
+
+- Release 工作流额外发布稳定名安装包 `nanopanel-linux-<arch>.tar.gz` 与 `install.sh` / `uninstall.sh` / `npctl` 资产，并在发布说明中写入一键安装命令
+- 官网 `public/install.sh` 由 `scripts/sync-deploy.mjs` 在 `predev` / `prebuild` 时从 `deploy/` 同步，避免两份脚本漂移
+- `.gitattributes` 补齐 `*.mjs` / `*.ts` / `*.astro` / `*.txt` 的 `eol=lf`
+
 ## [0.1.2] - 2026-11-09
 
 ### 修复

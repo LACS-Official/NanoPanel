@@ -2,8 +2,10 @@
 import MainLayout from "@/layouts/MainLayout.astro";
 import PanelPreview from "@/components/PanelPreview.astro";
 import { SITE_CONFIG } from "@/config/site";
+import { getRelease } from "@/lib/release";
 
-const { home, product } = SITE_CONFIG;
+const { home, product, install } = SITE_CONFIG;
+const release = await getRelease();
 
 const icons: Record<string, string> = {
   dashboard:
@@ -37,7 +39,7 @@ const icons: Record<string, string> = {
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70"></span>
             <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
-          <span>v{product.version} 已发布 · 开源 MIT</span>
+          <span>v{release.version} 已发布 · 开源 MIT</span>
           <span class="text-gray-400">→</span>
         </a>
 
@@ -179,9 +181,18 @@ const icons: Record<string, string> = {
           <span class="ml-auto text-[11px] text-gray-500">bash</span>
         </div>
         <pre class="whitespace-pre-wrap break-all text-gray-200"
-        ><code><span class="text-gray-500"># 一键安装</span>
-<span class="text-[#7ee787]">curl</span> -fsSL https://npanel.lacs.cc/install.sh | <span class="text-[#7ee787]">sudo bash</span>
-<span class="text-[#7ee787]">sudo systemctl</span> enable --now nanopanel</code></pre>
+        ><code><span class="text-gray-500"># 一键安装（自动识别架构，装最新版）</span>
+<span class="text-[#7ee787]">curl</span> -fsSL {install.scriptUrl} | <span class="text-[#7ee787]">sudo bash</span></code></pre>
+        <div class="mt-3 flex items-center justify-between gap-3 text-[11px] text-gray-500">
+          <span>脚本源码：<span class="mono text-gray-400">deploy/install.sh</span></span>
+          <a
+            href={release.releaseUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mono text-[#0a84ff] hover:underline"
+            >v{release.version} Release ↗</a
+          >
+        </div>
       </div>
     </div>
   </section>

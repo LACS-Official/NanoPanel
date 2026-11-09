@@ -11,10 +11,16 @@
 </p>
 
 <p align="center">
+<a href="https://github.com/LACS-Official/NanoPanel/releases/latest"><img src="https://img.shields.io/github/v/release/LACS-Official/NanoPanel?color=0071e3" alt="Release"></a>
+<a href="https://github.com/LACS-Official/NanoPanel/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/LACS-Official/NanoPanel/ci.yml?branch=main" alt="CI"></a>
 <img src="https://img.shields.io/badge/Go-1.25%2B-00ADD8" alt="Go">
 <img src="https://img.shields.io/badge/dependencies-0-brightgreen" alt="Dependencies">
 <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 <img src="https://img.shields.io/badge/platform-linux%20%7C%20wsl2-lightgrey" alt="Platform">
+</p>
+
+<p align="center">
+  <code>curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash</code>
 </p>
 
 面向 OpenStick（UFI003 / MSM8916 / 512MB）这类小内存设备的**轻量运维面板**。单个 Go 二进制、前端内嵌、零第三方依赖，一条命令完成安装，但不用 Docker —— 全部走 `apt` + `systemd` 原生方案。
@@ -41,9 +47,39 @@
 
 ## 快速开始
 
-### 离线安装（推荐，也适用于 WSL2）
+### 一键安装（推荐）
 
-从 [Releases](../../releases) 下载对应架构的压缩包，或从源码构建：
+```bash
+curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash
+```
+
+脚本会：识别架构 → 自动测速挑选最快的 GitHub 镜像 → 下载最新 Release 完整包 → 校验 SHA256 → 安装 systemd 服务 → 生成随机密码 → 健康检查，最后打印访问地址与账号。
+
+常见变体：
+
+```bash
+# 指定版本 / 端口
+curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_VERSION=v0.1.2 NP_PORT=9090 bash
+
+# 强制走某个镜像（跳过测速）
+curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_MIRROR=https://ghfast.top/https://github.com bash
+
+# 不走官网，直接从仓库取脚本（官网 /install.sh 与本仓库 deploy/install.sh 内容完全一致）
+curl -fsSL https://raw.githubusercontent.com/LACS-Official/NanoPanel/main/deploy/install.sh | sudo bash
+```
+
+卸载同理：
+
+```bash
+sudo npctl uninstall          # 或 curl -fsSL https://npanel.lacs.cc/uninstall.sh | sudo bash
+```
+
+### 离线安装（源码 / 内网）
+
+从 [Releases](../../releases) 下载 `nanopanel-vX.Y.Z-linux-<arch>.tar.gz`，解压后执行 `sudo ./install.sh`；
+脚本检测到同目录的 `nanopanel-<arch>` 会直接离线安装，不再联网。
+
+从源码构建：
 
 ```bash
 make build-all          # 生成 deploy/nanopanel-{amd64,arm64,armv7} 及 .sha256
@@ -69,9 +105,13 @@ sudo ./install.sh          # WSL 默认 root 时可直接 ./install.sh
   Windows  : http://localhost:8080  (WSL2 端口转发)
   用户名   : admin
   密码     : KK5fuGszsWE5Mktb
-  版本     : 0.1.0
+  版本     : 0.1.2
   下载源   : github (0.361059s)
   软件源   : ustc (0.220176s)
+------------------------------------------------------------
+  官网     : https://npanel.lacs.cc
+  文档     : https://npanel.lacs.cc/docs
+  仓库     : https://github.com/LACS-Official/NanoPanel
 ============================================================
 ```
 
@@ -83,17 +123,10 @@ Windows 浏览器打开 **http://localhost:8080** 即可（WSL2 自带 localhost
 > 2. 需要开机即常驻：在 PowerShell 执行 `powershell -ExecutionPolicy Bypass -File .\wsl-keepalive.ps1`（注册登录时计划任务，可用 `-Remove` 移除）；
 > 3. 在 `%USERPROFILE%\.wslconfig` 中设置 `[wsl2] vmIdleTimeout=-1`，影响本机所有 WSL 发行版。
 
-### 在线安装
+### 在线安装说明
 
-发布前把仓库地址通过环境变量传入（脚本不硬编码任何仓库）：
-
-```bash
-export NP_REPO="yourname/NanoPanel"
-export NP_VERSION="v0.1.0"
-curl -fsSL https://raw.githubusercontent.com/${NP_REPO}/main/deploy/install.sh | sudo -E bash
-```
-
-在线安装会按测速结果依次尝试各镜像，首个失败自动回退到下一个。
+脚本默认从官方仓库 `LACS-Official/NanoPanel` 的 **最新 Release** 取包，无需任何环境变量；
+`NP_REPO` 仅在你想指向自己的 fork 时才需要设置。下载会按测速结果依次尝试各镜像，首个失败自动回退到下一个。
 
 ### 安装参数
 
@@ -101,12 +134,15 @@ curl -fsSL https://raw.githubusercontent.com/${NP_REPO}/main/deploy/install.sh |
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `NP_REPO` | 空 | GitHub `owner/repo`；留空则只允许同目录离线安装 |
-| `NP_VERSION` | `v0.1.0` | 在线安装的 release 标签 |
+| `NP_REPO` | `LACS-Official/NanoPanel` | GitHub `owner/repo`，指向自己的 fork 即可自建发布 |
+| `NP_VERSION` | `latest` | `latest` 跟随最新 Release，也可写 `v0.1.2` |
 | `NP_PORT` | `8080` | 面板监听端口 |
 | `NP_USERNAME` | `admin` | 登录用户名 |
 | `NP_PASSWORD` | 随机 16 位 | 登录密码；留空自动生成 |
 | `NP_RANDOM_USER` | `0` | `1` 时生成随机用户名（`admin_xxxxxx`） |
+| `NP_INSTALL_DIR` | `/opt/nanopanel` | 安装目录，systemd 单元按此路径生成 |
+| `NP_CONF_DIR` | `/etc/nanopanel` | 配置目录 |
+| `NP_ARCH` | 自动识别 | 强制 `amd64` / `arm64` / `armv7` |
 | `NP_SOURCE` | `auto` | `auto` / `local`（仅本地）/ `online`（仅下载） |
 | `NP_MIRROR` | 自动探测 | 手动指定 GitHub 下载源前缀 |
 | `NP_SKIP_MIRROR_TEST` | `0` | `1` 时跳过测速，用首个候选 |
@@ -116,6 +152,7 @@ curl -fsSL https://raw.githubusercontent.com/${NP_REPO}/main/deploy/install.sh |
 
 ```bash
 sudo NP_PORT=9090 NP_RANDOM_USER=1 ./install.sh
+curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_INSTALL_DIR=/srv/nanopanel bash
 ```
 
 ## 镜像源自动选择

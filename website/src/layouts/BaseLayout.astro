@@ -1,5 +1,6 @@
 ---
 import { SITE_CONFIG } from "@/config/site";
+import { getRelease } from "@/lib/release";
 
 export interface Props {
   title?: string;
@@ -15,6 +16,11 @@ const {
   noindex = false,
 } = Astro.props;
 
+const release = await getRelease();
+const umami = SITE_CONFIG.analytics.umami;
+// 本地开发与预览不上报，避免污染统计
+const umamiEnabled = umami.enabled && import.meta.env.PROD;
+
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const fullTitle = title === SITE_CONFIG.name ? `${title} · 轻量服务器运维面板` : `${title} | ${SITE_CONFIG.name}`;
 
@@ -26,8 +32,10 @@ const structuredData = {
   url: SITE_CONFIG.url,
   applicationCategory: "SystemApplication",
   operatingSystem: SITE_CONFIG.product.platforms.join(", "),
-  softwareVersion: SITE_CONFIG.product.version,
-  datePublished: SITE_CONFIG.product.releaseDate,
+  softwareVersion: release.version,
+  datePublished: release.publishedAt || SITE_CONFIG.product.releaseDate,
+  downloadUrl: release.assets[0]?.url ?? SITE_CONFIG.social.releases,
+  codeRepository: SITE_CONFIG.social.github,
   author: {
     "@type": "Organization",
     name: SITE_CONFIG.author,
@@ -65,8 +73,6 @@ const structuredData = {
 
     <script type="application/ld+json" is:inline set:html={JSON.stringify(structuredData)} />
 
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
     <script is:inline>
       (function () {
         try {
@@ -76,6 +82,12 @@ const structuredData = {
         } catch (e) {}
       })();
     </script>
+
+    {
+      umamiEnabled && (
+        <script is:inline defer src={umami.scriptUrl} data-website-id={umami.websiteId} />
+      )
+    }
   </head>
 
   <body class="bg-white dark:bg-[#0b0b0d] text-gray-900 dark:text-gray-100 transition-colors duration-300 antialiased">

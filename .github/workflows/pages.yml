@@ -1,0 +1,75 @@
+name: Website
+
+# 官网与仓库的联动：
+#   1. website/ 有改动 → 重新构建部署
+#   2. Release 工作流跑完 → 自动重建（版本号、下载大小从 GitHub Release 拉取）
+#   3. 也可手动触发
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "deploy/install.sh"
+      - "deploy/uninstall.sh"
+      - ".github/workflows/pages.yml"
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        working-directory: website
+        run: npm ci
+
+      - name: Build site
+        working-directory: website
+        env:
+          # 提高 GitHub API 速率上限，构建时用于解析最新 Release
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build
+
+      - name: Verify bundle assets
+        working-directory: website
+        run: |
+          test -f dist/install.sh || { echo "::error title=missing-install.sh::dist/install.sh 未生成，检查 scripts/sync-deploy.mjs"; exit 1; }
+          test -f dist/index.html
+          echo "install.sh $(wc -c < dist/install.sh) 字节"
+          grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' dist/index.html | head -n 1
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
