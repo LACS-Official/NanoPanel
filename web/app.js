@@ -5,13 +5,12 @@ let overviewTimer = null;
 let npVersion = '';
 
 /* ===== Logo（登录页 / 侧栏 / 关于 共用）===== */
-// 圆环脉冲：左上角的圆环 + 绿色脉冲弧（象征实时监控），右侧白色 N 字母。
+// 蓝色渐变圆形承载白色 N，绿色四分之一圆弧贴在圆外左下方（象征实时监控脉冲）。
 const LOGO_SVG =
   '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">' +
-  '<rect x="4" y="4" width="56" height="56" rx="14" fill="url(#npg)"/>' +
-  '<circle cx="20" cy="20" r="11" fill="none" stroke="#fff" stroke-width="4.5" opacity="0.95"/>' +
-  '<path d="M20 9 A11 11 0 0 0 9 20" fill="none" stroke="#34c759" stroke-width="4.5" stroke-linecap="round"/>' +
-  '<path d="M33 47V27l15 20V27" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '<circle cx="34" cy="30" r="20" fill="url(#npg)"/>' +
+  '<path d="M27 40V20l14 20V20" fill="none" stroke="#fff" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '<path d="M10 30A24 24 0 0 0 34 54" fill="none" stroke="#34c759" stroke-width="5" stroke-linecap="round"/>' +
   '</svg>';
 document.querySelectorAll('.np-logo').forEach(el=>{ el.innerHTML = LOGO_SVG; });
 
