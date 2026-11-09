@@ -449,6 +449,13 @@ RUN_VERSION="${RUN_VERSION:-unknown}"
 ok "面板响应正常 (版本 ${RUN_VERSION})"
 
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+# 延迟展示：数字带 s，非数字（skipped/unknown/manual）原样输出
+fmt_latency() {
+  case "$1" in
+    ''|*[!0-9.]*) printf '%s' "$1" ;;
+    *) printf '%ss' "$1" ;;
+  esac
+}
 printf "\n%s" "$C_GREEN"
 cat <<EOF
 ============================================================
@@ -464,8 +471,8 @@ cat <<EOF
   用户名   : ${FINAL_USER}
   密码     : ${FINAL_PASS}
   版本     : ${RUN_VERSION}
-  下载源   : ${GITHUB_NAME} (${GITHUB_LATENCY}s)
-  软件源   : ${APT_NAME} (${APT_LATENCY}s)
+  下载源   : ${GITHUB_NAME} ($(fmt_latency "$GITHUB_LATENCY"))
+  软件源   : ${APT_NAME} ($(fmt_latency "$APT_LATENCY"))
 ------------------------------------------------------------
   官网     : ${WEBSITE}
   文档     : ${WEBSITE}/docs
