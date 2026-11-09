@@ -159,6 +159,9 @@ func main() {
 	mux.HandleFunc("POST /api/v1/cron/delete", srv.AuthMiddleware(srv.DeleteCron))
 	mux.HandleFunc("POST /api/v1/cron/run", srv.AuthMiddleware(srv.RunCronNow))
 
+	// 应用商店远程更新
+	mux.HandleFunc("POST /api/v1/apps/update-manifest", srv.AuthMiddleware(srv.UpdateManifest))
+
 	// 前端静态文件（SPA）
 	staticSub, err := fs.Sub(webFS, "web")
 	if err != nil {

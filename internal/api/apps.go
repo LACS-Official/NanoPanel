@@ -9,6 +9,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
+
+	"nanopanel/internal/sysinfo"
 	"strconv"
 	"strings"
 	"time"
@@ -45,6 +48,8 @@ type AppMeta struct {
 	Status       string           `json:"status,omitempty"`            // running / down / unknown / not_installed
 	InstalledVer string           `json:"installed_version,omitempty"` // 安装时记录的脚本版本，与 Version 不一致即可升级
 	Config       []AppConfigField `json:"config,omitempty"`            // 常用配置项声明
+	Arch         string           `json:"arch,omitempty"`              // 安装预检：支持的架构（空=不限）
+	MinMemMB     int              `json:"min_mem_mb,omitempty"`        // 安装预检：最低可用内存 MB（0=不限）
 }
 
 type appManifestFile struct {
@@ -288,6 +293,15 @@ func (s *Server) AppAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if action == "install" {
+		if app := s.findAppMeta(id); app != nil {
+			if err := s.precheckAppInstall(app); err != nil {
+				fail(w, http.StatusPreconditionFailed, "安装预检未通过: "+err.Error())
+				return
+			}
+		}
+	}
+
 	script := filepath.Join(s.cfg.AppsDir, id, scriptName)
 	if _, err := os.Stat(script); err != nil {
 		fail(w, http.StatusNotFound, "应用脚本不存在")
@@ -447,4 +461,40 @@ func notifyEventOptions() []map[string]string {
 		{"key": "file", "label": "文件管理操作"},
 		{"key": "task", "label": "定时任务执行结果"},
 	}
+}
+
+// precheckAppInstall 安装前置检查：架构匹配、最低可用内存、应用目录磁盘余量。
+// 任一不满足直接拒绝安装，避免装到一半失败。仅对声明了约束的应用生效。
+func (s *Server) precheckAppInstall(app *AppMeta) error {
+	if app.Arch != "" && app.Arch != runtime.GOARCH {
+		return fmt.Errorf("当前设备架构 %s 不受支持（应用支持 %s）", runtime.GOARCH, app.Arch)
+	}
+	if app.MinMemMB > 0 {
+		o := sysinfo.GetOverview()
+		if o.MemAvailMB < app.MinMemMB {
+			return fmt.Errorf("可用内存不足：当前 %d MB，应用至少需要 %d MB", o.MemAvailMB, app.MinMemMB)
+		}
+	}
+	// 应用目录磁盘余量：安装脚本通常要下载并解压，至少留 100MB。
+	s.mu.RLock()
+	appsDir := s.cfg.AppsDir
+	s.mu.RUnlock()
+	if total, avail := sysinfo.DiskUsage(appsDir); total > 0 && avail < 100<<20 {
+		return fmt.Errorf("应用目录磁盘余量不足 100MB（当前 %d MB）", avail>>20)
+	}
+	return nil
+}
+
+// findAppMeta 从清单中查找应用（找不到返回 nil）。
+func (s *Server) findAppMeta(id string) *AppMeta {
+	m, err := s.loadManifest()
+	if err != nil {
+		return nil
+	}
+	for i := range m.Apps {
+		if m.Apps[i].ID == id {
+			return &m.Apps[i]
+		}
+	}
+	return nil
 }

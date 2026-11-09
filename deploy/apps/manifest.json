@@ -22,7 +22,10 @@
           "label": "允许局域网访问管理界面",
           "type": "select",
           "default": "no",
-          "options": ["yes", "no"],
+          "options": [
+            "yes",
+            "no"
+          ],
           "description": "开启后可从局域网其他设备打开管理界面"
         }
       ]
@@ -48,10 +51,14 @@
           "label": "监听地址",
           "type": "select",
           "default": "0.0.0.0",
-          "options": ["0.0.0.0", "127.0.0.1"],
+          "options": [
+            "0.0.0.0",
+            "127.0.0.1"
+          ],
           "description": "0.0.0.0 允许局域网访问控制台；127.0.0.1 仅本机可访问"
         }
-      ]
+      ],
+      "min_mem_mb": 64
     },
     {
       "id": "tailscale",
@@ -75,14 +82,20 @@
           "label": "通告为出口节点",
           "type": "select",
           "default": "no",
-          "options": ["yes", "no"]
+          "options": [
+            "yes",
+            "no"
+          ]
         },
         {
           "name": "accept_dns",
           "label": "接受 Tailscale DNS 配置",
           "type": "select",
           "default": "yes",
-          "options": ["yes", "no"]
+          "options": [
+            "yes",
+            "no"
+          ]
         }
       ]
     },
@@ -107,7 +120,10 @@
           "label": "允许局域网使用代理",
           "type": "select",
           "default": "no",
-          "options": ["yes", "no"]
+          "options": [
+            "yes",
+            "no"
+          ]
         },
         {
           "name": "external_controller_port",
@@ -121,7 +137,10 @@
           "label": "metacubexd 管理面板",
           "type": "select",
           "default": "no",
-          "options": ["yes", "no"],
+          "options": [
+            "yes",
+            "no"
+          ],
           "description": "开启后自动下载 metacubexd 到内核 ui 目录，局域网设备可通过 http://设备IP:控制端口/ui 打开完整管理面板；控制接口将监听 0.0.0.0 并自动生成访问密钥"
         },
         {
@@ -140,7 +159,8 @@
           "placeholder": "https://example.com/subscribe?token=…",
           "description": "填写后保存会拉取订阅并替换配置文件"
         }
-      ]
+      ],
+      "min_mem_mb": 64
     },
     {
       "id": "picoclaw",
@@ -163,7 +183,10 @@
           "label": "Gateway 监听地址",
           "type": "select",
           "default": "127.0.0.1",
-          "options": ["127.0.0.1", "0.0.0.0"],
+          "options": [
+            "127.0.0.1",
+            "0.0.0.0"
+          ],
           "description": "0.0.0.0 允许局域网访问网关，请注意鉴权"
         },
         {
@@ -210,7 +233,12 @@
           "label": "日志级别",
           "type": "select",
           "default": "warn",
-          "options": ["warn", "info", "debug", "error"]
+          "options": [
+            "warn",
+            "info",
+            "debug",
+            "error"
+          ]
         }
       ]
     },
@@ -257,8 +285,85 @@
           "label": "只读共享",
           "type": "select",
           "default": "no",
-          "options": ["yes", "no"],
+          "options": [
+            "yes",
+            "no"
+          ],
           "description": "开启后只能浏览与下载，不能修改文件"
+        }
+      ]
+    },
+    {
+      "id": "frp",
+      "name": "frp 内网穿透",
+      "description": "fatedier/frp 客户端（frpc），把内网服务的端口映射到公网服务器，从外网访问家里的设备",
+      "version": "0.7x",
+      "icon": "",
+      "category": "网络工具",
+      "unit": "frpc",
+      "min_mem_mb": 32,
+      "config": [
+        {
+          "name": "server_addr",
+          "label": "服务器地址",
+          "type": "text",
+          "default": "",
+          "placeholder": "如 1.2.3.4 或 frps.example.com",
+          "description": "frps 服务端的公网地址"
+        },
+        {
+          "name": "server_port",
+          "label": "服务器端口",
+          "type": "number",
+          "default": "7000",
+          "description": "frps 服务端监听端口"
+        },
+        {
+          "name": "auth_token",
+          "label": "认证令牌",
+          "type": "password",
+          "default": "",
+          "placeholder": "与服务端 auth.token 保持一致",
+          "description": "留空表示服务端未启用鉴权"
+        },
+        {
+          "name": "proxy_name",
+          "label": "穿透名称",
+          "type": "text",
+          "default": "panel",
+          "description": "服务端区分不同穿透的标识（字母数字_-）"
+        },
+        {
+          "name": "proxy_type",
+          "label": "协议类型",
+          "type": "select",
+          "default": "tcp",
+          "options": [
+            "tcp",
+            "udp"
+          ],
+          "description": "TCP 适合网页/面板，UDP 适合游戏加速等"
+        },
+        {
+          "name": "local_ip",
+          "label": "本地地址",
+          "type": "text",
+          "default": "127.0.0.1",
+          "description": "被穿透服务所在地址"
+        },
+        {
+          "name": "local_port",
+          "label": "本地端口",
+          "type": "number",
+          "default": "8080",
+          "description": "被穿透服务的端口"
+        },
+        {
+          "name": "remote_port",
+          "label": "远程端口",
+          "type": "number",
+          "default": "18080",
+          "description": "映射到公网服务器的端口"
         }
       ]
     },
@@ -305,7 +410,10 @@
           "label": "允许访客（无密码）",
           "type": "select",
           "default": "no",
-          "options": ["yes", "no"],
+          "options": [
+            "yes",
+            "no"
+          ],
           "description": "开启后局域网内无需账号即可访问，仅建议在可信内网使用"
         },
         {
@@ -313,10 +421,14 @@
           "label": "只读共享",
           "type": "select",
           "default": "no",
-          "options": ["yes", "no"],
+          "options": [
+            "yes",
+            "no"
+          ],
           "description": "开启后只能浏览与下载，不能修改文件"
         }
-      ]
+      ],
+      "min_mem_mb": 128
     },
     {
       "id": "hello",

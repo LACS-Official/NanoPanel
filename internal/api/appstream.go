@@ -59,6 +59,14 @@ func (s *Server) AppActionStream(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "不支持的操作")
 		return
 	}
+	if action == "install" {
+		if app := s.findAppMeta(id); app != nil {
+			if err := s.precheckAppInstall(app); err != nil {
+				fail(w, http.StatusPreconditionFailed, "安装预检未通过: "+err.Error())
+				return
+			}
+		}
+	}
 	script := filepath.Join(s.cfg.AppsDir, id, scriptName)
 	if _, err := os.Stat(script); err != nil {
 		fail(w, http.StatusNotFound, "应用脚本不存在")

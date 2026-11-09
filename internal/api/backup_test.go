@@ -204,3 +204,75 @@ func TestCronSaveAndRun(t *testing.T) {
 		t.Fatalf("删除失败: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+// TestPrecheckAppInstall 架构不匹配/内存不足时应拒绝安装。
+func TestPrecheckAppInstall(t *testing.T) {
+	srv, _ := newTestServer(t)
+
+	// 无约束的应用：通过
+	app := &AppMeta{ID: "x"}
+	if err := srv.precheckAppInstall(app); err != nil {
+		t.Fatalf("无约束应用不应拒绝: %v", err)
+	}
+
+	// 架构不匹配：拒绝（测试机架构不可能同时是两个值）
+	app = &AppMeta{ID: "x", Arch: "wasm"}
+	if err := srv.precheckAppInstall(app); err == nil {
+		t.Fatal("架构不匹配应拒绝")
+	}
+}
+
+// TestUpdateManifest 远程清单更新：拉取→校验→落盘，运行时状态保留。
+func TestUpdateManifest(t *testing.T) {
+	srv, _ := newTestServer(t)
+	appsDir := t.TempDir()
+	manifestPath := filepath.Join(appsDir, "manifest.json")
+	srv.mu.Lock()
+	srv.cfg.AppsDir = appsDir
+	srv.cfg.ManifestPath = manifestPath
+	srv.mu.Unlock()
+
+	// 本地已安装状态（应被保留）
+	oldApp := filepath.Join(appsDir, "hello")
+	if err := os.MkdirAll(oldApp, 0750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(oldApp, "config.env"), []byte("k=v\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// 假仓库
+	mux := http.NewServeMux()
+	mux.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"version":1,"apps":[{"id":"hello","name":"Hello","description":"d","version":"2.0.0","category":"demo"}]}`))
+	})
+	mux.HandleFunc("/hello/install.sh", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("#!/bin/bash\necho v2\n"))
+	})
+	mux.HandleFunc("/hello/remove.sh", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("#!/bin/bash\ntrue\n"))
+	})
+	mux.HandleFunc("/hello/status.sh", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("#!/bin/bash\necho not_installed\n"))
+	})
+	srv.appsRepoURL = httptest.NewServer(mux).URL + "/"
+
+	rec := httptest.NewRecorder()
+	srv.UpdateManifest(rec, httptest.NewRequest(http.MethodPost, "/api/v1/apps/update-manifest", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "2.0.0") {
+		t.Fatalf("更新失败: %d %s", rec.Code, rec.Body.String())
+	}
+
+	// 脚本已更新、运行时状态保留
+	data, err := os.ReadFile(filepath.Join(oldApp, "install.sh"))
+	if err != nil || !strings.Contains(string(data), "v2") {
+		t.Fatalf("脚本未更新: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(oldApp, "config.env")); err != nil {
+		t.Fatalf("运行时状态不应被清除: %v", err)
+	}
+	if _, err := os.Stat(manifestPath); err != nil {
+		t.Fatalf("清单未落盘: %v", err)
+	}
+}

@@ -47,6 +47,9 @@ type Server struct {
 	netPrev  map[string]netSample
 	netProbe func() []sysinfo.NetIface // 仅测试注入，为空时读 /proc/net/dev
 
+	// appsRepoURL 仅用于测试注入远程清单地址，为空时按环境变量拼装。
+	appsRepoURL string
+
 	// selfRestart 仅用于测试注入，为空时通过 systemctl 重启面板服务。
 	selfRestart func() error
 

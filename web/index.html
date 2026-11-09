@@ -438,6 +438,17 @@
             </div>
           </div>
           <div class="card">
+            <h2>应用清单更新</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              从 GitHub 仓库（LACS-Official/NanoPanel）拉取最新的应用清单与安装脚本，
+              已安装应用的配置与状态会保留；更新后「可升级」页签会提示新版本。
+            </div>
+            <div class="row-flex">
+              <button class="btn sm" onclick="updateManifest()">检查并更新清单</button>
+              <span class="state-tag" id="manifestHint"></span>
+            </div>
+          </div>
+          <div class="card">
             <h2>应用健康检测</h2>
             <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
               定时检查已安装应用的 systemd 单元；从「运行中」变为「已停止」或恢复时，
@@ -1049,6 +1060,18 @@ document.getElementById('cronList').addEventListener('click', async e=>{
     catch(err){ toast(err.message); }
   }
 });
+
+// ===== 应用清单远程更新 =====
+async function updateManifest(){
+  const hint = document.getElementById('manifestHint');
+  hint.textContent = '正在从远程仓库拉取…';
+  try {
+    const d = await call('POST','/apps/update-manifest');
+    hint.textContent = '';
+    toast('清单已更新：' + d.count + ' 个应用');
+    loadApps();
+  } catch(e){ hint.textContent = ''; toast(e.message); }
+}
 
 // ===== HTTPS 设置 =====
 async function loadTLS(){
