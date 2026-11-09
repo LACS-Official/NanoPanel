@@ -66,6 +66,9 @@ type Config struct {
 	// TLS 证书路径。两者都非空时面板以 HTTPS 启动。
 	TLSCert string `json:"tls_cert,omitempty"`
 	TLSKey  string `json:"tls_key,omitempty"`
+
+	// FileRoots 文件管理器允许访问的根目录；空则使用内置默认值。
+	FileRoots []string `json:"file_roots,omitempty"`
 }
 
 // DefaultMonitorIntervalSec 是应用掉线检测的默认间隔。
@@ -75,7 +78,7 @@ const DefaultMonitorIntervalSec = 60
 var WebhookFormats = []string{"generic", "wecom", "dingtalk", "feishu", "serverchan"}
 
 // NotifyEvents 可订阅的通知事件类别。
-var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system", "health", "disk", "security", "temp"}
+var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system", "health", "disk", "security", "temp", "file"}
 
 // ValidWebhookFormat 判断格式是否受支持。
 func ValidWebhookFormat(f string) bool {

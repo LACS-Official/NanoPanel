@@ -444,5 +444,6 @@ func notifyEventOptions() []map[string]string {
 		{"key": "disk", "label": "磁盘挂载"},
 		{"key": "security", "label": "安全告警（登录锁定）"},
 		{"key": "temp", "label": "温度告警（超温 / 回落）"},
+		{"key": "file", "label": "文件管理操作"},
 	}
 }

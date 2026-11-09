@@ -270,6 +270,7 @@
         <button data-view="logs"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="1.8" width="10" height="12.4" rx="1.6"/><path d="M5.6 5h4.8M5.6 8h4.8M5.6 11h2.8"/></svg>日志</button>
         <button data-view="network"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5.6"/><ellipse cx="8" cy="8" rx="2.4" ry="5.6"/><path d="M2.4 8h11.2"/></svg>网络</button>
         <button data-view="disks"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><ellipse cx="8" cy="3.8" rx="5.4" ry="2.2"/><path d="M2.6 3.8v8.4c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2V3.8"/><path d="M2.6 8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2"/></svg>磁盘</button>
+        <button data-view="files"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5h4l1.4 1.8H14v7.2H2z"/><path d="M5.6 9.2h4.8"/></svg>文件</button>
         <button data-view="apps"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 5.4V4.2a2.8 2.8 0 015.6 0v1.2"/><rect x="2.8" y="5.4" width="10.4" height="8.4" rx="2"/></svg>应用商店</button>
         <button data-view="settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 5h4.4M9.6 5H14M2 11h9.4"/><circle cx="8" cy="5" r="1.7"/><circle cx="13" cy="11" r="1.7"/></svg>设置</button>
       </nav>
@@ -376,6 +377,29 @@
             以下挂载不属于块设备（如 WSL 的 Windows 磁盘、NFS 网络挂载），仅展示用量。
           </div>
           <div class="app-grid" id="mountGrid"></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-files">
+        <div class="card">
+          <div class="row-flex" style="margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div id="fmCrumb" class="row-flex" style="gap:4px;flex:1;min-width:240px"></div>
+            <button class="btn sm" onclick="fmGoUp()">上一级</button>
+            <button class="btn sm" onclick="fmMkdir()">新建文件夹</button>
+            <button class="btn sm" onclick="document.getElementById('fmUpload').click()">上传文件</button>
+            <button class="btn sm gray" onclick="loadFiles()">刷新</button>
+            <input type="file" id="fmUpload" multiple hidden>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>名称</th><th style="width:90px">大小</th><th style="width:130px">修改时间</th><th style="width:220px">操作</th></tr></thead>
+              <tbody id="fmList"><tr><td colspan="4" class="empty-tip">点击路径导航或刷新加载…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="font-size:12px;color:var(--gray);margin-top:10px">
+            可访问范围：/mnt、/media、/opt、/srv、/home、/data、/etc/nanopanel、/var/log/nanopanel、/var/lib
+            （可通过配置 file_roots 自定义）。文本文件支持在线编辑（≤1MB）。
+          </div>
         </div>
       </div>
 
@@ -568,6 +592,17 @@
   </div>
 </div>
 
+<div class="modal-mask hidden" id="fmEditMask" onclick="if(event.target===this)closeFmEdit()">
+  <div class="modal" style="max-width:760px">
+    <h2 id="fmEditTitle">编辑文件</h2>
+    <div class="field"><textarea id="fmEditContent" rows="18" spellcheck="false"></textarea></div>
+    <div class="row-flex">
+      <button class="btn sm" onclick="fmSaveEdit()">保存</button>
+      <button class="btn sm gray" onclick="closeFmEdit()">取消</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 const API = '/api/v1';
@@ -654,6 +689,7 @@ const viewMeta = {
                tabs:[['system','系统日志'],['panel','面板日志']] },
   network:   { t:'网络',     s:'连通性测试' },
   disks:     { t:'磁盘',     s:'块设备挂载与用量管理' },
+  files:     { t:'文件',     s:'受限目录内的文件管理' },
   apps:      { t:'应用商店', s:'应用、系统服务与下载源管理',
                tabs:[['all','全部'],['installed','已安装'],['upgradable','可升级'],['store','设置']] },
   settings:  { t:'设置',     s:'通知、安全与面板信息',
@@ -672,6 +708,7 @@ function switchView(v){
   if (v==='logs' && !curSub.logs) setSub('logs','system');
   if (v==='settings' && !curSub.settings) setSub('settings','notify');
   if (v==='disks') loadDisks();
+  if (v==='files' && !fmPath) loadFiles();
   startNetTimer(v==='network');
 }
 function renderSubtabs(v){
@@ -1122,6 +1159,157 @@ async function runAppAction(id, action, label){
     finishAct(false, '失败');
   }
 }
+
+// ===== 文件管理 =====
+let fmPath = '';
+let fmRoots = [];
+
+async function loadFiles(path){
+  if (path !== undefined) fmPath = path;
+  try {
+    const q = fmPath ? ('?path='+encodeURIComponent(fmPath)) : '';
+    const d = await call('GET','/files'+q);
+    if (!fmPath && d.roots){
+      fmRoots = d.roots;
+      // 默认进入第一个根
+      if (fmRoots.length) return loadFiles(fmRoots[0]);
+    }
+    renderFmCrumb();
+    const tb = document.getElementById('fmList');
+    if (!d.entries || !d.entries.length){
+      tb.innerHTML = '<tr><td colspan="4" class="empty-tip">空目录</td></tr>';
+      return;
+    }
+    tb.innerHTML = d.entries.map(e=>{
+      const p = fmPath.replace(/\/$/,'') + '/' + e.name;
+      const icon = e.is_dir ? '📁' : (e.text ? '📄' : '📄');
+      const name = e.is_dir
+        ? '<a href="javascript:void(0)" data-fmgo="'+esc(p)+'" style="font-weight:600">'+icon+' '+esc(e.name)+'</a>'
+        : '<span>'+icon+' '+esc(e.name)+'</span>';
+      const acts = [];
+      if (e.is_dir){
+        acts.push('<button class="btn sm gray" data-fmgo="'+esc(p)+'">进入</button>');
+      } else {
+        acts.push('<button class="btn sm gray" data-fmdl="'+esc(p)+'">下载</button>');
+        if (e.text) acts.push('<button class="btn sm gray" data-fmedit="'+esc(p)+'">编辑</button>');
+      }
+      acts.push('<button class="btn sm gray" data-fmren="'+esc(p)+'">重命名</button>');
+      acts.push('<button class="btn sm danger" data-fmdel="'+esc(p)+'"'+(e.is_dir?' data-rec="1"':'')+'>删除</button>');
+      return '<tr><td>'+name+'</td><td>'+(e.is_dir?'-':fmtBytes(e.size))+'</td><td>'+esc(e.mod_time)+'</td>'+
+        '<td><span class="row-flex" style="gap:6px">'+acts.join('')+'</span></td></tr>';
+    }).join('');
+  } catch(e){
+    document.getElementById('fmList').innerHTML =
+      '<tr><td colspan="4" class="empty-tip">'+esc(e.message)+'</td></tr>';
+  }
+}
+
+function renderFmCrumb(){
+  const box = document.getElementById('fmCrumb');
+  box.innerHTML = fmPath
+    ? '<a href="javascript:void(0)" data-fmgo="'+esc(fmPath)+'">'+esc(fmPath)+'</a>'
+    : '选择位置';
+}
+
+function fmGoUp(){
+  if (!fmPath || !fmRoots.length) return;
+  if (fmRoots.includes(fmPath)) return; // 已在根
+  const parent = fmPath.replace(/\/[^/]*$/, '') || fmPath;
+  loadFiles(parent);
+}
+
+function fmMkdir(){
+  const name = prompt('新文件夹名称：');
+  if (!name) return;
+  call('POST','/files/mkdir',{path: fmPath.replace(/\/$/,'')+'/'+name})
+    .then(()=>{ toast('已创建'); loadFiles(); })
+    .catch(e=>toast(e.message));
+}
+
+async function fmDelete(p, recursive){
+  const msg = recursive ? '递归删除该文件夹及其全部内容？此操作不可恢复！' : '删除该文件？此操作不可恢复！';
+  if (!confirm(msg)) return;
+  try {
+    await call('POST','/files/delete',{path:p, recursive:!!recursive});
+    toast('已删除'); loadFiles();
+  } catch(e){ toast(e.message); }
+}
+
+async function fmRename(p){
+  const cur = p.split('/').pop();
+  const name = prompt('新名称：', cur);
+  if (!name || name === cur) return;
+  const to = p.slice(0, p.length - cur.length) + name;
+  try {
+    await call('POST','/files/rename',{path:p, to});
+    toast('已重命名'); loadFiles();
+  } catch(e){ toast(e.message); }
+}
+
+// 下载走 blob（请求需带 Authorization 头，无法用直链）
+async function fmDownload(p){
+  try {
+    const res = await fetch(API+'/files/download?path='+encodeURIComponent(p), {
+      headers:{'Authorization':'Bearer '+token}
+    });
+    if (!res.ok) throw new Error('下载失败 HTTP '+res.status);
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = p.split('/').pop();
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  } catch(e){ toast(e.message); }
+}
+
+let fmEditingPath = '';
+async function fmEdit(p){
+  try {
+    const d = await call('GET','/files/read?path='+encodeURIComponent(p));
+    fmEditingPath = d.path || p;
+    document.getElementById('fmEditTitle').textContent = '编辑 ' + p.split('/').pop();
+    document.getElementById('fmEditContent').value = d.content;
+    document.getElementById('fmEditMask').classList.remove('hidden');
+  } catch(e){ toast(e.message); }
+}
+function closeFmEdit(){ document.getElementById('fmEditMask').classList.add('hidden'); }
+async function fmSaveEdit(){
+  const content = document.getElementById('fmEditContent').value;
+  try {
+    await call('POST','/files/write',{path: fmEditingPath, content});
+    toast('已保存'); closeFmEdit(); loadFiles();
+  } catch(e){ toast(e.message); }
+}
+
+document.getElementById('fmList').addEventListener('click', e=>{
+  const el = e.target.closest('[data-fmgo],[data-fmdel],[data-fmren],[data-fmdl],[data-fmedit]');
+  if (!el) return;
+  if (el.dataset.fmgo)   loadFiles(el.dataset.fmgo);
+  if (el.dataset.fmdel)  fmDelete(el.dataset.fmdel, el.dataset.rec);
+  if (el.dataset.fmren)  fmRename(el.dataset.fmren);
+  if (el.dataset.fmdl)   fmDownload(el.dataset.fmdl);
+  if (el.dataset.fmedit) fmEdit(el.dataset.fmedit);
+});
+document.getElementById('fmCrumb').addEventListener('click', e=>{
+  const el = e.target.closest('[data-fmgo]');
+  if (el) loadFiles(el.dataset.fmgo);
+});
+document.getElementById('fmUpload').addEventListener('change', async e=>{
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (!files.length || !fmPath) return;
+  const fd = new FormData();
+  files.forEach(f=>fd.append('files', f));
+  try {
+    const res = await fetch(API+'/files/upload?dir='+encodeURIComponent(fmPath), {
+      method:'POST', headers:{'Authorization':'Bearer '+token}, body: fd
+    });
+    const d = await res.json();
+    if (!res.ok || !d.ok) throw new Error(d.err || '上传失败');
+    toast('已上传 ' + files.length + ' 个文件');
+    loadFiles();
+  } catch(err){ toast(err.message); }
+});
 
 // ===== 磁盘管理 =====
 async function loadDisks(){

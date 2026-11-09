@@ -10,9 +10,9 @@ import (
 
 // NetIface 一块网卡的流量统计。
 type NetIface struct {
-	Name     string `json:"name"`
-	RxBytes  uint64 `json:"rx_bytes"`
-	TxBytes  uint64 `json:"tx_bytes"`
+	Name    string `json:"name"`
+	RxBytes uint64 `json:"rx_bytes"`
+	TxBytes uint64 `json:"tx_bytes"`
 }
 
 // NetDevStats 读取 /proc/net/dev 的各网卡收发字节计数。
