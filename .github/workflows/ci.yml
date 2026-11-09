@@ -33,15 +33,20 @@ jobs:
           RACE: ${{ runner.os == 'Linux' && '-race' || '' }}
         run: |
           set -o pipefail
-          go test $RACE -cover ./... 2>&1 | tee test.log || {
-            {
-              echo "### ❌ 测试失败（${{ matrix.os }}）"
-              echo '```text'
-              tail -100 test.log
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          }
+          if go test $RACE -cover ./... 2>&1 | tee test.log; then
+            exit 0
+          fi
+          # 失败的测试名以 annotation 形式暴露到运行页，无需登录即可定位
+          grep -aE '^(--- FAIL|panic:|FAIL[[:space:]])' test.log | head -30 | while IFS= read -r line; do
+            echo "::error title=test-failed::$line"
+          done
+          {
+            echo "### ❌ 测试失败（${{ matrix.os }}）"
+            echo '```text'
+            tail -120 test.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
       - name: gofmt check
         if: runner.os == 'Linux'
         run: test -z "$(gofmt -l .)"
