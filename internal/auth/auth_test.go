@@ -67,6 +67,11 @@ func TestRotateSecretRevokesAll(t *testing.T) {
 func TestMalformedTokens(t *testing.T) {
 	m := NewManager(time.Hour, "s")
 	good := m.Issue()
+	// 篡改签名时要保证真的改变了内容：若原签名恰好以 ff 结尾，改用 00。
+	tamperedTail := "ff"
+	if strings.HasSuffix(good, tamperedTail) {
+		tamperedTail = "00"
+	}
 	bad := []string{
 		"",
 		"v1.deadbeef.0000017ffffff.0011",
@@ -74,7 +79,7 @@ func TestMalformedTokens(t *testing.T) {
 		"v1.00000000000000000000000000000000.0000000000000000." +
 			strings.Split(good, ".")[3], // 借用签名但 nonce 不匹配
 		"v1.zzzz.0000000000000000." + strings.Split(good, ".")[3],
-		good[:len(good)-2] + "ff", // 篡改签名
+		good[:len(good)-2] + tamperedTail, // 篡改签名
 	}
 	for _, tok := range bad {
 		if m.Valid(tok) {
