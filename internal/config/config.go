@@ -78,7 +78,7 @@ const DefaultMonitorIntervalSec = 60
 var WebhookFormats = []string{"generic", "wecom", "dingtalk", "feishu", "serverchan"}
 
 // NotifyEvents 可订阅的通知事件类别。
-var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system", "health", "disk", "security", "temp", "file"}
+var NotifyEvents = []string{"login", "service", "process", "app", "settings", "system", "health", "disk", "security", "temp", "file", "task"}
 
 // ValidWebhookFormat 判断格式是否受支持。
 func ValidWebhookFormat(f string) bool {

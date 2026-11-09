@@ -149,6 +149,16 @@ func main() {
 	mux.HandleFunc("POST /api/v1/files/delete", srv.AuthMiddleware(srv.DeleteFile))
 	mux.HandleFunc("POST /api/v1/files/rename", srv.AuthMiddleware(srv.RenameFile))
 
+	// 备份与恢复
+	mux.HandleFunc("GET /api/v1/backup", srv.AuthMiddleware(srv.Backup))
+	mux.HandleFunc("POST /api/v1/restore", srv.AuthMiddleware(srv.Restore))
+
+	// 定时任务
+	mux.HandleFunc("GET /api/v1/cron", srv.AuthMiddleware(srv.ListCron))
+	mux.HandleFunc("POST /api/v1/cron", srv.AuthMiddleware(srv.SaveCron))
+	mux.HandleFunc("POST /api/v1/cron/delete", srv.AuthMiddleware(srv.DeleteCron))
+	mux.HandleFunc("POST /api/v1/cron/run", srv.AuthMiddleware(srv.RunCronNow))
+
 	// 前端静态文件（SPA）
 	staticSub, err := fs.Sub(webFS, "web")
 	if err != nil {
@@ -171,6 +181,8 @@ func main() {
 	defer stop()
 	// 应用健康检测随服务生命周期启停，掉线/恢复会推送 health 事件通知。
 	srv.StartMonitor(ctx)
+	// 定时任务调度器随服务生命周期启停。
+	srv.StartCron(ctx)
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -506,6 +506,42 @@
             <button class="btn gray" onclick="doLogout()">退出登录</button>
           </div>
         </div>
+        <div class="subpane hidden" data-sub="maintain">
+          <div class="card">
+            <h2>备份与恢复</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              备份包含：面板配置（config.json、凭据、下载源）与全部应用的配置文件、已装版本。
+              恢复应用配置立即生效；「恢复面板配置」勾选后同时还原面板配置并自动重启面板（密码也会一并还原）。
+            </div>
+            <div class="row-flex">
+              <button class="btn sm" onclick="downloadBackup()">下载备份</button>
+              <label class="btn sm gray" style="cursor:pointer">上传恢复
+                <input type="file" id="restoreFile" accept=".gz,.tgz" hidden>
+              </label>
+              <label class="lbl"><input type="checkbox" id="restoreCfg" checked> 恢复面板配置（含密码）</label>
+            </div>
+            <div style="font-size:12px;color:var(--gray);margin-top:10px" id="restoreHint"></div>
+          </div>
+          <div class="card">
+            <h2>定时任务</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              面板内管理例行任务（如日志清理、定时脚本）。任务持久化保存，面板重启不丢失；
+              执行结果推送「定时任务执行结果」Webhook 并写入面板日志。
+            </div>
+            <div class="row-flex" style="margin-bottom:12px">
+              <input id="cronName" placeholder="任务名称" style="width:140px;margin:0">
+              <select id="cronSched" class="sm" style="width:130px"></select>
+              <input id="cronCmd" placeholder="Shell 命令，如 journalctl --vacuum-size=50M" style="flex:1;min-width:220px;margin:0">
+              <button class="btn sm" onclick="saveCronTask()">添加任务</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>名称</th><th style="width:110px">调度</th><th>命令</th><th style="width:150px">上次执行</th><th style="width:210px">操作</th></tr></thead>
+                <tbody id="cronList"><tr><td colspan="5" class="empty-tip">暂无任务</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
         <div class="subpane hidden" data-sub="system">
           <div class="card">
             <h2>HTTPS 访问</h2>
@@ -693,7 +729,7 @@ const viewMeta = {
   apps:      { t:'应用商店', s:'应用、系统服务与下载源管理',
                tabs:[['all','全部'],['installed','已安装'],['upgradable','可升级'],['store','设置']] },
   settings:  { t:'设置',     s:'通知、安全与面板信息',
-               tabs:[['notify','通知'],['security','安全'],['system','系统'],['about','关于']] },
+               tabs:[['notify','通知'],['security','安全'],['maintain','维护'],['system','系统'],['about','关于']] },
 };
 let curSub = {};
 function currentView(){ const b=document.querySelector('.nav button.active'); return b?b.dataset.view:''; }
@@ -727,6 +763,7 @@ function setSub(v,k){
   if (v==='logs') (k==='system') ? loadLogs() : loadPanelLogs();
   if (v==='apps' && k==='store') loadMirrorSettings();
   if (v==='settings' && k==='system') loadTLS();
+  if (v==='settings' && k==='maintain') loadCron();
 }
 document.getElementById('pageSubtabs').addEventListener('click', e=>{
   const b = e.target.closest('button[data-sub]');
@@ -903,6 +940,115 @@ async function saveMonitor(){
   try { await call('POST','/settings/monitor',{interval_sec:v, temp_threshold_c:th}); toast('检测设置已保存'); loadMonitorSettings(); }
   catch(e){ toast(e.message); }
 }
+
+// ===== 备份恢复与定时任务 =====
+async function downloadBackup(){
+  try {
+    const res = await fetch(API+'/backup', {headers:{'Authorization':'Bearer '+token}});
+    if (!res.ok) throw new Error('备份失败 HTTP '+res.status);
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'nanopanel-backup.tar.gz';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+    toast('备份已下载');
+  } catch(e){ toast(e.message); }
+}
+
+document.getElementById('restoreFile').addEventListener('change', async e=>{
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  const applyCfg = document.getElementById('restoreCfg').checked;
+  const fd = new FormData();
+  fd.append('file', f);
+  const hint = document.getElementById('restoreHint');
+  hint.textContent = '正在恢复…';
+  try {
+    const res = await fetch(API+'/restore'+(applyCfg?'':'?apply_config=0'), {
+      method:'POST', headers:{'Authorization':'Bearer '+token}, body: fd
+    });
+    const d = await res.json();
+    if (!res.ok || !d.ok) throw new Error(d.err || '恢复失败');
+    const r = d.data;
+    hint.textContent = '已恢复应用：' + (r.apps_restored||[]).join('、') +
+      (r.panel_applied ? '；面板配置已还原，面板正在自动重启' : (r.panel_staged ? '；面板配置已暂存到 '+r.panel_staged : ''));
+    toast('恢复完成');
+    if (r.panel_applied) setTimeout(()=>location.reload(), 5000);
+  } catch(err){ hint.textContent = err.message; toast(err.message); }
+});
+
+let cronSchedLoaded = false;
+async function loadCron(){
+  try {
+    const d = await call('GET','/cron');
+    const sel = document.getElementById('cronSched');
+    if (!cronSchedLoaded){
+      sel.innerHTML = (d.schedules||[]).map(s=>'<option value="'+esc(s.value)+'">'+esc(s.label)+'</option>').join('');
+      cronSchedLoaded = true;
+    }
+    const tb = document.getElementById('cronList');
+    if (!d.tasks || !d.tasks.length){
+      tb.innerHTML = '<tr><td colspan="5" class="empty-tip">暂无任务</td></tr>';
+      return;
+    }
+    tb.innerHTML = d.tasks.map(t=>{
+      const st = t.last_status==='ok' ? '<span style="color:#1a9e44">成功</span>'
+        : (t.last_status==='fail' ? '<span style="color:#d70015">失败</span>' : '—');
+      const last = t.last_run ? esc(t.last_run)+' '+st : '—';
+      return '<tr><td>'+esc(t.name)+'</td>'+
+        '<td>'+esc(cronDesc(t.schedule))+'</td>'+
+        '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(t.command)+'">'+esc(t.command)+'</td>'+
+        '<td>'+last+'</td>'+
+        '<td><span class="row-flex" style="gap:6px">'+
+        '<button class="btn sm gray" data-cron-run="'+esc(t.id)+'">立即执行</button>'+
+        '<button class="btn sm gray" data-cron-toggle="'+esc(t.id)+'" data-on="'+(t.enabled?1:0)+'">'+(t.enabled?'停用':'启用')+'</button>'+
+        '<button class="btn sm danger" data-cron-del="'+esc(t.id)+'">删除</button>'+
+        '</span></td></tr>';
+    }).join('');
+  } catch(e){ /* 静默 */ }
+}
+function cronDesc(sc){
+  if (sc.startsWith('every:')) return '每 '+sc.slice(6,-1)+' 分钟';
+  if (sc.startsWith('hourly:')) return '每小时第 '+sc.slice(7)+' 分';
+  if (sc.startsWith('daily:')) return '每天 '+sc.slice(6);
+  return sc;
+}
+async function saveCronTask(){
+  const name = document.getElementById('cronName').value.trim();
+  const schedule = document.getElementById('cronSched').value;
+  const command = document.getElementById('cronCmd').value.trim();
+  if (!name || !command){ toast('名称与命令不能为空'); return; }
+  try {
+    await call('POST','/cron',{name, schedule, command, enabled:true});
+    toast('任务已添加');
+    document.getElementById('cronName').value = '';
+    document.getElementById('cronCmd').value = '';
+    loadCron();
+  } catch(e){ toast(e.message); }
+}
+document.getElementById('cronList').addEventListener('click', async e=>{
+  const el = e.target.closest('[data-cron-run],[data-cron-del],[data-cron-toggle]');
+  if (!el) return;
+  if (el.dataset.cronRun){
+    if (!confirm('立即执行该任务？')) return;
+    try {
+      const d = await call('POST','/cron/run',{id:el.dataset.cronRun});
+      toast('执行结果：'+(d.status==='ok'?'成功':'失败'));
+      loadCron();
+    } catch(err){ toast(err.message); }
+  }
+  if (el.dataset.cronDel){
+    if (!confirm('删除该任务？')) return;
+    try { await call('POST','/cron/delete',{id:el.dataset.cronDel}); loadCron(); }
+    catch(err){ toast(err.message); }
+  }
+  if (el.dataset.cronToggle){
+    try { await call('POST','/cron',{id:el.dataset.cronToggle, enabled: el.dataset.on!=='1'}); loadCron(); }
+    catch(err){ toast(err.message); }
+  }
+});
 
 // ===== HTTPS 设置 =====
 async function loadTLS(){

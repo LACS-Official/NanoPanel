@@ -445,5 +445,6 @@ func notifyEventOptions() []map[string]string {
 		{"key": "security", "label": "安全告警（登录锁定）"},
 		{"key": "temp", "label": "温度告警（超温 / 回落）"},
 		{"key": "file", "label": "文件管理操作"},
+		{"key": "task", "label": "定时任务执行结果"},
 	}
 }
