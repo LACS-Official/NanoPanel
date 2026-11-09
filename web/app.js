@@ -2,6 +2,7 @@
 const API = '/api/v1';
 let token = localStorage.getItem('np_token') || '';
 let overviewTimer = null;
+let npVersion = '';
 
 /* ===== Logo（登录页 / 侧栏 / 关于 共用）===== */
 const LOGO_SVG =
@@ -87,7 +88,8 @@ const viewMeta = {
   apps:      { t:'应用商店', s:'应用、系统服务与下载源管理',
                tabs:[['all','全部'],['installed','已安装'],['upgradable','可升级'],['store','设置']] },
   settings:  { t:'设置',     s:'通知、安全与面板信息',
-               tabs:[['notify','通知'],['security','安全'],['maintain','维护'],['system','系统'],['about','关于']] },
+               tabs:[['notify','通知'],['security','安全'],['maintain','维护'],['system','系统']] },
+  about:     { t:'关于', s:'关于 NanoPanel' },
 };
 let curSub = {};
 function currentView(){ const b=document.querySelector('.nav button.active'); return b?b.dataset.view:''; }
@@ -103,6 +105,7 @@ function switchView(v){
   if (v==='settings' && !curSub.settings) setSub('settings','notify');
   if (v==='disks') loadDisks();
   if (v==='files' && !fmPath) loadFiles();
+  if (v==='about') renderAbout();
   startNetTimer(v==='network');
 }
 function renderSubtabs(v){
@@ -1003,8 +1006,11 @@ async function loadHealth(){
     const d = await res.json();
     const h = d.data || {};
     const v = h.version ? 'v'+h.version : '';
+    npVersion = h.version ? 'v'+h.version : 'dev';
     document.getElementById('appVersion').textContent = v;
     document.getElementById('aboutVer').textContent = v;
+    const curVer = document.getElementById('aboutCurVer');
+    if (curVer) curVer.textContent = npVersion;
     document.getElementById('loginVersion').textContent = 'NanoPanel ' + v;
     if(h.platform && h.platform !== 'linux'){
       const n = document.getElementById('platformNotice');
@@ -1012,6 +1018,52 @@ async function loadHealth(){
       n.classList.remove('hidden');
     }
   } catch(e){ /* 健康检查失败不影响主流程 */ }
+}
+
+// ===== 关于页 =====
+const ABOUT_FEATURES = [
+  { icon:'📊', title:'概览监控', desc:'系统信息、CPU/内存/磁盘占用、温度与频率一目了然' },
+  { icon:'⚙️', title:'进程管理', desc:'实时进程列表、按内存排序、一键结束进程' },
+  { icon:'🧩', title:'应用商店', desc:'一键安装/升级常用应用，已装应用直达管理页' },
+  { icon:'📁', title:'文件管理', desc:'受限目录内浏览、在线编辑、上传下载' },
+  { icon:'💾', title:'备份恢复', desc:'面板与应用配置一键备份，可整体或选择性恢复' },
+  { icon:'⏰', title:'定时任务', desc:'面板内管理例行 Shell 任务，执行结果推送通知' },
+  { icon:'🔒', title:'安全加固', desc:'HTTPS 自签证书、登录锁定告警、Webhook 通知' },
+  { icon:'🌐', title:'网络工具', desc:'网卡实时流量图、Ping 连通性测试' },
+];
+function renderAbout(){
+  const grid = document.getElementById('featGrid');
+  if (grid && !grid.dataset.done){
+    grid.innerHTML = ABOUT_FEATURES.map(f=>
+      '<div class="feat-item"><div class="feat-ico">'+f.icon+'</div>'+
+      '<div class="feat-title">'+esc(f.title)+'</div>'+
+      '<div class="feat-desc">'+esc(f.desc)+'</div></div>').join('');
+    grid.dataset.done = '1';
+  }
+  const curVer = document.getElementById('aboutCurVer');
+  if (curVer) curVer.textContent = npVersion || 'dev';
+}
+
+async function checkUpdate(){
+  const status = document.getElementById('updateStatus');
+  if (!status) return;
+  status.textContent = '正在检查…';
+  try {
+    const d = await call('GET','/update/check');
+    const u = d.data || {};
+    if (u.status === 'unreachable' || u.status === 'unknown'){
+      status.textContent = '暂无法连接更新源（'+(u.message||'网络不可达')+'）';
+      return;
+    }
+    if (u.has_update){
+      status.innerHTML = '发现新版本 <b style="color:var(--green)">v'+esc(u.latest_version)+
+        '</b> · <a href="'+esc(u.release_url||'#')+'" target="_blank" rel="noopener">查看发布 ↗</a>';
+    } else {
+      status.textContent = '已是最新版本（当前 v'+(u.current_version||npVersion)+'）';
+    }
+  } catch(e){
+    status.textContent = '检查失败：'+e.message;
+  }
 }
 
 loadHealth();

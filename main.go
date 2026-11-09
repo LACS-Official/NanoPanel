@@ -161,6 +161,7 @@ func main() {
 
 	// 应用商店远程更新
 	mux.HandleFunc("POST /api/v1/apps/update-manifest", srv.AuthMiddleware(srv.UpdateManifest))
+	mux.HandleFunc("GET /api/v1/update/check", srv.AuthMiddleware(srv.CheckUpdate))
 
 	// 前端静态文件（SPA）
 	staticSub, err := fs.Sub(webFS, "web")

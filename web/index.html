@@ -47,6 +47,7 @@
         <button data-view="files"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5h4l1.4 1.8H14v7.2H2z"/><path d="M5.6 9.2h4.8"/></svg>文件</button>
         <button data-view="apps"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 5.4V4.2a2.8 2.8 0 015.6 0v1.2"/><rect x="2.8" y="5.4" width="10.4" height="8.4" rx="2"/></svg>应用商店</button>
         <button data-view="settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 5h4.4M9.6 5H14M2 11h9.4"/><circle cx="8" cy="5" r="1.7"/><circle cx="13" cy="11" r="1.7"/></svg>设置</button>
+        <button data-view="about"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.3v3.3M8 5.2v.2"/></svg>关于</button>
       </nav>
       <div class="side-foot">
         <div class="side-user" id="sideUser"></div>
@@ -350,23 +351,79 @@
             <button class="btn danger" style="background:#ff3b30;color:#fff" onclick="doReboot()">重启系统</button>
           </div>
         </div>
-        <div class="subpane hidden" data-sub="about">
-          <div class="card">
-            <div class="about-hero">
-              <div class="np-logo"></div>
-              <div class="about-name">NanoPanel<span class="v" id="aboutVer"></span></div>
-              <div class="about-slogan">面向小内存 Linux 设备的轻量服务器运维面板</div>
-            </div>
-            <div class="about-links">
-              <a class="alink" href="https://lacs.cc" target="_blank" rel="noopener">
-                <span class="al-k">领创工作室官网</span><span class="al-v">lacs.cc<span class="ar">↗</span></span></a>
-              <a class="alink" href="https://npanel.lacs.cc" target="_blank" rel="noopener">
-                <span class="al-k">项目官网</span><span class="al-v">npanel.lacs.cc<span class="ar">↗</span></span></a>
-              <a class="alink" href="https://github.com/LACS-Official/NanoPanel" target="_blank" rel="noopener">
-                <span class="al-k">GitHub 仓库</span><span class="al-v">LACS-Official/NanoPanel<span class="ar">↗</span></span></a>
-            </div>
-            <div class="about-foot">由 领创工作室（LACS） 开源维护 · MIT License</div>
+      </div>
+
+      <div class="view" id="view-about">
+        <div class="card about-hero">
+          <div class="np-logo"></div>
+          <div class="about-name">NanoPanel<span class="v" id="aboutVer"></span></div>
+          <div class="about-slogan">面向小内存 Linux 设备的轻量服务器运维面板</div>
+        </div>
+
+        <div class="card">
+          <h2>项目简介</h2>
+          <p class="about-text">NanoPanel 是一个用 Go 编写的单文件运维面板：无需数据库、无需容器，一个二进制即可运行。专为树莓派、迷你主机、ARM 小设备与低内存 VPS 设计，在有限的硬件资源下提供系统监控、应用管理与日常运维能力。项目由 <b>领创工作室（LACS）</b> 开源维护，遵循 MIT 协议。</p>
+        </div>
+
+        <div class="card">
+          <h2>核心特性</h2>
+          <div class="feat-grid" id="featGrid"></div>
+        </div>
+
+        <div class="card">
+          <h2>技术栈</h2>
+          <div class="tech-list">
+            <span class="tech-tag">Go 1.25</span>
+            <span class="tech-tag">单二进制部署</span>
+            <span class="tech-tag">go:embed 静态资源</span>
+            <span class="tech-tag">systemd 集成</span>
+            <span class="tech-tag">自签 TLS</span>
+            <span class="tech-tag">HMAC 无状态登录</span>
+            <span class="tech-tag">三架构交叉编译</span>
           </div>
+        </div>
+
+        <div class="card">
+          <h2>版本与更新</h2>
+          <div class="update-row">
+            <div>
+              <div class="up-cur">当前版本 <b id="aboutCurVer">dev</b></div>
+              <div class="up-status" id="updateStatus">点击右侧按钮检查是否有新版本</div>
+            </div>
+            <button class="btn" onclick="checkUpdate()">检查更新</button>
+          </div>
+        </div>
+
+        <div class="card donate-card">
+          <div class="donate-head">
+            <div class="donate-icon">♥</div>
+            <div>
+              <div class="donate-title">支持 NanoPanel 开发</div>
+              <div class="donate-sub">如果这个项目对你有帮助，欢迎请作者喝杯咖啡 ☕</div>
+            </div>
+          </div>
+          <div class="donate-body">
+            <div class="donate-qr">
+              <div class="qr-ph">二维码<br>待替换</div>
+            </div>
+            <div class="donate-actions">
+              <a class="btn" href="https://afdian.com/a/your-handle" target="_blank" rel="noopener">爱发电赞助</a>
+              <div class="donate-note">也可通过微信 / 支付宝扫码支持（二维码请联系作者获取并替换上方占位）。</div>
+            </div>
+          </div>
+          <div class="donate-thanks">每一份支持都会让 NanoPanel 变得更好，感谢你的鼓励！</div>
+        </div>
+
+        <div class="card">
+          <div class="about-links">
+            <a class="alink" href="https://lacs.cc" target="_blank" rel="noopener">
+              <span class="al-k">领创工作室官网</span><span class="al-v">lacs.cc<span class="ar">↗</span></span></a>
+            <a class="alink" href="https://npanel.lacs.cc" target="_blank" rel="noopener">
+              <span class="al-k">项目官网</span><span class="al-v">npanel.lacs.cc<span class="ar">↗</span></span></a>
+            <a class="alink" href="https://github.com/LACS-Official/NanoPanel" target="_blank" rel="noopener">
+              <span class="al-k">GitHub 仓库</span><span class="al-v">LACS-Official/NanoPanel<span class="ar">↗</span></span></a>
+          </div>
+          <div class="about-foot">由 领创工作室（LACS） 开源维护 · MIT License</div>
         </div>
       </div>
     </main>
