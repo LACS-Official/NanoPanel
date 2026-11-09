@@ -1,6 +1,36 @@
 package api
 
-import "testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+// TestLatestReleaseTagViaRedirect releases/latest 的 302 Location 应能解析出版本号。
+// 回归：改用不自动跟随重定向的 client，否则永远读不到 Location。
+func TestLatestReleaseTagViaRedirect(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/"+updateRepo+"/releases/latest" {
+			http.NotFound(w, r)
+			return
+		}
+		http.Redirect(w, r, "https://github.com/"+updateRepo+"/releases/tag/v9.9.9", http.StatusFound)
+	}))
+	defer srv.Close()
+	t.Setenv("GITHUB_MIRROR", srv.URL)
+
+	tag, url, err := latestReleaseTag()
+	if err != nil {
+		t.Fatalf("解析失败: %v", err)
+	}
+	if tag != "9.9.9" {
+		t.Fatalf("tag=%q, want 9.9.9", tag)
+	}
+	if !strings.Contains(url, "/releases/tag/v9.9.9") {
+		t.Fatalf("release url 异常: %q", url)
+	}
+}
 
 func TestParseSemver(t *testing.T) {
 	cases := []struct {

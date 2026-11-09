@@ -68,7 +68,14 @@ func updateBases() []string {
 func latestReleaseTag() (tag, releaseURL string, err error) {
 	bases := updateBases()
 
-	client := &http.Client{Timeout: 25 * time.Second}
+	// 不自动跟随重定向：releases/latest 的 302 Location 就是最新 tag，
+	// 跟随之后只能拿到最终页面，无法解析版本号。
+	client := &http.Client{
+		Timeout: 25 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 	for _, base := range bases {
 		req, rerr := http.NewRequest(http.MethodGet, base+"/"+updateRepo+"/releases/latest", nil)
 		if rerr != nil {
