@@ -1169,3 +1169,74 @@ function toggleTheme(){
   applyTheme();
 }
 applyTheme();
+
+// ===== 内联事件桥接（CSP 严格模式） =====
+// CSP 的 script-src 'self' 禁止 HTML 内联事件处理器，页面因此改用
+// data-act / data-keydown / data-change 声明动作，此处以显式白名单分发。
+// 不使用 eval / new Function，保持 CSP 防护强度。
+const INLINE_ACTIONS = {
+  // 登录与会话
+  "doLogin()": () => doLogin(),
+  "if(event.key==='Enter')doLogin()": (ev) => { if (ev.key === 'Enter') doLogin(); },
+  "if(event.key==='Enter')document.getElementById('loginPwd').focus()": (ev) => {
+    if (ev.key === 'Enter') document.getElementById('loginPwd').focus();
+  },
+  "doLogout()": () => doLogout(),
+  "doChangePassword()": () => doChangePassword(),
+  "toggleTheme()": () => toggleTheme(),
+  // 概览 / 日志 / 网络 / 磁盘
+  "loadLogs()": () => loadLogs(),
+  "loadPanelLogs()": () => loadPanelLogs(),
+  "doPing()": () => doPing(),
+  "loadDisks()": () => loadDisks(),
+  // 文件管理
+  "fmGoUp()": () => fmGoUp(),
+  "fmMkdir()": () => fmMkdir(),
+  "loadFiles()": () => loadFiles(),
+  "document.getElementById('fmUpload').click()": () => document.getElementById('fmUpload').click(),
+  "fmSaveEdit()": () => fmSaveEdit(),
+  "closeFmEdit()": () => closeFmEdit(),
+  "if(event.target===this)closeFmEdit()": (ev, el) => { if (ev.target === el) closeFmEdit(); },
+  // 应用
+  "updateManifest()": () => updateManifest(),
+  "checkAppsNow()": () => checkAppsNow(),
+  "saveMonitor()": () => saveMonitor(),
+  "saveTempThreshold()": () => saveTempThreshold(),
+  "saveAppCfg()": () => saveAppCfg(),
+  "closeAppCfg()": () => closeAppCfg(),
+  "if(event.target===this)closeAppCfg()": (ev, el) => { if (ev.target === el) closeAppCfg(); },
+  // 设置 / 通知 / 备份 / 定时任务 / HTTPS
+  "saveWebhook()": () => saveWebhook(),
+  "testWebhook()": () => testWebhook(),
+  "downloadBackup()": () => downloadBackup(),
+  "saveCronTask()": () => saveCronTask(),
+  "doReboot()": () => doReboot(),
+  "saveTLS(true)": () => saveTLS(true),
+  "saveTLS(false)": () => saveTLS(false),
+  // 版本更新
+  "checkUpdate()": () => checkUpdate(),
+  "applyUpdate()": () => applyUpdate(),
+  "saveUpdateSettings()": () => saveUpdateSettings(),
+  // 挂载弹窗 / 动作弹窗
+  "doMount()": () => doMount(),
+  "closeMountDlg()": () => closeMountDlg(),
+  "if(event.target===this)closeMountDlg()": (ev, el) => { if (ev.target === el) closeMountDlg(); },
+  "closeActDlg()": () => closeActDlg(),
+};
+
+function runInlineAction(code, ev, el) {
+  const fn = INLINE_ACTIONS[code];
+  if (typeof fn === 'function') { fn(ev, el); return; }
+  console.warn('[NanoPanel] 未注册的页面动作:', code);
+}
+
+function bindInlineActions(type, attr) {
+  document.addEventListener(type, (ev) => {
+    const t = ev.target;
+    const el = t && t.closest ? t.closest('[' + attr + ']') : null;
+    if (el) runInlineAction(el.getAttribute(attr), ev, el);
+  });
+}
+bindInlineActions('click', 'data-act');
+bindInlineActions('keydown', 'data-keydown');
+bindInlineActions('change', 'data-change');

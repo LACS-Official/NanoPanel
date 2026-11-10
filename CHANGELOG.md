@@ -2,6 +2,17 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/)。
 
+## [0.1.2] - 2026-11-10
+
+### 修复
+
+- **登录与全站按钮点击无响应（阻断性回归）**：v0.1.1 引入的 CSP `script-src 'self'` 会禁止 HTML 内联事件处理器，而页面有 40 处 `onclick` / `onkeydown` / `onchange`（登录按钮、回车登录、改密、退出、设置保存、弹窗关闭等）。浏览器直接拒绝执行，导致点击后既不发请求也无任何提示。现改为 `data-act` / `data-keydown` / `data-change` 声明式属性 + `app.js` 显式白名单分发（38 个动作），不使用 `eval` / `new Function`，CSP 仍保持 `script-src 'self'` 严格模式
+- **升级后浏览器可能继续使用旧前端**：静态资源（HTML / JS / CSS）新增 `Cache-Control: no-cache`，避免 `go:embed` 资源无 ETag 时旧版 `index.html` 与新版 `app.js` 混用
+
+### 变更
+
+- CI 新增 `CSP inline-action guard` 检查：禁止再出现内联事件处理器，并校验每个声明动作都存在白名单映射，防止同类回归
+
 ## [0.1.1] - 2026-11-09
 
 增量发布，无功能变更。

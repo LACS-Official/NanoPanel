@@ -27,10 +27,10 @@
     <h1>NanoPanel</h1>
     <p>轻量服务器运维面板</p>
     <input id="loginUser" type="text" placeholder="用户名" autocomplete="username" value="admin"
-           onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
+           data-keydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()">
     <input id="loginPwd" type="password" placeholder="登录密码" autocomplete="current-password"
-           onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="btn" style="width:100%" onclick="doLogin()">登 录</button>
+           data-keydown="if(event.key==='Enter')doLogin()">
+    <button class="btn" style="width:100%" data-act="doLogin()">登 录</button>
     <div class="login-foot">
       <span class="lf-ver" id="loginVersion">NanoPanel</span>
       <span class="lf-sep">·</span>
@@ -62,8 +62,8 @@
       <div class="side-foot">
         <div class="side-user" id="sideUser"></div>
         <div class="row-flex" style="gap:6px">
-          <button class="btn sm gray" style="flex:1" onclick="toggleTheme()" id="themeBtn" title="切换深浅色">主题</button>
-          <button class="btn sm gray" style="flex:1" onclick="doLogout()">退出登录</button>
+          <button class="btn sm gray" style="flex:1" data-act="toggleTheme()" id="themeBtn" title="切换深浅色">主题</button>
+          <button class="btn sm gray" style="flex:1" data-act="doLogout()">退出登录</button>
         </div>
       </div>
     </aside>
@@ -116,7 +116,7 @@
                 <option value="300">最近 300 行</option>
                 <option value="500">最近 500 行</option>
               </select>
-              <button class="btn sm" onclick="loadLogs()">刷新日志</button>
+              <button class="btn sm" data-act="loadLogs()">刷新日志</button>
             </div>
             <pre id="logOutput">点击“刷新日志”加载…</pre>
           </div>
@@ -124,7 +124,7 @@
         <div class="subpane hidden" data-sub="panel">
           <div class="card">
             <div class="row-flex" style="margin-bottom:14px">
-              <button class="btn sm" onclick="loadPanelLogs()">刷新面板日志</button>
+              <button class="btn sm" data-act="loadPanelLogs()">刷新面板日志</button>
             </div>
             <div class="table-wrap">
               <table>
@@ -148,7 +148,7 @@
           <h2>Ping 连通性测试</h2>
           <div class="row-flex" style="margin-bottom:14px">
             <input id="pingHost" placeholder="目标，如 192.168.1.1 或 baidu.com" style="width:260px;margin:0">
-            <button class="btn" onclick="doPing()">Ping</button>
+            <button class="btn" data-act="doPing()">Ping</button>
           </div>
           <pre id="pingOutput">等待测试…</pre>
         </div>
@@ -158,7 +158,7 @@
         <div class="card">
           <h2>磁盘与挂载</h2>
           <div class="row-flex" style="margin-bottom:14px">
-            <button class="btn sm" onclick="loadDisks()">刷新</button>
+            <button class="btn sm" data-act="loadDisks()">刷新</button>
             <span class="state-tag" id="diskHint"></span>
           </div>
           <div class="app-grid" id="diskGrid"></div>
@@ -176,10 +176,10 @@
         <div class="card">
           <div class="row-flex" style="margin-bottom:12px;flex-wrap:wrap;gap:8px">
             <div id="fmCrumb" class="row-flex" style="gap:4px;flex:1;min-width:240px"></div>
-            <button class="btn sm" onclick="fmGoUp()">上一级</button>
-            <button class="btn sm" onclick="fmMkdir()">新建文件夹</button>
-            <button class="btn sm" onclick="document.getElementById('fmUpload').click()">上传文件</button>
-            <button class="btn sm gray" onclick="loadFiles()">刷新</button>
+            <button class="btn sm" data-act="fmGoUp()">上一级</button>
+            <button class="btn sm" data-act="fmMkdir()">新建文件夹</button>
+            <button class="btn sm" data-act="document.getElementById('fmUpload').click()">上传文件</button>
+            <button class="btn sm gray" data-act="loadFiles()">刷新</button>
             <input type="file" id="fmUpload" multiple hidden>
           </div>
           <div class="table-wrap">
@@ -232,7 +232,7 @@
               已安装应用的配置与状态会保留；更新后「可升级」页签会提示新版本。
             </div>
             <div class="row-flex">
-              <button class="btn sm" onclick="updateManifest()">检查并更新清单</button>
+              <button class="btn sm" data-act="updateManifest()">检查并更新清单</button>
               <span class="state-tag" id="manifestHint"></span>
             </div>
           </div>
@@ -244,8 +244,8 @@
             </div>
             <div class="row-flex">
               <select id="monInterval" class="sm"></select>
-              <button class="btn sm" onclick="saveMonitor()">保存设置</button>
-              <button class="btn sm gray" onclick="checkAppsNow()">立即检测并告警</button>
+              <button class="btn sm" data-act="saveMonitor()">保存设置</button>
+              <button class="btn sm gray" data-act="checkAppsNow()">立即检测并告警</button>
             </div>
             <div style="font-size:12px;color:var(--gray);margin-top:10px" id="monHint"></div>
           </div>
@@ -259,7 +259,7 @@
             <div class="row-flex">
               <label class="lbl">阈值（℃）</label>
               <input type="number" id="tempThreshold" min="0" max="100" step="1" style="width:80px" placeholder="0=关闭">
-              <button class="btn sm" onclick="saveTempThreshold()">保存阈值</button>
+              <button class="btn sm" data-act="saveTempThreshold()">保存阈值</button>
             </div>
             <div style="font-size:12px;color:var(--gray);margin-top:10px" id="tempHint"></div>
           </div>
@@ -283,8 +283,8 @@
               推送失败不影响面板操作本身；在上方勾选要推送的事件类别。
             </div>
             <div class="row-flex">
-              <button class="btn" onclick="saveWebhook()">保存通知配置</button>
-              <button class="btn gray" onclick="testWebhook()">发送测试通知</button>
+              <button class="btn" data-act="saveWebhook()">保存通知配置</button>
+              <button class="btn gray" data-act="testWebhook()">发送测试通知</button>
             </div>
             <div style="font-size:12px;color:var(--gray);margin-top:12px">
               应用健康检测与掉线告警的开关在「应用 → 设置」里。
@@ -297,12 +297,12 @@
             <input id="oldPwd" type="password" placeholder="原密码" autocomplete="current-password">
             <input id="newPwd" type="password" placeholder="新密码（至少 8 位）" autocomplete="new-password">
             <div style="font-size:12px;color:var(--gray);margin-bottom:12px">修改后其他设备的登录态会全部失效。</div>
-            <button class="btn" onclick="doChangePassword()">保存修改</button>
+            <button class="btn" data-act="doChangePassword()">保存修改</button>
           </div>
           <div class="card">
             <h2>登录会话</h2>
             <div style="font-size:12px;color:var(--gray);margin-bottom:12px">退出当前浏览器保存的登录凭据。</div>
-            <button class="btn gray" onclick="doLogout()">退出登录</button>
+            <button class="btn gray" data-act="doLogout()">退出登录</button>
           </div>
         </div>
         <div class="subpane hidden" data-sub="maintain">
@@ -313,7 +313,7 @@
               恢复应用配置立即生效；「恢复面板配置」勾选后同时还原面板配置并自动重启面板（密码也会一并还原）。
             </div>
             <div class="row-flex">
-              <button class="btn sm" onclick="downloadBackup()">下载备份</button>
+              <button class="btn sm" data-act="downloadBackup()">下载备份</button>
               <label class="btn sm gray" style="cursor:pointer">上传恢复
                 <input type="file" id="restoreFile" accept=".gz,.tgz" hidden>
               </label>
@@ -331,7 +331,7 @@
               <input id="cronName" placeholder="任务名称" style="width:140px;margin:0">
               <select id="cronSched" class="sm" style="width:130px"></select>
               <input id="cronCmd" placeholder="Shell 命令，如 journalctl --vacuum-size=50M" style="flex:1;min-width:220px;margin:0">
-              <button class="btn sm" onclick="saveCronTask()">添加任务</button>
+              <button class="btn sm" data-act="saveCronTask()">添加任务</button>
             </div>
             <div class="table-wrap">
               <table>
@@ -350,15 +350,15 @@
             </div>
             <div class="row-flex">
               <span id="tlsState" class="state-tag"></span>
-              <button class="btn sm" id="tlsEnableBtn" onclick="saveTLS(true)">开启 HTTPS</button>
-              <button class="btn sm gray" id="tlsDisableBtn" onclick="saveTLS(false)">关闭</button>
+              <button class="btn sm" id="tlsEnableBtn" data-act="saveTLS(true)">开启 HTTPS</button>
+              <button class="btn sm gray" id="tlsDisableBtn" data-act="saveTLS(false)">关闭</button>
             </div>
             <div style="font-size:12px;color:var(--gray);margin-top:10px" id="tlsHint"></div>
           </div>
           <div class="card">
             <h2>系统操作</h2>
             <div style="font-size:12px;color:var(--gray);margin-bottom:12px">重启会中断所有正在运行的服务，请谨慎操作。</div>
-            <button class="btn danger" style="background:#ff3b30;color:#fff" onclick="doReboot()">重启系统</button>
+            <button class="btn danger" style="background:#ff3b30;color:#fff" data-act="doReboot()">重启系统</button>
           </div>
         </div>
       </div>
@@ -379,8 +379,8 @@
               <div class="up-status" id="updateStatus">点击右侧按钮检查是否有新版本</div>
             </div>
             <div class="row-flex" style="gap:8px">
-              <button class="btn" onclick="checkUpdate()">检查更新</button>
-              <button class="btn green" id="applyUpdateBtn" onclick="applyUpdate()" style="display:none">立即升级</button>
+              <button class="btn" data-act="checkUpdate()">检查更新</button>
+              <button class="btn green" id="applyUpdateBtn" data-act="applyUpdate()" style="display:none">立即升级</button>
             </div>
           </div>
           <div class="update-row" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
@@ -389,9 +389,9 @@
               <div class="up-status" id="autoUpdateDesc">发现新版本时自动下载并安装，并推送通知（需在「设置 → 通知」勾选「版本更新」事件）</div>
             </div>
             <div class="row-flex" style="gap:10px;align-items:center;flex-wrap:wrap">
-              <label class="lbl"><input type="checkbox" id="autoUpdateSwitch" onchange="saveUpdateSettings()"> 启用自动更新</label>
+              <label class="lbl"><input type="checkbox" id="autoUpdateSwitch" data-change="saveUpdateSettings()"> 启用自动更新</label>
               <span class="lbl">每日</span>
-              <select id="updateHour" class="sm" onchange="saveUpdateSettings()"></select>
+              <select id="updateHour" class="sm" data-change="saveUpdateSettings()"></select>
               <span class="lbl">点检查</span>
             </div>
           </div>
@@ -440,19 +440,19 @@
 
 <div class="toast" id="toast"></div>
 
-<div class="modal-mask hidden" id="appCfgMask" onclick="if(event.target===this)closeAppCfg()">
+<div class="modal-mask hidden" id="appCfgMask" data-act="if(event.target===this)closeAppCfg()">
   <div class="modal">
     <h2 id="appCfgTitle">应用配置</h2>
     <div id="appCfgFields"></div>
     <div class="modal-actions">
-      <button class="btn" id="appCfgSave" onclick="saveAppCfg()">保存并应用</button>
-      <button class="btn gray" onclick="closeAppCfg()">取消</button>
+      <button class="btn" id="appCfgSave" data-act="saveAppCfg()">保存并应用</button>
+      <button class="btn gray" data-act="closeAppCfg()">取消</button>
     </div>
     <pre id="appCfgOutput" class="hidden"></pre>
   </div>
 </div>
 
-<div class="modal-mask hidden" id="mountMask" onclick="if(event.target===this)closeMountDlg()">
+<div class="modal-mask hidden" id="mountMask" data-act="if(event.target===this)closeMountDlg()">
   <div class="modal">
     <h2 id="mountTitle">挂载磁盘</h2>
     <div class="field"><div class="fl">设备</div><input id="mntDevice" readonly></div>
@@ -461,8 +461,8 @@
       <div class="fd">目录不存在会自动创建</div></div>
     <div class="field"><label class="mh-auto"><input type="checkbox" id="mntFstab"> 开机自动挂载（写入 /etc/fstab）</label></div>
     <div class="modal-actions">
-      <button class="btn" id="mntGo" onclick="doMount()">挂载</button>
-      <button class="btn gray" onclick="closeMountDlg()">取消</button>
+      <button class="btn" id="mntGo" data-act="doMount()">挂载</button>
+      <button class="btn gray" data-act="closeMountDlg()">取消</button>
     </div>
   </div>
 </div>
@@ -472,7 +472,7 @@
     <h2 id="actTitle">操作</h2>
     <div class="row-flex" style="margin-bottom:10px">
       <span class="state-tag" id="actState">正在执行…</span>
-      <button class="btn sm gray" id="actClose" onclick="closeActDlg()" disabled>关闭</button>
+      <button class="btn sm gray" id="actClose" data-act="closeActDlg()" disabled>关闭</button>
     </div>
     <div style="font-size:12px;color:var(--gray);margin-bottom:8px">
       执行中可以关闭弹窗，任务会在后台继续完成。
@@ -481,13 +481,13 @@
   </div>
 </div>
 
-<div class="modal-mask hidden" id="fmEditMask" onclick="if(event.target===this)closeFmEdit()">
+<div class="modal-mask hidden" id="fmEditMask" data-act="if(event.target===this)closeFmEdit()">
   <div class="modal" style="max-width:760px">
     <h2 id="fmEditTitle">编辑文件</h2>
     <div class="field"><textarea id="fmEditContent" rows="18" spellcheck="false"></textarea></div>
     <div class="row-flex">
-      <button class="btn sm" onclick="fmSaveEdit()">保存</button>
-      <button class="btn sm gray" onclick="closeFmEdit()">取消</button>
+      <button class="btn sm" data-act="fmSaveEdit()">保存</button>
+      <button class="btn sm gray" data-act="closeFmEdit()">取消</button>
     </div>
   </div>
 </div>

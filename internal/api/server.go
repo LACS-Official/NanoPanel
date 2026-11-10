@@ -111,6 +111,10 @@ func (s *Server) SecurityHeaders(next http.Handler) http.Handler {
 				"base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			h.Set("Cache-Control", "no-store")
+		} else {
+			// 静态资源由 go:embed 提供，没有 ETag / Last-Modified；强制每次重新验证，
+			// 避免升级后浏览器继续使用旧版 index.html / app.js 导致新旧代码不匹配。
+			h.Set("Cache-Control", "no-cache")
 		}
 		next.ServeHTTP(w, r)
 	})

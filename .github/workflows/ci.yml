@@ -55,6 +55,23 @@ jobs:
         run: |
           node --check web/app.js
           test -z "$(grep -n $'\r' web/app.js web/index.html web/style.css)"
+      - name: CSP inline-action guard
+        if: runner.os == 'Linux'
+        run: |
+          # CSP 使用 script-src 'self'，禁止 HTML 内联事件处理器（会让按钮点击无反应）。
+          if grep -nE 'on(click|keydown|change)="[^"]*"' web/index.html; then
+            echo "::error::检测到内联事件处理器，请改用 data-act 声明并在 app.js 中注册映射"
+            exit 1
+          fi
+          # 每个声明动作都必须在 INLINE_ACTIONS 白名单中有对应处理函数。
+          grep -oE 'data-(act|keydown|change)="[^"]*"' web/index.html \
+            | sed -E 's/^[^"]*"//; s/"$//' | sort -u | while IFS= read -r act; do
+            grep -Fq "\"$act\":" web/app.js || {
+              echo "::error::缺少页面动作映射: $act"
+              exit 1
+            }
+          done
+          echo "内联事件检查通过"
 
   lint:
     name: golangci-lint
