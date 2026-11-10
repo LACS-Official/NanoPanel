@@ -60,6 +60,8 @@ function showMain(){
   switchView('overview'); loadOverview(); loadProcesses(); loadApps();
   loadWebhook(); loadMonitorSettings();
   overviewTimer = setInterval(()=>{ if(currentView()==='overview') loadOverview(); }, 5000);
+  // 进入面板后自动检查一次更新；延迟执行，避免与首屏数据请求争抢。
+  setTimeout(autoUpdateCheck, 1500);
 }
 
 async function doLogin(){
@@ -1122,9 +1124,9 @@ async function checkUpdate(){
   }
 }
 
-async function applyUpdate(){
+async function applyUpdate(skipConfirm){
   const status = document.getElementById('updateStatus');
-  if (!confirm('确定升级到最新版本？升级前会自动备份当前版本，面板将重启。')) return;
+  if (!skipConfirm && !confirm('确定升级到最新版本？升级前会自动备份当前版本，面板将重启。')) return;
   try {
     const d = await call('POST','/update/apply');
     const u = d || {};
@@ -1144,6 +1146,60 @@ async function applyUpdate(){
     toast(e.message);
     if (status) status.textContent = '升级失败：'+e.message;
   }
+}
+
+/* ===== 进入面板自动检查更新 ===== */
+// 只在每次页面会话首次进入时检查一次；网络不可达或检查失败静默处理，不打扰用户。
+let autoUpdateChecked = false;
+async function autoUpdateCheck(){
+  if (autoUpdateChecked) return;
+  autoUpdateChecked = true;
+  try {
+    // 更新检查需要访问 GitHub（含镜像回退），给自动检查设 15 秒上限，避免迟到弹窗。
+    const d = await Promise.race([
+      call('GET','/update/check'),
+      new Promise((_, reject)=>setTimeout(()=>reject(new Error('检查超时')), 15000))
+    ]);
+    const u = (d && d.data) || {};
+    if (u.status !== 'ok' || !u.has_update || !u.latest_version) return;
+    if (localStorage.getItem('np_update_skip') === u.latest_version) return;
+    showUpdateDialog(u);
+  } catch(e){
+    /* 自动检查属于增强提示，失败时由「关于」页手动检查兜底 */
+  }
+}
+
+function showUpdateDialog(u){
+  const cur = document.getElementById('updCurrent');
+  const latest = document.getElementById('updLatest');
+  const link = document.getElementById('updReleaseLink');
+  const skip = document.getElementById('updSkip');
+  const mask = document.getElementById('updateMask');
+  if (!cur || !latest || !mask) return;
+  cur.textContent = fmtVersion(u.current_version) || npVersion || '-';
+  latest.textContent = fmtVersion(u.latest_version);
+  latest.dataset.ver = u.latest_version;
+  if (link) {
+    link.href = u.release_url || '#';
+    link.style.display = u.release_url ? '' : 'none';
+  }
+  if (skip) skip.checked = false;
+  mask.classList.remove('hidden');
+}
+
+function closeUpdateDlg(){
+  const skip = document.getElementById('updSkip');
+  const latest = document.getElementById('updLatest');
+  if (skip && skip.checked && latest && latest.dataset.ver) {
+    localStorage.setItem('np_update_skip', latest.dataset.ver);
+  }
+  const mask = document.getElementById('updateMask');
+  if (mask) mask.classList.add('hidden');
+}
+
+function applyUpdateFromDlg(){
+  closeUpdateDlg();
+  return applyUpdate(true);
 }
 
 loadHealth();
@@ -1222,6 +1278,10 @@ const INLINE_ACTIONS = {
   "closeMountDlg()": () => closeMountDlg(),
   "if(event.target===this)closeMountDlg()": (ev, el) => { if (ev.target === el) closeMountDlg(); },
   "closeActDlg()": () => closeActDlg(),
+  // 自动更新提示弹窗
+  "applyUpdateFromDlg()": () => applyUpdateFromDlg(),
+  "closeUpdateDlg()": () => closeUpdateDlg(),
+  "if(event.target===this)closeUpdateDlg()": (ev, el) => { if (ev.target === el) closeUpdateDlg(); },
 };
 
 function runInlineAction(code, ev, el) {
