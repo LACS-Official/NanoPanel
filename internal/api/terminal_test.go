@@ -79,10 +79,11 @@ func parseServerFrame(b []byte) (byte, []byte, bool) {
 	fin := b[0]&0x80 != 0
 	length := int(b[1] & 0x7F)
 	off := 2
-	if length == 126 {
+	switch length {
+	case 126:
 		length = int(binary.BigEndian.Uint16(b[2:4]))
 		off = 4
-	} else if length == 127 {
+	case 127:
 		length = int(binary.BigEndian.Uint64(b[2:10]))
 		off = 10
 	}

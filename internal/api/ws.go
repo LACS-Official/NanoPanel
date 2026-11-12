@@ -232,7 +232,7 @@ func (c *wsConn) writeFrame(opcode byte, payload []byte, fin bool) error {
 	if err := c.conn.SetWriteDeadline(time.Now().Add(wsWriteTimeout)); err != nil {
 		return err
 	}
-	defer c.conn.SetWriteDeadline(time.Time{})
+	defer func() { _ = c.conn.SetWriteDeadline(time.Time{}) }()
 
 	first := opcode
 	if fin {
