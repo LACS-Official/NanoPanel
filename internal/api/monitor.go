@@ -213,8 +213,11 @@ func (s *Server) checkTemp(ctx context.Context) {
 		return
 	}
 	temps := sysinfo.Temperatures()
-	if s.tempProbe != nil {
-		temps = s.tempProbe()
+	s.healthMu.Lock()
+	probe := s.tempProbe
+	s.healthMu.Unlock()
+	if probe != nil {
+		temps = probe()
 	}
 	max, label := 0.0, ""
 	for _, z := range temps {
@@ -227,11 +230,11 @@ func (s *Server) checkTemp(ctx context.Context) {
 	}
 
 	s.healthMu.Lock()
-	was := s.tempAlerted
+	was := s.tempAlerted.Load()
 	if max >= threshold && !was {
-		s.tempAlerted = true
+		s.tempAlerted.Store(true)
 	} else if max < threshold-5 && was {
-		s.tempAlerted = false
+		s.tempAlerted.Store(false)
 		s.healthMu.Unlock()
 		s.notifyAsync("temp", "温度已回落", "设备温度已回落至 "+formatCelsius(max))
 		go s.appendAudit(auditEntry{

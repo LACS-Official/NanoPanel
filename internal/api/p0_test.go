@@ -214,25 +214,27 @@ func TestTempAlertAndRecovery(t *testing.T) {
 	srv.cfg.TempThresholdC = 50
 	srv.mu.Unlock()
 	current := 55.0 // 高于阈值 50
+	srv.healthMu.Lock()
 	srv.tempProbe = func() []sysinfo.TempZone {
 		return []sysinfo.TempZone{{Label: "cpu-thermal", Celsius: current}}
 	}
+	srv.healthMu.Unlock()
 
 	srv.checkTemp(context.Background())
-	if !srv.tempAlerted {
+	if !srv.tempAlerted.Load() {
 		t.Fatal("超过阈值应置位告警标记")
 	}
 
 	// 持续高温不再重复告警（标记保持，不会二次推送）
 	srv.checkTemp(context.Background())
-	if !srv.tempAlerted {
+	if !srv.tempAlerted.Load() {
 		t.Fatal("高温期间标记应保持")
 	}
 
 	// 回落到滞回带以下（阈值-5）清除标记
 	current = 44
 	srv.checkTemp(context.Background())
-	if srv.tempAlerted {
+	if srv.tempAlerted.Load() {
 		t.Fatal("回落后应清除告警标记")
 	}
 }

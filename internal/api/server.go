@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"nanopanel/internal/auth"
@@ -29,9 +30,12 @@ type Server struct {
 	mu sync.RWMutex
 
 	// healthMu 保护应用健康状态快照，避免定时检测与手动检测并发。
-	healthMu    sync.Mutex
-	lastHealth  map[string]string // appID -> running / down / unknown / not_installed
-	tempAlerted bool              // 温度告警去重标记（滞回带内只告警一次）
+	healthMu   sync.Mutex
+	lastHealth map[string]string // appID -> running / down / unknown / not_installed
+
+	// tempAlerted 温度告警去重标记（滞回带内只告警一次）。使用原子类型，
+	// 因为定时检测循环与手动检查、测试会并发读写。
+	tempAlerted atomic.Bool
 
 	// mihomoBase 仅用于测试注入，为空时按配置的控制端口拼装。
 	mihomoBase string
