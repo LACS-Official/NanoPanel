@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -60,8 +61,35 @@ const (
 	webhookRetryBackoff = 2 * time.Second // 2s → 4s
 )
 
-// postWebhook 按指定格式构造并推送通知。
-func postWebhook(url, format, event, title, content string) error {
+// resolveWebhookFormat 在尊重用户显式选择的前提下，对未指定（generic）且 URL 命中
+// 已知平台域名的场景自动纠正，避免企业微信 / 钉钉 / 飞书 / Server酱 机器人因格式错配
+// 而静默失败。用户已显式选择具体格式时一律尊重其选择。
+func resolveWebhookFormat(url, userFormat string) string {
+	if userFormat != "" && userFormat != "generic" {
+		return userFormat
+	}
+	u := strings.ToLower(url)
+	switch {
+	case strings.Contains(u, "qyapi.weixin.qq.com"):
+		return "wecom"
+	case strings.Contains(u, "oapi.dingtalk.com"):
+		return "dingtalk"
+	case strings.Contains(u, "open.feishu.cn") || strings.Contains(u, "larksuite.com"):
+		return "feishu"
+	case strings.Contains(u, "sc.ftqq.com") || strings.Contains(u, "sctapi.ftqq.com"):
+		return "serverchan"
+	default:
+		if userFormat == "" {
+			return "generic"
+		}
+		return userFormat
+	}
+}
+
+// postWebhook 按解析后的格式构造并推送通知。
+// format 解析遵循 resolveWebhookFormat：用户已选具体格式时尊重之，否则按 URL 域名识别。
+func postWebhook(url, userFormat, event, title, content string) error {
+	format := resolveWebhookFormat(url, userFormat)
 	body, err := buildWebhookPayload(format, event, title, content)
 	if err != nil {
 		return err
@@ -79,6 +107,41 @@ func postWebhook(url, format, event, title, content string) error {
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("webhook 端点返回 HTTP %d", resp.StatusCode)
+	}
+	// 企业微信 / 钉钉 / 飞书 / Server酱 等平台对非法载荷返回 HTTP 200 但业务码非 0，
+	// 必须解析响应体，否则会误判为成功而静默丢失通知。
+	if berr := checkWebhookBizError(format, resp); berr != nil {
+		return berr
+	}
+	return nil
+}
+
+// checkWebhookBizError 读取响应体，对已知平台校验业务层状态码。
+// 非 JSON 或不含已知错误码的响应一律视作成功（兼容自定义端点）。
+func checkWebhookBizError(format string, resp *http.Response) error {
+	var m struct {
+		Errcode int    `json:"errcode"`
+		Errmsg  string `json:"errmsg"`
+		Code    int    `json:"code"`
+		Msg     string `json:"msg"`
+		Errno   int    `json:"errno"`
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if err != nil || len(body) == 0 {
+		return nil
+	}
+	if jsonErr := json.Unmarshal(body, &m); jsonErr != nil {
+		return nil
+	}
+	switch format {
+	case "wecom", "dingtalk":
+		if m.Errcode != 0 {
+			return fmt.Errorf("webhook 端点业务错误: errcode=%d %s", m.Errcode, m.Errmsg)
+		}
+	case "feishu", "serverchan":
+		if m.Code != 0 {
+			return fmt.Errorf("webhook 端点业务错误: code=%d %s", m.Code, m.Msg)
+		}
 	}
 	return nil
 }
@@ -181,8 +244,11 @@ func (s *Server) SaveWebhook(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	oldURL, oldFmt, oldEvents := s.cfg.WebhookURL, s.cfg.WebhookFormat, s.cfg.WebhookEvents
+	// URL 命中已知平台但用户未显式选格式时，自动纠正，避免静默失配。
+	resolved := resolveWebhookFormat(req.URL, req.Format)
+	autoFixed := resolved != req.Format
 	s.cfg.WebhookURL = req.URL
-	s.cfg.WebhookFormat = req.Format
+	s.cfg.WebhookFormat = resolved
 	s.cfg.WebhookEvents = append([]string(nil), req.Events...)
 	if err := s.cfg.Save(s.configPath); err != nil {
 		s.cfg.WebhookURL, s.cfg.WebhookFormat, s.cfg.WebhookEvents = oldURL, oldFmt, oldEvents
@@ -192,9 +258,13 @@ func (s *Server) SaveWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Unlock()
 
-	s.audit(r, "settings", "保存 Webhook 配置", req.Format)
-	s.notifyAsync("settings", "Webhook 配置已更新", "通知格式: "+req.Format)
-	ok(w, map[string]string{"msg": "已保存"})
+	s.audit(r, "settings", "保存 Webhook 配置", resolved)
+	s.notifyAsync("settings", "Webhook 配置已更新", "通知格式: "+resolved)
+	msg := "已保存"
+	if autoFixed {
+		msg = "已保存，并自动识别为「" + resolved + "」格式"
+	}
+	ok(w, map[string]interface{}{"msg": msg, "format": resolved})
 }
 
 // TestWebhook 立即推送一条测试通知，同步返回结果。

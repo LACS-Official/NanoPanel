@@ -27,9 +27,9 @@ export interface ReleaseAsset {
 }
 
 export interface ReleaseInfo {
-  /** 不带 v 的版本号，如 0.1.4 */
+  /** 不带 v 的版本号，如 0.1.5 */
   version: string;
-  /** 带 v 的 tag，如 v0.1.4 */
+  /** 带 v 的 tag，如 v0.1.5 */
   tag: string;
   /** 发布日期 YYYY-MM-DD，未知时为空串 */
   publishedAt: string;

@@ -275,7 +275,8 @@ function whSelectedEvents(){
 async function saveWebhook(){
   const body = { url: document.getElementById('whUrl').value.trim(),
     format: document.getElementById('whFormat').value, events: whSelectedEvents() };
-  try { const d = await call('POST','/settings/webhook', body); toast(d.msg || '已保存'); }
+  try { const d = await call('POST','/settings/webhook', body); toast(d.msg || '已保存');
+    if (d.format) document.getElementById('whFormat').value = d.format; }
   catch(e){ toast(e.message); }
 }
 async function testWebhook(){

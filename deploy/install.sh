@@ -6,7 +6,7 @@ set -euo pipefail
 
 # ============ 可通过环境变量覆盖的配置 ============
 REPO="${NP_REPO:-LACS-Official/NanoPanel}" # GitHub 仓库 owner/repo，默认官方仓库
-VERSION="${NP_VERSION:-latest}"             # latest = 跟随最新 Release；也可写 v0.1.4
+VERSION="${NP_VERSION:-latest}"             # latest = 跟随最新 Release；也可写 v0.1.5
 PORT="${NP_PORT:-8080}"                     # 面板端口
 NP_USERNAME="${NP_USERNAME:-admin}"         # 登录用户名
 NP_PASSWORD="${NP_PASSWORD:-}"              # 留空则自动生成随机密码
@@ -34,7 +34,7 @@ NanoPanel 安装脚本
   curl -fsSL ${WEBSITE}/install.sh | sudo bash
 
 环境变量:
-  NP_VERSION          latest（默认）或 v0.1.4
+  NP_VERSION          latest（默认）或 v0.1.5
   NP_PORT             面板端口，默认 8080
   NP_USERNAME         用户名，默认 admin
   NP_PASSWORD         密码，默认随机生成
@@ -49,7 +49,7 @@ NanoPanel 安装脚本
 
 示例:
   curl -fsSL ${WEBSITE}/install.sh | sudo NP_PORT=9090 bash
-  curl -fsSL ${WEBSITE}/install.sh | sudo NP_VERSION=v0.1.4 bash
+  curl -fsSL ${WEBSITE}/install.sh | sudo NP_VERSION=v0.1.5 bash
 EOF
 }
 
