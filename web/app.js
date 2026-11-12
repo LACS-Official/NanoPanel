@@ -78,6 +78,7 @@ async function doLogin(){
   } catch(e){ toast(e.message); }
 }
 async function doLogout(){
+  if (window.NPTerminal) window.NPTerminal.dispose();
   try { await call('POST','/logout'); } catch(e){}
   token=''; localStorage.removeItem('np_token'); showLogin();
 }
@@ -91,6 +92,7 @@ const viewMeta = {
   network:   { t:'网络',     s:'连通性测试' },
   disks:     { t:'磁盘',     s:'块设备挂载与用量管理' },
   files:     { t:'文件',     s:'受限目录内的文件管理' },
+  terminal:  { t:'终端', s:'浏览器内交互式 Shell（PTY）' },
   apps:      { t:'应用', s:'应用、系统服务与下载源管理',
                tabs:[['all','全部'],['installed','已安装'],['upgradable','可升级'],['store','设置']] },
   settings:  { t:'设置',     s:'通知、安全与面板信息',
@@ -100,6 +102,8 @@ const viewMeta = {
 let curSub = {};
 function currentView(){ const b=document.querySelector('.nav button.active'); return b?b.dataset.view:''; }
 function switchView(v){
+  const prev = currentView();
+  if (prev === 'terminal' && prev !== v && window.NPTerminal) window.NPTerminal.leave();
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
   const m = viewMeta[v] || {};
@@ -113,6 +117,7 @@ function switchView(v){
   if (v==='disks') loadDisks();
   if (v==='files' && !fmPath) loadFiles();
   if (v==='about') renderAbout();
+  if (v==='terminal' && window.NPTerminal) window.NPTerminal.enter();
   startNetTimer(v==='network');
 }
 function renderSubtabs(v){
@@ -131,6 +136,7 @@ function setSub(v,k){
   if (v==='logs') (k==='system') ? loadLogs() : loadPanelLogs();
   if (v==='apps' && k==='store') loadMirrorSettings();
   if (v==='settings' && k==='system') loadTLS();
+  if (v==='settings' && k==='security') loadTerminalSettings();
   if (v==='settings' && k==='maintain') loadCron();
 }
 document.getElementById('pageSubtabs').addEventListener('click', e=>{
@@ -434,6 +440,34 @@ async function updateManifest(){
 }
 
 // ===== HTTPS 设置 =====
+/* ===== 内置终端设置（设置 → 安全） ===== */
+async function loadTerminalSettings(){
+  const box = document.getElementById('termEnabledCfg');
+  if (!box) return;
+  try {
+    const d = await call('GET','/terminal/settings');
+    box.checked = !!d.enabled;
+    document.getElementById('termShellCfg').value = d.shell || '';
+    document.getElementById('termCfgHint').textContent =
+      '当前 Shell：' + (d.shell_resolved || '自动探测') +
+      ' · 运行身份：' + (d.user || '未知') +
+      ' · 平台：' + (d.platform || '-') +
+      (d.pty ? '（完整 PTY）' : '（无 PTY，交互程序受限）') +
+      ' · 活跃会话：' + d.active + '/' + d.max_sessions;
+  } catch(e){
+    document.getElementById('termCfgHint').textContent = '读取失败：' + e.message;
+  }
+}
+async function saveTerminalSettings(){
+  const enabled = document.getElementById('termEnabledCfg').checked;
+  const shell = document.getElementById('termShellCfg').value.trim();
+  try {
+    await call('POST','/terminal/settings', { enabled: enabled, shell: shell });
+    toast('终端设置已保存');
+    loadTerminalSettings();
+  } catch(e){ toast(e.message); }
+}
+
 async function loadTLS(){
   try {
     const d = await call('GET','/settings/tls');
@@ -1269,6 +1303,7 @@ const INLINE_ACTIONS = {
   "doReboot()": () => doReboot(),
   "saveTLS(true)": () => saveTLS(true),
   "saveTLS(false)": () => saveTLS(false),
+  "saveTerminalSettings()": () => saveTerminalSettings(),
   // 版本更新
   "checkUpdate()": () => checkUpdate(),
   "applyUpdate()": () => applyUpdate(),

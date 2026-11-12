@@ -56,6 +56,7 @@
         <button data-view="network"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5.6"/><ellipse cx="8" cy="8" rx="2.4" ry="5.6"/><path d="M2.4 8h11.2"/></svg>网络</button>
         <button data-view="disks"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><ellipse cx="8" cy="3.8" rx="5.4" ry="2.2"/><path d="M2.6 3.8v8.4c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2V3.8"/><path d="M2.6 8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2"/></svg>磁盘</button>
         <button data-view="files"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5h4l1.4 1.8H14v7.2H2z"/><path d="M5.6 9.2h4.8"/></svg>文件</button>
+        <button data-view="terminal"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.8" y="2.5" width="12.4" height="11" rx="1.8"/><path d="M4.6 6.2l2.1 1.8-2.1 1.8M8.4 10.2h3"/></svg>终端</button>
         <button data-view="settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 5h4.4M9.6 5H14M2 11h9.4"/><circle cx="8" cy="5" r="1.7"/><circle cx="13" cy="11" r="1.7"/></svg>设置</button>
         <button data-view="about"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.3v3.3M8 5.2v.2"/></svg>关于</button>
       </nav>
@@ -304,6 +305,21 @@
             <div style="font-size:12px;color:var(--gray);margin-bottom:12px">退出当前浏览器保存的登录凭据。</div>
             <button class="btn gray" data-act="doLogout()">退出登录</button>
           </div>
+          <div class="card">
+            <h2>内置终端</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              终端以面板服务身份运行（通常为 root），等同于直接登录服务器。禁用后终端接口与 WebSocket 一律拒绝连接，
+              需要时可在此重新启用。会话开启与结束均写入面板日志。
+            </div>
+            <label class="lbl" style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="termEnabledCfg" style="width:auto"> 启用内置终端
+            </label>
+            <div class="row-flex" style="margin-top:10px">
+              <input id="termShellCfg" placeholder="Shell 绝对路径（留空自动探测）" style="flex:1;min-width:220px;margin:0">
+              <button class="btn sm" data-act="saveTerminalSettings()">保存</button>
+            </div>
+            <div id="termCfgHint" style="font-size:12px;color:var(--gray);margin-top:10px"></div>
+          </div>
         </div>
         <div class="subpane hidden" data-sub="maintain">
           <div class="card">
@@ -360,6 +376,40 @@
             <div style="font-size:12px;color:var(--gray);margin-bottom:12px">重启会中断所有正在运行的服务，请谨慎操作。</div>
             <button class="btn danger" style="background:#ff3b30;color:#fff" data-act="doReboot()">重启系统</button>
           </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-terminal">
+        <div class="term-shell">
+          <div class="term-toolbar">
+            <div class="term-tabs" id="termTabs"></div>
+            <div class="term-tools">
+              <button class="term-tbtn" id="termNew" title="新建会话">＋ 新建</button>
+              <button class="term-tbtn" id="termClose" title="关闭当前会话">关闭</button>
+              <span class="term-sep"></span>
+              <button class="term-tbtn" id="termClear" title="清空屏幕与回滚缓冲">清屏</button>
+              <button class="term-tbtn" id="termCopy" title="复制选中的文本">复制</button>
+              <button class="term-tbtn" id="termPaste" title="粘贴剪贴板内容（需浏览器授权）">粘贴</button>
+              <span class="term-sep"></span>
+              <button class="term-tbtn" id="termFontMinus" title="缩小字号">A−</button>
+              <span class="term-font" id="termFontLabel">13px</span>
+              <button class="term-tbtn" id="termFontPlus" title="放大字号">A＋</button>
+              <select class="term-quick" id="termQuick" title="插入常用命令"></select>
+              <span class="term-sep"></span>
+              <button class="term-tbtn" id="termReconnect" title="重新建立会话">重连</button>
+              <button class="term-tbtn" id="termFull" title="全屏显示（Esc 退出）">全屏</button>
+            </div>
+          </div>
+          <div class="term-notice hidden" id="termNotice">
+            <div class="term-notice-icon">!</div>
+            <div class="term-notice-text" id="termNoticeText">
+              <b>终端以面板服务身份运行（通常为 root），等同于直接登录服务器。</b>
+              请仅在可信网络中使用；会话开启与结束会写入面板审计日志。选中文本后按 Ctrl+Shift+C 复制，Ctrl+V 粘贴。
+            </div>
+            <button class="term-notice-close" id="termNoticeClose" title="不再提示">×</button>
+          </div>
+          <div class="term-body" id="termBody"></div>
+          <div class="term-status" id="termStatus"><span class="term-st-item">无会话</span></div>
         </div>
       </div>
 
@@ -512,6 +562,8 @@
   </div>
 </div>
 
+<script src="term-core.js" defer></script>
+<script src="terminal.js" defer></script>
 <script src="app.js" defer></script>
 </body>
 </html>

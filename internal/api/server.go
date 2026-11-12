@@ -62,6 +62,11 @@ type Server struct {
 
 	// updateMu 防止后台自动更新与手动升级并发操作二进制。
 	updateMu sync.Mutex
+
+	// termMu 保护内置终端的一次性票据与活跃会话表。
+	termMu       sync.Mutex
+	termTickets  map[string]terminalTicket
+	termSessions map[string]*terminalSession
 }
 
 // NewServer 创建 API 服务容器。
@@ -105,9 +110,10 @@ func (s *Server) SecurityHeaders(next http.Handler) http.Handler {
 		h.Set("X-XSS-Protection", "0")
 		// CSP：仅允许同源脚本与连接、内联样式（页面大量 style="" 属性）、
 		// data: 图片（内嵌 SVG 图标）；禁 object / 插件，禁止被嵌入与提交外部表单。
+		// connect-src 追加精确同源的 ws/wss，供内置终端的 WebSocket 使用。
 		h.Set("Content-Security-Policy",
 			"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "+
-				"img-src 'self' data:; connect-src 'self'; object-src 'none'; "+
+				"img-src 'self' data:; connect-src 'self'"+wsConnectSources(r.Host)+"; object-src 'none'; "+
 				"base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			h.Set("Cache-Control", "no-store")

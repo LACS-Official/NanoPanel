@@ -29,7 +29,8 @@
 
 ## 特性
 
-- **单文件交付**：Go 标准库编译为静态二进制，前端用 `go:embed` 内嵌，部署只发一个约 6 MB 的文件
+- **单文件交付**：Go 标准库编译为静态二进制，前端用 `go:embed` 内嵌，部署只发一个约 8 MB 的文件
+- **内置 Web 终端**：浏览器内直接获得完整 PTY Shell（支持 `vim` / `top` / `sudo`、Tab 补全、Ctrl+C 作业控制），多会话标签、ANSI 256 色与中文宽字符、窗口自适应与 SIGWINCH、选区复制与括号粘贴、常用命令速查、断线自动重连；可在「设置 → 安全」随时禁用，会话开启与结束写入审计日志
 - **一键安装**：自动探测最优镜像源、自动生成随机初始密码、安装后直接打印访问地址与账号
 - **检查更新与自动升级**：面板内一键检查 GitHub 最新 Release，可自动下载安装，失败自动回滚；支持国内镜像加速
 - **`npctl` 管理工具**：查看账号、重置密码、启停服务、查看镜像源、卸载
@@ -60,7 +61,7 @@ curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash
 
 ```bash
 # 指定版本 / 端口
-curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_VERSION=v0.1.3 NP_PORT=9090 bash
+curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_VERSION=v0.1.4 NP_PORT=9090 bash
 
 # 强制走某个镜像（跳过测速）
 curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_MIRROR=https://ghfast.top/https://github.com bash
@@ -106,7 +107,7 @@ sudo ./install.sh          # WSL 默认 root 时可直接 ./install.sh
   Windows  : http://localhost:8080  (WSL2 端口转发)
   用户名   : admin
   密码     : KK5fuGszsWE5Mktb
-  版本     : 0.1.3
+  版本     : 0.1.4
   下载源   : github (0.361059s)
   软件源   : ustc (0.220176s)
 ------------------------------------------------------------
@@ -136,7 +137,7 @@ Windows 浏览器打开 **http://localhost:8080** 即可（WSL2 自带 localhost
 | 变量 | 默认值 | 说明 |
 |---|---|---|
 | `NP_REPO` | `LACS-Official/NanoPanel` | GitHub `owner/repo`，指向自己的 fork 即可自建发布 |
-| `NP_VERSION` | `latest` | `latest` 跟随最新 Release，也可写 `v0.1.3` |
+| `NP_VERSION` | `latest` | `latest` 跟随最新 Release，也可写 `v0.1.4` |
 | `NP_PORT` | `8080` | 面板监听端口 |
 | `NP_USERNAME` | `admin` | 登录用户名 |
 | `NP_PASSWORD` | 随机 16 位 | 登录密码；留空自动生成 |
@@ -259,6 +260,10 @@ make build-all    # 交叉编译三个 Linux 架构
 | POST | `/settings/webhook/test` | 立即发送一条测试通知 |
 | GET | `/mihomo/status` | mihomo 安装状态、控制端口与内核版本 |
 | GET | `/settings/mirror` | 应用商店下载源（安装时自动测速结果） |
+| GET | `/terminal/settings` | 内置终端开关、Shell、运行身份与会话数 |
+| POST | `/terminal/settings` | 修改终端开关与 Shell 路径 |
+| POST | `/terminal/session` | 签发 30 秒一次性 WebSocket 连接票据 |
+| GET | `/terminal/ws?ticket=` | WebSocket 升级，双向转发 PTY 字节流（二进制帧为 I/O，文本帧为控制消息） |
 
 ## 应用商店约定
 
@@ -348,7 +353,7 @@ NanoPanel/
 
 ## 安全
 
-面板按设计具备 root 级操作能力，请勿暴露到公网。密码使用 PBKDF2-HMAC-SHA256（120000 轮 + 随机盐），登录失败 5 次锁定 1 分钟，所有外部命令带超时，配置文件权限 0600。完整威胁模型、已知限制与漏洞报告方式见 [SECURITY.md](SECURITY.md)。
+面板按设计具备 root 级操作能力，请勿暴露到公网。密码使用 PBKDF2-HMAC-SHA256（120000 轮 + 随机盐），登录失败 5 次锁定 1 分钟，所有外部命令带超时，配置文件权限 0600。内置终端等同于以面板服务身份（通常 root）直接登录设备：WebSocket 采用登录后签发的 30 秒一次性票据、校验同源 Origin、限制并发会话与空闲时长，并可在「设置 → 安全」彻底禁用。完整威胁模型、已知限制与漏洞报告方式见 [SECURITY.md](SECURITY.md)。
 
 ## 贡献与许可
 

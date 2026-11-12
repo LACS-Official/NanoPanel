@@ -74,6 +74,12 @@ type Config struct {
 	AutoUpdate bool `json:"auto_update,omitempty"`
 	// UpdateCheckHour 每日自动检查更新的小时（0-23）。
 	UpdateCheckHour int `json:"update_check_hour,omitempty"`
+
+	// TerminalEnabled 控制内置 Web 终端；nil 或 true 为启用，false 为禁用。
+	// 终端以面板服务身份（通常为 root）运行，故提供显式开关。
+	TerminalEnabled *bool `json:"terminal_enabled,omitempty"`
+	// TerminalShell 指定终端使用的 shell 绝对路径，空则自动探测。
+	TerminalShell string `json:"terminal_shell,omitempty"`
 }
 
 // DefaultMonitorIntervalSec 是应用掉线检测的默认间隔。

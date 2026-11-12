@@ -167,6 +167,12 @@ func main() {
 	mux.HandleFunc("POST /api/v1/update/settings", srv.AuthMiddleware(srv.SaveUpdateSettings))
 	mux.HandleFunc("POST /api/v1/update/apply", srv.AuthMiddleware(srv.ApplyUpdate))
 
+	// 内置终端：设置与票据走登录鉴权，WebSocket 用一次性票据自鉴权。
+	mux.HandleFunc("GET /api/v1/terminal/settings", srv.AuthMiddleware(srv.TerminalSettings))
+	mux.HandleFunc("POST /api/v1/terminal/settings", srv.AuthMiddleware(srv.SaveTerminalSettings))
+	mux.HandleFunc("POST /api/v1/terminal/session", srv.AuthMiddleware(srv.CreateTerminalSession))
+	mux.HandleFunc("GET /api/v1/terminal/ws", srv.TerminalWS)
+
 	// 前端静态文件（SPA）
 	staticSub, err := fs.Sub(webFS, "web")
 	if err != nil {
