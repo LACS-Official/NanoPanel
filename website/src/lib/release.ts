@@ -13,6 +13,9 @@
  *   NP_RELEASE_SOURCE    = static 时跳过网络，强制使用兜底配置
  */
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { SITE_CONFIG } from "@/config/site";
 
 export interface ReleaseAsset {
@@ -37,6 +40,8 @@ export interface ReleaseInfo {
   assets: ReleaseAsset[];
   /** api = 完整信息，redirect = 仅解析到 tag，fallback = 站点配置 */
   source: "api" | "redirect" | "fallback";
+  /** 该版本对应的更新日志（HTML，已由 markdown 渲染），无则为 undefined */
+  changelogHtml?: string;
 }
 
 const { repo, apiBase, fallbackVersion, fallbackDate } = SITE_CONFIG.release;
@@ -201,40 +206,195 @@ function fromConfig(): ReleaseInfo {
 
 let cached: Promise<ReleaseInfo> | null = null;
 
+/**
+ * 定位仓库根目录的 CHANGELOG.md。
+ * 构建时官网与仓库同仓：website 的 cwd 是 website 目录，故优先试 ../CHANGELOG.md，
+ * 再回退到从本模块位置逐级向上查找，最后试 cwd 本身。
+ */
+function findChangelogPath(): string | null {
+  const candidates: string[] = [
+    resolve(process.cwd(), "../CHANGELOG.md"),
+    resolve(process.cwd(), "CHANGELOG.md"),
+  ];
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 8; i++) {
+    candidates.push(resolve(dir, "CHANGELOG.md"));
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** 行内 markdown：链接 / 加粗 / 行内代码（先转义，再套标记，杜绝 HTML 注入）。 */
+function inlineMd(s: string): string {
+  let t = escapeHtml(s);
+  t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, text: string, url: string) => {
+    // url 已被 escapeHtml 处理过，可安全放入属性
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  });
+  t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+  return t;
+}
+
+/**
+ * 把 CHANGELOG 的小节（我们自己的有限子集）渲染成 HTML：
+ * ### 标题 / ## 标题 / - 列表 / 段落，配合行内标记。
+ * 不引入第三方 markdown 库，输出可直接交给 @tailwindcss/typography 的 prose 排版。
+ */
+export function renderChangelogMarkdown(md: string): string {
+  const lines = md.split(/\r?\n/);
+  const out: string[] = [];
+  let inList = false;
+  const closeList = () => {
+    if (inList) {
+      out.push("</ul>");
+      inList = false;
+    }
+  };
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, "");
+    if (line.trim() === "") {
+      closeList();
+      continue;
+    }
+    if (/^###\s+/.test(line)) {
+      closeList();
+      out.push(`<h3>${inlineMd(line.replace(/^###\s+/, ""))}</h3>`);
+      continue;
+    }
+    if (/^##\s+/.test(line)) {
+      closeList();
+      out.push(`<h2>${inlineMd(line.replace(/^##\s+/, ""))}</h2>`);
+      continue;
+    }
+    if (/^[-*]\s+/.test(line)) {
+      if (!inList) {
+        out.push("<ul>");
+        inList = true;
+      }
+      out.push(`<li>${inlineMd(line.replace(/^[-*]\s+/, ""))}</li>`);
+      continue;
+    }
+    closeList();
+    out.push(`<p>${inlineMd(line)}</p>`);
+  }
+  closeList();
+  return out.join("\n");
+}
+
+/**
+ * 从 CHANGELOG.md 文本中截取指定版本的小节正文（不含版本标题行）。
+ * 优先精确匹配版本号；找不到时回退到「未发布」小节，再回退到第一个版本小节。
+ */
+function extractChangelogSection(md: string, version: string): string | null {
+  const lines = md.split(/\r?\n/);
+  const safeVer = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const verRe = new RegExp(`^##\\s+\\[?${safeVer}\\]?\\b`);
+
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (verRe.test(lines[i])) {
+      start = i;
+      break;
+    }
+  }
+  if (start === -1) {
+    for (let i = 0; i < lines.length; i++) {
+      if (/^##\s+\[?未发布\]?/.test(lines[i])) {
+        start = i;
+        break;
+      }
+    }
+  }
+  if (start === -1) {
+    for (let i = 0; i < lines.length; i++) {
+      if (/^##\s+/.test(lines[i])) {
+        start = i;
+        break;
+      }
+    }
+  }
+  if (start === -1) return null;
+
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^##\s+/.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+  const section = lines.slice(start + 1, end).join("\n").trim();
+  return section || null;
+}
+
+/** 读取仓库 CHANGELOG.md，渲染当前版本的更新日志 HTML（失败返回 undefined）。 */
+function getChangelogHtml(version: string): string | undefined {
+  const path = findChangelogPath();
+  if (!path) {
+    console.warn("[release] 未找到 CHANGELOG.md，跳过更新日志渲染");
+    return undefined;
+  }
+  try {
+    const md = readFileSync(path, "utf8");
+    const section = extractChangelogSection(md, version);
+    if (!section) {
+      console.warn(`[release] CHANGELOG.md 中未找到版本 ${version} 的小节`);
+      return undefined;
+    }
+    return renderChangelogMarkdown(section);
+  } catch (err) {
+    console.warn(`[release] 读取/渲染 CHANGELOG.md 失败: ${(err as Error).message}`);
+    return undefined;
+  }
+}
+
 /** 构建期解析最新 Release（同一进程内只查一次）。 */
 export function getRelease(): Promise<ReleaseInfo> {
   if (cached) return cached;
 
   cached = (async () => {
+    let r: ReleaseInfo;
     if (process.env.NP_RELEASE_SOURCE === "static") {
       console.log("[release] NP_RELEASE_SOURCE=static，跳过网络查询");
-      return fromConfig();
-    }
-
-    try {
-      const viaApi = await fromApi();
-      if (viaApi) {
-        console.log(`[release] GitHub API 解析到 ${viaApi.tag}（${viaApi.assets.length} 个资产）`);
-        return viaApi;
+      r = fromConfig();
+    } else {
+      try {
+        const viaApi = await fromApi();
+        if (viaApi) {
+          console.log(`[release] GitHub API 解析到 ${viaApi.tag}（${viaApi.assets.length} 个资产）`);
+          r = viaApi;
+        } else {
+          console.warn("[release] GitHub API 不可用，尝试解析 releases/latest 重定向");
+          const viaRedirect = await fromRedirect();
+          if (viaRedirect) {
+            console.log(`[release] 重定向解析到 ${viaRedirect.tag}`);
+            r = viaRedirect;
+          } else {
+            console.warn("[release] 重定向未解析出 tag，使用站点兜底版本");
+            r = fromConfig();
+          }
+        }
+      } catch (err) {
+        console.warn(`[release] GitHub 查询失败（${(err as Error).message}），使用站点兜底版本`);
+        r = fromConfig();
       }
-      console.warn("[release] GitHub API 不可用，尝试解析 releases/latest 重定向");
-    } catch (err) {
-      console.warn(`[release] GitHub API 请求失败: ${(err as Error).message}`);
     }
 
-    try {
-      const viaRedirect = await fromRedirect();
-      if (viaRedirect) {
-        console.log(`[release] 重定向解析到 ${viaRedirect.tag}`);
-        return viaRedirect;
-      }
-      console.warn("[release] 重定向未解析出 tag");
-    } catch (err) {
-      console.warn(`[release] 重定向请求失败: ${(err as Error).message}`);
+    const html = getChangelogHtml(r.version);
+    if (html) {
+      r.changelogHtml = html;
+      console.log(`[release] 已渲染 v${r.version} 更新日志`);
     }
-
-    console.warn(`[release] 使用站点兜底版本 v${fallbackVersion}（离线构建）`);
-    return fromConfig();
+    return r;
   })();
 
   return cached;

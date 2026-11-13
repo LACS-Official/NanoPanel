@@ -199,5 +199,92 @@ const structuredData = {
           .catch(function () {});
       })();
     </script>
+
+    <!-- 更新日志实时刷新：构建期已渲染最新版本小节；运行时若站点尚未重建，
+         则拉取仓库 CHANGELOG.md 的最新小节替换，确保发版后日志不滞后。
+         与上方版本同步共用 30 分钟缓存，失败则静默保留构建期内容。 -->
+    <script is:inline>
+      (function () {
+        var box = document.querySelector("[data-np-changelog]");
+        if (!box) return;
+        var REPO = "LACS-Official/NanoPanel";
+        var TTL = 30 * 60 * 1000;
+
+        function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+        function inlineMd(s) {
+          var t = esc(s);
+          t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function (_, a, u) {
+            return '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + a + "</a>";
+          });
+          t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+          t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+          return t;
+        }
+        function renderMd(md) {
+          var lines = md.split(/\r?\n/);
+          var out = [];
+          var inList = false;
+          function close() { if (inList) { out.push("</ul>"); inList = false; } }
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].replace(/\s+$/, "");
+            if (line.trim() === "") { close(); continue; }
+            if (/^###\s+/.test(line)) { close(); out.push("<h3>" + inlineMd(line.replace(/^###\s+/, "")) + "</h3>"); continue; }
+            if (/^##\s+/.test(line)) { close(); out.push("<h2>" + inlineMd(line.replace(/^##\s+/, "")) + "</h2>"); continue; }
+            if (/^[-*]\s+/.test(line)) { if (!inList) { out.push("<ul>"); inList = true; } out.push("<li>" + inlineMd(line.replace(/^[-*]\s+/, "")) + "</li>"); continue; }
+            close(); out.push("<p>" + inlineMd(line) + "</p>");
+          }
+          close();
+          return out.join("\n");
+        }
+        function parseLatest(md) {
+          var lines = md.split(/\r?\n/);
+          var start = -1;
+          for (var i = 0; i < lines.length; i++) {
+            if (/^##\s+\[?[\d.]+\]?/.test(lines[i])) { start = i; break; }
+          }
+          if (start < 0) return null;
+          var end = lines.length;
+          for (var j = start + 1; j < lines.length; j++) {
+            if (/^##\s+/.test(lines[j])) { end = j; break; }
+          }
+          var sec = lines.slice(start + 1, end).join("\n").trim();
+          var m = /^##\s+\[?([\d.]+)\]?/.exec(lines[start]);
+          return { version: m ? m[1] : "", html: renderMd(sec) };
+        }
+        function applyChangelog(version, html) {
+          box.innerHTML = html;
+          var lbl = document.querySelector("[data-np-changelog-ver]");
+          if (lbl) lbl.textContent = version;
+        }
+        function fetchCl() {
+          var base = "https://raw.githubusercontent.com/" + REPO + "/main/CHANGELOG.md";
+          var urls = [base, "https://ghfast.top/" + base];
+          (function tryNext(i) {
+            if (i >= urls.length) return;
+            fetch(urls[i])
+              .then(function (r) { return r.ok ? r.text() : null; })
+              .then(function (t) {
+                if (!t) { tryNext(i + 1); return; }
+                var sec = parseLatest(t);
+                if (!sec) { tryNext(i + 1); return; }
+                try {
+                  localStorage.setItem("np-cl-ts", String(Date.now()));
+                  localStorage.setItem("np-cl-v", sec.version);
+                  localStorage.setItem("np-cl-html", sec.html);
+                } catch (e) {}
+                applyChangelog(sec.version, sec.html);
+              })
+              .catch(function () { tryNext(i + 1); });
+          })(0);
+        }
+        try {
+          var ts = Number(localStorage.getItem("np-cl-ts") || 0);
+          var v = localStorage.getItem("np-cl-v") || "";
+          var html = localStorage.getItem("np-cl-html") || "";
+          if (html && v && Date.now() - ts < TTL) { applyChangelog(v, html); return; }
+        } catch (e) {}
+        fetchCl();
+      })();
+    </script>
   </body>
 </html>

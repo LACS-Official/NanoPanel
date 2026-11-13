@@ -100,6 +100,30 @@ const releaseLabel = release.publishedAt
     </div>
   </section>
 
+  <section class="pb-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-baseline gap-3 mb-6">
+        <h2 class="text-2xl md:text-3xl font-bold tracking-tight">更新日志</h2>
+        <span class="text-sm font-mono text-[#0071e3] dark:text-[#60a5fa]">v<span data-np-changelog-ver>{release.version}</span></span>
+      </div>
+      {
+        release.changelogHtml ? (
+          <div class="np-changelog prose dark:prose-invert max-w-none" data-np-changelog set:html={release.changelogHtml} />
+        ) : (
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            暂无可展示的更新日志，请前往
+            <a href={release.releaseUrl} target="_blank" rel="noopener noreferrer" class="text-[#0071e3] dark:text-[#60a5fa] hover:underline">GitHub 发布说明 ↗</a>
+            查看。
+          </p>
+        )
+      }
+      <p class="mt-5 text-xs text-gray-500 dark:text-gray-500">
+        完整历史版本与变更见
+        <a href={social.releases} target="_blank" rel="noopener noreferrer" class="text-[#0071e3] dark:text-[#60a5fa] hover:underline">GitHub Releases</a>。
+      </p>
+    </div>
+  </section>
+
   <section class="bg-gray-50 dark:bg-[#0f0f12] border-y border-gray-100 dark:border-gray-900">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <h2 class="text-2xl md:text-3xl font-bold tracking-tight">{downloadPage.install.title}</h2>
@@ -184,7 +208,55 @@ const releaseLabel = release.publishedAt
       </div>
     </div>
   </section>
-</MainLayout>
+  </MainLayout>
+
+<style>
+  .np-changelog {
+    background: #fff;
+    border: 1px solid rgb(0 0 0 / 0.07);
+    border-radius: 20px;
+    padding: 1.5rem 1.75rem;
+  }
+  .dark .np-changelog {
+    background: #141418;
+    border-color: rgb(255 255 255 / 0.08);
+  }
+  .np-changelog :global(h3) {
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 1.05rem;
+  }
+  .np-changelog :global(h3:first-child) {
+    margin-top: 0;
+  }
+  .np-changelog :global(ul) {
+    margin: 0.5rem 0;
+    padding-left: 1.25rem;
+  }
+  .np-changelog :global(li) {
+    margin: 0.25rem 0;
+  }
+  .np-changelog :global(code) {
+    background: rgb(0 0 0 / 0.05);
+    padding: 0.1rem 0.35rem;
+    border-radius: 6px;
+    font-size: 0.85em;
+  }
+  .dark .np-changelog :global(code) {
+    background: rgb(255 255 255 / 0.08);
+  }
+  .np-changelog :global(a) {
+    color: #0071e3;
+    text-decoration: none;
+  }
+  .np-changelog :global(a:hover) {
+    text-decoration: underline;
+  }
+  .dark .np-changelog :global(a) {
+    color: #60a5fa;
+  }
+</style>
 
 <script>
   document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
