@@ -231,7 +231,10 @@ const releaseLabel = release.publishedAt
   </section>
   </MainLayout>
 
-<style>
+<!-- 这些样式必须全局生效：运行时脚本会用 innerHTML 重绘历史折叠列表与嵌套更新日志，
+     重绘出的元素不带 Astro 的 data-astro-cid 作用域属性，scoped 规则会全部失效
+     （表现为版本号与日期挤在一起、列表无边框）。类名均为 np- 前缀，仅本页使用，全局化安全。 -->
+<style is:global>
   .np-changelog {
     background: #fff;
     border: 1px solid rgb(0 0 0 / 0.07);
