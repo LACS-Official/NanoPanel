@@ -62,6 +62,7 @@ jobs:
         run: |
           node tests/frontend/term-core.test.js
           node tests/frontend/terminal-ui.test.js
+          node tests/frontend/process-ui.test.js
       - name: CSP inline-action guard
         if: runner.os == 'Linux'
         run: |

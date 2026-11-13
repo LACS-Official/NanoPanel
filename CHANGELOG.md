@@ -2,6 +2,16 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/)。
 
+## [未发布]
+
+### 新增
+
+- **进程管理新增「说明」列**：在「命令」后直接显示这个进程是干什么的。后端内置常见进程用途字典（systemd / sshd / nginx / docker / frp / AdGuard Home / 各类运行时与面板应用等 150+ 项），本地推断、零网络依赖；对 `python3` / `node` 这类通用解释器会结合完整命令行细化（如 Uvicorn、Django、面板应用），内核线程与未收录进程也有明确说明和自助排查提示。悬停「命令」可查看完整命令行
+
+### 修复
+
+- **更新检测误报「已是最新版本」**：安装脚本会把探测到的最优 GitHub 镜像写入 `/etc/nanopanel/mirror.conf` 并经 systemd `EnvironmentFile` 注入 `GITHUB_MIRROR`。原逻辑采信「第一个能解析出 tag 的源」，一旦该镜像的 `releases/latest` 缓存陈旧（例如停在 v0.1.3），面板就永远发现不了新版本。现改为并行探测所有源、收集全部 tag 后取最高版本，绕过个别镜像的过期缓存
+
 ## [0.1.5] - 2026-11-12
 
 ### 修复

@@ -140,6 +140,10 @@
   tbody tr:last-child td { border-bottom:none; }
   .table-wrap { overflow-x:auto; }
   .empty-tip { color:var(--gray); font-size:13px; padding:18px 8px; text-align:center; }
+  /* 进程列表：命令与用途说明列 */
+  .proc-cmd { font-family:"SF Mono",Menlo,Consolas,monospace; font-size:12px; word-break:break-all; max-width:220px; cursor:help; }
+  .proc-desc { color:var(--gray); font-size:12px; line-height:1.5; min-width:190px; max-width:360px; }
+  tbody tr:hover .proc-desc { color:var(--text); }
 
   .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#c7c7cc; margin-right:6px; }
   .dot.active { background:var(--green); }

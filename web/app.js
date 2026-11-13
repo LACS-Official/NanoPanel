@@ -200,12 +200,17 @@ function fmtMemKB(kb){
 async function loadProcesses(){
   try {
     const list = await call('GET','/processes');
-    document.getElementById('procBody').innerHTML = list.map(p=>
-      '<tr><td>'+esc(p.pid)+'</td><td>'+esc(p.user)+'</td>'+
+    document.getElementById('procBody').innerHTML = list.map(p=>{
+      // 悬停「命令」可看到完整命令行，便于确认进程到底跑了什么。
+      const full = (p.args && p.args !== p.comm) ? ' title="'+esc(p.args)+'"' : '';
+      const desc = (p.desc || '未收录的进程').replace('<PID>', p.pid);
+      return '<tr><td>'+esc(p.pid)+'</td><td>'+esc(p.user)+'</td>'+
       '<td><b>'+fmtMemKB(p.rss_kb)+'</b><span style="color:var(--gray);font-size:12px"> '+(Number(p.rss_kb)||0).toLocaleString()+' KB</span></td>'+
-      '<td>'+esc(p.comm)+'</td>'+
-      '<td><button class="btn sm danger" data-pid="'+esc(p.pid)+'">结束</button></td></tr>').join('');
-  } catch(e){ document.getElementById('procBody').innerHTML = '<tr><td colspan="5">'+esc(e.message)+'</td></tr>'; }
+      '<td class="proc-cmd"'+full+'>'+esc(p.comm)+'</td>'+
+      '<td class="proc-desc" title="'+esc(desc)+'">'+esc(desc)+'</td>'+
+      '<td><button class="btn sm danger" data-pid="'+esc(p.pid)+'">结束</button></td></tr>';
+    }).join('');
+  } catch(e){ document.getElementById('procBody').innerHTML = '<tr><td colspan="6">'+esc(e.message)+'</td></tr>'; }
 }
 document.getElementById('procBody').addEventListener('click', async e=>{
   const b = e.target.closest('button[data-pid]'); if(!b) return;
