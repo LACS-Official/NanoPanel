@@ -42,6 +42,18 @@ export interface ReleaseInfo {
   source: "api" | "redirect" | "fallback";
   /** 该版本对应的更新日志（HTML，已由 markdown 渲染），无则为 undefined */
   changelogHtml?: string;
+  /** 全部版本的更新日志（按时间倒序，含最新版），无则为 undefined */
+  changelogHistory?: ChangelogEntry[];
+}
+
+/** 单个版本的更新日志条目（已渲染为 HTML）。 */
+export interface ChangelogEntry {
+  /** 不带 v 的版本号，如 0.1.6 */
+  version: string;
+  /** 发布日期 YYYY-MM-DD，未知时为空串 */
+  date: string;
+  /** 该版本小节的更新日志 HTML */
+  html: string;
 }
 
 const { repo, apiBase, fallbackVersion, fallbackDate } = SITE_CONFIG.release;
@@ -292,68 +304,53 @@ export function renderChangelogMarkdown(md: string): string {
 }
 
 /**
- * 从 CHANGELOG.md 文本中截取指定版本的小节正文（不含版本标题行）。
- * 优先精确匹配版本号；找不到时回退到「未发布」小节，再回退到第一个版本小节。
+ * 从 CHANGELOG.md 全文解析出所有版本小节（按文件中出现的顺序，通常最新在前）。
+ * 仅收录形如 `## [x.y.z] - 日期` / `## x.y.z` 的版本标题；「未发布」等小节跳过。
  */
-function extractChangelogSection(md: string, version: string): string | null {
+function parseChangelogEntries(
+  md: string,
+): Array<{ version: string; date: string; body: string }> {
   const lines = md.split(/\r?\n/);
-  const safeVer = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const verRe = new RegExp(`^##\\s+\\[?${safeVer}\\]?\\b`);
-
+  const entries: Array<{ version: string; date: string; body: string }> = [];
+  let cur: { version: string; date: string; body: string } | null = null;
   let start = -1;
+  const close = (end: number) => {
+    if (cur) {
+      cur.body = lines.slice(start + 1, end).join("\n").trim();
+      entries.push(cur);
+      cur = null;
+    }
+  };
   for (let i = 0; i < lines.length; i++) {
-    if (verRe.test(lines[i])) {
-      start = i;
-      break;
-    }
-  }
-  if (start === -1) {
-    for (let i = 0; i < lines.length; i++) {
-      if (/^##\s+\[?未发布\]?/.test(lines[i])) {
+    const h = /^##\s+(.*)$/.exec(lines[i]);
+    if (h) {
+      close(i);
+      const m = /^\[?([^\]\s]+)\]?(?:\s*-\s*(\d{4}-\d{2}-\d{2}))?/.exec(h[1].trim());
+      if (m && /^[\d.]+$/.test(m[1])) {
+        cur = { version: m[1], date: m[2] ?? "", body: "" };
         start = i;
-        break;
       }
     }
   }
-  if (start === -1) {
-    for (let i = 0; i < lines.length; i++) {
-      if (/^##\s+/.test(lines[i])) {
-        start = i;
-        break;
-      }
-    }
-  }
-  if (start === -1) return null;
-
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i++) {
-    if (/^##\s+/.test(lines[i])) {
-      end = i;
-      break;
-    }
-  }
-  const section = lines.slice(start + 1, end).join("\n").trim();
-  return section || null;
+  close(lines.length);
+  return entries;
 }
 
-/** 读取仓库 CHANGELOG.md，渲染当前版本的更新日志 HTML（失败返回 undefined）。 */
-function getChangelogHtml(version: string): string | undefined {
+/** 读取仓库 CHANGELOG.md，渲染全部版本的更新日志（失败返回空数组）。 */
+function getChangelogHistory(): ChangelogEntry[] {
   const path = findChangelogPath();
   if (!path) {
     console.warn("[release] 未找到 CHANGELOG.md，跳过更新日志渲染");
-    return undefined;
+    return [];
   }
   try {
     const md = readFileSync(path, "utf8");
-    const section = extractChangelogSection(md, version);
-    if (!section) {
-      console.warn(`[release] CHANGELOG.md 中未找到版本 ${version} 的小节`);
-      return undefined;
-    }
-    return renderChangelogMarkdown(section);
+    return parseChangelogEntries(md)
+      .filter((e) => e.body)
+      .map((e) => ({ version: e.version, date: e.date, html: renderChangelogMarkdown(e.body) }));
   } catch (err) {
     console.warn(`[release] 读取/渲染 CHANGELOG.md 失败: ${(err as Error).message}`);
-    return undefined;
+    return [];
   }
 }
 
@@ -389,10 +386,11 @@ export function getRelease(): Promise<ReleaseInfo> {
       }
     }
 
-    const html = getChangelogHtml(r.version);
-    if (html) {
-      r.changelogHtml = html;
-      console.log(`[release] 已渲染 v${r.version} 更新日志`);
+    const history = getChangelogHistory();
+    if (history.length) {
+      r.changelogHistory = history;
+      r.changelogHtml = history.find((h) => h.version === r.version)?.html ?? history[0].html;
+      console.log(`[release] 已渲染 ${history.length} 个版本的更新日志，最新 v${history[0].version}`);
     }
     return r;
   })();

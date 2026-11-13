@@ -108,7 +108,7 @@ const releaseLabel = release.publishedAt
       </div>
       {
         release.changelogHtml ? (
-          <div class="np-changelog prose dark:prose-invert max-w-none" data-np-changelog set:html={release.changelogHtml} />
+          <div class="np-changelog prose dark:prose-invert max-w-none" data-np-changelog-latest set:html={release.changelogHtml} />
         ) : (
           <p class="text-sm text-gray-500 dark:text-gray-400">
             暂无可展示的更新日志，请前往
@@ -117,6 +117,27 @@ const releaseLabel = release.publishedAt
           </p>
         )
       }
+
+      {
+        release.changelogHistory && release.changelogHistory.length > 1 && (
+          <div class="mt-8">
+            <h3 class="text-lg font-semibold tracking-tight mb-3">历史版本</h3>
+            <div class="np-history" data-np-changelog-history>
+              {release.changelogHistory.slice(1).map((e) => (
+                <details class="np-history-item">
+                  <summary>
+                    <span class="np-history-ver">v{e.version}</span>
+                    {e.date && <span class="np-history-date">{e.date}</span>}
+                    <svg class="np-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                  </summary>
+                  <div class="np-changelog prose dark:prose-invert max-w-none np-changelog--nested" set:html={e.html} />
+                </details>
+              ))}
+            </div>
+          </div>
+        )
+      }
+
       <p class="mt-5 text-xs text-gray-500 dark:text-gray-500">
         完整历史版本与变更见
         <a href={social.releases} target="_blank" rel="noopener noreferrer" class="text-[#0071e3] dark:text-[#60a5fa] hover:underline">GitHub Releases</a>。
@@ -255,6 +276,74 @@ const releaseLabel = release.publishedAt
   }
   .dark .np-changelog :global(a) {
     color: #60a5fa;
+  }
+
+  /* —— 历史版本折叠列表 —— */
+  .np-history {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .np-history-item {
+    border: 1px solid rgb(0 0 0 / 0.07);
+    border-radius: 14px;
+    background: #fff;
+    overflow: hidden;
+  }
+  .dark .np-history-item {
+    border-color: rgb(255 255 255 / 0.08);
+    background: #141418;
+  }
+  .np-history-item > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.8rem 1.1rem;
+    cursor: pointer;
+    list-style: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    user-select: none;
+  }
+  .np-history-item > summary::-webkit-details-marker {
+    display: none;
+  }
+  .np-history-item > summary:focus-visible {
+    outline: 2px solid #0071e3;
+    outline-offset: -2px;
+  }
+  .np-history-ver {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #0071e3;
+  }
+  .dark .np-history-ver {
+    color: #60a5fa;
+  }
+  .np-history-date {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: #9ca3af;
+  }
+  .dark .np-history-date {
+    color: #6b7280;
+  }
+  .np-chevron {
+    margin-left: auto;
+    color: #9ca3af;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+  }
+  .np-history-item[open] > summary .np-chevron {
+    transform: rotate(180deg);
+  }
+  .np-changelog--nested {
+    border: none;
+    border-radius: 0;
+    border-top: 1px solid rgb(0 0 0 / 0.07);
+    padding: 1.2rem 1.5rem 1.5rem;
+  }
+  .dark .np-changelog--nested {
+    border-top-color: rgb(255 255 255 / 0.08);
   }
 </style>
 
