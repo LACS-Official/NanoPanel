@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"nanopanel/internal/version"
@@ -65,40 +66,75 @@ func updateBases() []string {
 
 // latestReleaseTag 从 GitHub（带镜像回退）解析最新 Release 的 tag 与发布页地址。
 // 逻辑与 deploy/npctl 的 cmd_upgrade 保持一致。
+//
+// 关键修正：不再"第一个能解析出 tag 的源就采用"，而是并行探测所有源、收集到
+// 的全部 tag 后取最高版本。原因：安装脚本会把探测到的最优镜像写入
+// /etc/nanopanel/mirror.conf 并经 EnvironmentFile 注入 GITHUB_MIRROR，若该镜像的
+// releases/latest 缓存陈旧（例如仍停在旧版本），旧逻辑会直接采信它而永远报
+// "已是最新"。改为取全部源的最大值即可绕过个别镜像的过期缓存。
 func latestReleaseTag() (tag, releaseURL string, err error) {
 	bases := updateBases()
 
-	// 不自动跟随重定向：releases/latest 的 302 Location 就是最新 tag，
-	// 跟随之后只能拿到最终页面，无法解析版本号。
+	type cand struct{ tag, url string }
+	ch := make(chan cand, len(bases))
+	var wg sync.WaitGroup
+	for _, base := range bases {
+		wg.Add(1)
+		go func(base string) {
+			defer wg.Done()
+			if t, u := fetchLatestTag(base); t != "" {
+				ch <- cand{t, u}
+			}
+		}(base)
+	}
+	go func() { wg.Wait(); close(ch) }()
+
+	found := map[string]string{} // tag -> releaseURL，主协程独占写入，无竞态
+	for c := range ch {
+		found[c.tag] = c.url
+	}
+	if len(found) == 0 {
+		return "", "", fmt.Errorf("无法解析最新版本（所有更新源均不可达或返回异常）")
+	}
+	best := ""
+	for t := range found {
+		if best == "" || VersionGreater(t, best) {
+			best = t
+		}
+	}
+	return best, found[best], nil
+}
+
+// fetchLatestTag 向单个源查询最新 Release 的 tag。不跟随重定向（releases/latest
+// 的 302 Location 即为最新 tag）。失败或无 tag 时返回空字符串。
+func fetchLatestTag(base string) (tag, releaseURL string) {
 	client := &http.Client{
-		Timeout: 25 * time.Second,
+		Timeout: 10 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
-	for _, base := range bases {
-		req, rerr := http.NewRequest(http.MethodGet, base+"/"+updateRepo+"/releases/latest", nil)
-		if rerr != nil {
-			continue
-		}
-		req.Header.Set("User-Agent", "NanoPanel/"+version.Version)
-		resp, derr := client.Do(req)
-		if derr != nil {
-			continue
-		}
-		loc := ""
-		if resp.StatusCode >= 300 && resp.StatusCode < 400 {
-			loc = resp.Header.Get("Location")
-		}
-		resp.Body.Close()
-		if loc == "" {
-			continue
-		}
-		if t := parseTagFromURL(loc); t != "" {
-			return t, "https://github.com/" + updateRepo + "/releases/tag/v" + t, nil
-		}
+	req, rerr := http.NewRequest(http.MethodGet, base+"/"+updateRepo+"/releases/latest", nil)
+	if rerr != nil {
+		return "", ""
 	}
-	return "", "", fmt.Errorf("无法解析最新版本（仓库可能尚未发布 Release 或网络不可达）")
+	req.Header.Set("User-Agent", "NanoPanel/"+version.Version)
+	resp, derr := client.Do(req)
+	if derr != nil {
+		return "", ""
+	}
+	loc := ""
+	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		loc = resp.Header.Get("Location")
+	}
+	resp.Body.Close()
+	if loc == "" {
+		return "", ""
+	}
+	if t := parseTagFromURL(loc); t != "" {
+		return t, "https://github.com/" + updateRepo + "/releases/tag/v" + t
+	}
+	return "", ""
 }
 
 // parseTagFromURL 从 GitHub 跳转地址中提取版本号（去掉前缀 v）。
