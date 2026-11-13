@@ -71,6 +71,16 @@ type Server struct {
 	termMu       sync.Mutex
 	termTickets  map[string]terminalTicket
 	termSessions map[string]*terminalSession
+
+	// 历史指标采样：内存缓存 + JSONL 落盘；磁盘不可写时降级为纯内存。
+	// metricsDirOverride 仅用于测试注入临时目录。
+	metricsMu          sync.Mutex
+	metricsDirOverride string
+	metricsData        []MetricPoint
+	metricsDiskOK      bool
+	metricsWrites      int
+	// alertTracks 保存各指标的告警状态机，与 metricsMu 共用同一把锁。
+	alertTracks map[string]*alertTrack
 }
 
 // NewServer 创建 API 服务容器。

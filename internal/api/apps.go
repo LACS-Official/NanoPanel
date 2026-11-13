@@ -483,6 +483,7 @@ func notifyEventOptions() []map[string]string {
 		{"key": "disk", "label": "磁盘挂载"},
 		{"key": "security", "label": "安全告警（登录锁定）"},
 		{"key": "temp", "label": "温度告警（超温 / 回落）"},
+		{"key": "resource", "label": "资源阈值告警（CPU / 内存 / 磁盘）"},
 		{"key": "file", "label": "文件管理操作"},
 		{"key": "task", "label": "定时任务执行结果"},
 		{"key": "update", "label": "版本更新（发现新版本 / 自动升级结果）"},

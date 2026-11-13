@@ -5,16 +5,16 @@ import (
 	"testing"
 )
 
-// 样本取自 WSL 上真实的 `ps -eo pid,user,rss,comm,args --no-headers --sort=-rss`：
+// 样本取自 WSL 上真实的 `ps -eo pid,user,pcpu,rss,comm,args --no-headers --sort=-rss`：
 // 含带参数的完整命令行、被截断到 15 字符的 comm、内核线程与仅 comm 无参数的行。
-const psSample = `    208 root     36992 snapd           /usr/lib/snapd/snapd
-    424 root     22272 unattended-upgr /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
-    253 root     17504 NetworkManager  /usr/sbin/NetworkManager --no-daemon
-      1 root     13048 systemd         /sbin/init
-    173 systemd+ 12800 systemd-resolve /usr/lib/systemd/systemd-resolved
-    213 root     12780 udisksd         /usr/libexec/udisks2/udisksd
-     42 root         0 kworker/0:1     [kworker/0:1-events]
-    500 admin      2048 nanopanel      /opt/nanopanel/nanopanel -c /etc/nanopanel/config.json
+const psSample = `    208 root      0.0 36992 snapd           /usr/lib/snapd/snapd
+    424 root      1.2 22272 unattended-upgr /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+    253 root      3.4 17504 NetworkManager  /usr/sbin/NetworkManager --no-daemon
+      1 root      0.1 13048 systemd         /sbin/init
+    173 systemd+  0.0 12800 systemd-resolve /usr/lib/systemd/systemd-resolved
+    213 root      0.2 12780 udisksd         /usr/libexec/udisks2/udisksd
+     42 root      0.0     0 kworker/0:1     [kworker/0:1-events]
+    500 admin     8.6  2048 nanopanel      /opt/nanopanel/nanopanel -c /etc/nanopanel/config.json
 `
 
 func TestParseProcessList(t *testing.T) {
@@ -23,9 +23,13 @@ func TestParseProcessList(t *testing.T) {
 		t.Fatalf("应解析出 8 行，实际 %d", len(list))
 	}
 
-	// 第一行：字段拆分正确
-	if list[0].PID != 208 || list[0].User != "root" || list[0].RSSKB != 36992 || list[0].Comm != "snapd" {
+	// 第一行：六列字段拆分正确（新增的 CPU% 不能串位）
+	if list[0].PID != 208 || list[0].User != "root" || list[0].CPUPct != 0 ||
+		list[0].RSSKB != 36992 || list[0].Comm != "snapd" {
 		t.Errorf("首行字段错误: %+v", list[0])
+	}
+	if list[7].CPUPct != 8.6 {
+		t.Errorf("CPU%% 解析错误: %+v", list[7])
 	}
 	if !strings.Contains(list[0].Desc, "Snap") {
 		t.Errorf("snapd 说明错误: %q", list[0].Desc)
@@ -66,7 +70,7 @@ func TestParseProcessList(t *testing.T) {
 func TestParseProcessListMax100(t *testing.T) {
 	var b strings.Builder
 	for i := 1; i <= 130; i++ {
-		b.WriteString("  123 root 1024 bash /bin/bash -c sleep 100\n")
+		b.WriteString("  123 root 0.5 1024 bash /bin/bash -c sleep 100\n")
 	}
 	list := parseProcessList([]byte(b.String()))
 	if len(list) != 100 {

@@ -145,6 +145,33 @@
   .proc-desc { color:var(--gray); font-size:12px; line-height:1.5; min-width:190px; max-width:360px; }
   tbody tr:hover .proc-desc { color:var(--text); }
 
+  /* 历史趋势图（自绘 SVG，零依赖） */
+  #metricsChart { position:relative; }
+  .npc-range { display:flex; gap:4px; flex-wrap:wrap; }
+  .npc-range button { padding:5px 10px; font-size:12px; font-family:inherit; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--gray); border-radius:8px; }
+  .npc-range button.active { background:var(--blue-weak); color:var(--blue); border-color:var(--blue); }
+  .npc-legend { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+  .npc-leg { display:inline-flex; align-items:center; gap:6px; padding:4px 9px; font-size:12px;
+    font-family:inherit; cursor:pointer; border:1px solid var(--line); border-radius:8px;
+    background:var(--card); color:var(--text); }
+  .npc-leg.off { opacity:.4; text-decoration:line-through; }
+  .npc-leg i, .npc-tip i { display:inline-block; width:9px; height:9px; border-radius:2px; flex:0 0 auto; }
+  .npc-leg b { font-weight:500; }
+  .npc-legend-tip { font-size:11px; color:var(--gray); }
+  .npc-svg { width:100%; height:auto; display:block; }
+  .npc-net { margin-top:2px; }
+  .npc-grid { stroke:var(--line); stroke-width:1; }
+  .npc-axis { fill:var(--gray); font-size:11px; font-family:inherit; }
+  .npc-cross { stroke:var(--text); stroke-width:1; stroke-dasharray:3 3; opacity:.6; }
+  .npc-subtitle { font-size:12px; color:var(--gray); margin:10px 0 2px; }
+  .npc-tip { display:none; position:absolute; top:8px; z-index:3; min-width:170px; max-width:220px;
+    padding:8px 10px; font-size:12px; line-height:1.7; border-radius:10px; pointer-events:none;
+    background:var(--card); color:var(--text); border:1px solid var(--line); box-shadow:var(--shadow); }
+  .npc-tip b { display:block; font-weight:500; margin-bottom:3px; }
+  .npc-tip span { display:flex; align-items:center; gap:6px; }
+  .npc-empty { color:var(--gray); font-size:13px; padding:26px 8px; text-align:center; }
+
   .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#c7c7cc; margin-right:6px; }
   .dot.active { background:var(--green); }
   .dot.inactive, .dot.failed, .dot.unknown { background:#c7c7cc; }

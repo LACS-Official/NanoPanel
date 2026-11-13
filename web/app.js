@@ -58,8 +58,9 @@ function showMain(){
   const saved = localStorage.getItem('np_user');
   document.getElementById('sideUser').textContent = saved ? '已登录：' + saved : '';
   switchView('overview'); loadOverview(); loadProcesses(); loadApps();
-  loadWebhook(); loadMonitorSettings();
+  loadWebhook(); loadMonitorSettings(); loadAlertSettings();
   overviewTimer = setInterval(()=>{ if(currentView()==='overview') loadOverview(); }, 5000);
+  metricsTimer = setInterval(()=>{ if(currentView()==='overview') loadMetrics(); }, 60000);
   // 进入面板后自动检查一次更新；延迟执行，避免与首屏数据请求争抢。
   setTimeout(autoUpdateCheck, 1500);
 }
@@ -111,6 +112,7 @@ function switchView(v){
   document.getElementById('pageSub').textContent = m.s || '';
   document.title = (m.t ? m.t + ' · ' : '') + 'NanoPanel';
   renderSubtabs(v);
+  if (v==='overview') loadMetrics();
   if (v==='apps'){ loadApps(); if(!curSub.apps) setSub('apps','all'); }
   if (v==='logs' && !curSub.logs) setSub('logs','system');
   if (v==='settings' && !curSub.settings) setSub('settings','notify');
@@ -182,6 +184,64 @@ async function loadOverview(){
       metric('最高温度', maxTemp!==null ? maxTemp+'℃' : '—');
   } catch(e){ /* 定时刷新静默失败，避免打扰 */ }
 }
+/* ===== 历史趋势图与资源阈值告警 ===== */
+let metricsRange = '1h';
+let metricsTimer = null;
+
+async function loadMetrics(){
+  const box = document.getElementById('metricsChart');
+  if (!box || !window.NPChart) return;
+  try {
+    const d = await call('GET','/metrics?range='+encodeURIComponent(metricsRange));
+    window.NPChart.render(box, d);
+    const hint = document.getElementById('metricsHint');
+    if (hint) hint.textContent = d.disk_ok
+      ? '面板每 '+(d.interval_sec||60)+' 秒采样一次，保留最近 '+(d.retention_days||7)+
+        ' 天；当前窗口共 '+(d.total||0)+' 个采样点。阈值告警在「应用 → 设置」中配置。'
+      : '磁盘不可写，历史数据仅保存在内存中，面板重启后会清空。';
+  } catch(e){
+    box.innerHTML = '<div class="empty-tip">'+esc(e.message)+'</div>';
+  }
+}
+
+function setMetricsRange(r){
+  metricsRange = r;
+  const wanted = "setMetricsRange('"+r+"')";
+  document.querySelectorAll('#metricsRanges button').forEach(b=>
+    b.classList.toggle('active', b.getAttribute('data-act') === wanted));
+  loadMetrics();
+}
+
+async function loadAlertSettings(){
+  try {
+    const d = await call('GET','/settings/alerts');
+    const set = (id,v)=>{ const el=document.getElementById(id); if(el && document.activeElement!==el) el.value=v; };
+    set('alertCpu', d.alert_cpu_pct||0);
+    set('alertMem', d.alert_mem_pct||0);
+    set('alertDisk', d.alert_disk_pct||0);
+    set('alertTemp', d.temp_threshold_c||0);
+    set('alertSustain', d.alert_sustain_sec||d.default_sustain||300);
+    const hint = document.getElementById('alertHint');
+    if (hint) hint.textContent = '采样 '+(d.sample_interval||60)+'s · 冷却 '+
+      (d.cooldown_sec||1800)+'s · 滞回 '+(d.hysteresis||5)+' 个百分点';
+  } catch(e){ /* 定时刷新静默失败 */ }
+}
+
+async function saveAlertSettings(){
+  const val = id => Number(document.getElementById(id).value||0);
+  try {
+    await call('POST','/settings/alerts', {
+      alert_cpu_pct: val('alertCpu'),
+      alert_mem_pct: val('alertMem'),
+      alert_disk_pct: val('alertDisk'),
+      temp_threshold_c: val('alertTemp'),
+      alert_sustain_sec: val('alertSustain')
+    });
+    toast('告警设置已保存');
+    loadAlertSettings(); loadMonitorSettings();
+  } catch(e){ toast(e.message); }
+}
+
 function bar(label,pct,detail){
   const w = Math.max(0, Math.min(100, Number(pct)||0));
   const color = w>=90 ? '#ff3b30' : (w>=70 ? '#d38b1d' : '#0071e3');
@@ -197,21 +257,44 @@ function fmtMemKB(kb){
   return kb+' KB';
 }
 
-async function loadProcesses(){
-  try {
-    const list = await call('GET','/processes');
-    document.getElementById('procBody').innerHTML = list.map(p=>{
-      // 悬停「命令」可看到完整命令行，便于确认进程到底跑了什么。
-      const full = (p.args && p.args !== p.comm) ? ' title="'+esc(p.args)+'"' : '';
-      const desc = (p.desc || '未收录的进程').replace('<PID>', p.pid);
-      return '<tr><td>'+esc(p.pid)+'</td><td>'+esc(p.user)+'</td>'+
+let procData = [];
+let procQuery = '';
+
+function renderProcesses(){
+  const body = document.getElementById('procBody');
+  if (!body) return;
+  const q = procQuery.trim().toLowerCase();
+  // 搜索覆盖 PID、用户、进程名、完整命令行与用途说明。
+  const rows = q ? procData.filter(p =>
+    [p.pid, p.user, p.comm, p.args, p.desc].join(' ').toLowerCase().indexOf(q) >= 0) : procData;
+  body.innerHTML = rows.length ? rows.map(p=>{
+    // 悬停「命令」可看到完整命令行，便于确认进程到底跑了什么。
+    const full = (p.args && p.args !== p.comm) ? ' title="'+esc(p.args)+'"' : '';
+    const desc = (p.desc || '未收录的进程').replace('<PID>', p.pid);
+    const cpu = Number(p.cpu_pct)||0;
+    const cpuColor = cpu>=80 ? 'var(--red)' : (cpu>=50 ? '#d38b1d' : 'var(--text)');
+    return '<tr><td>'+esc(p.pid)+'</td><td>'+esc(p.user)+'</td>'+
+      '<td><b style="color:'+cpuColor+'" title="进程启动以来的平均 CPU 占用">'+cpu.toFixed(1)+'%</b></td>'+
       '<td><b>'+fmtMemKB(p.rss_kb)+'</b><span style="color:var(--gray);font-size:12px"> '+(Number(p.rss_kb)||0).toLocaleString()+' KB</span></td>'+
       '<td class="proc-cmd"'+full+'>'+esc(p.comm)+'</td>'+
       '<td class="proc-desc" title="'+esc(desc)+'">'+esc(desc)+'</td>'+
       '<td><button class="btn sm danger" data-pid="'+esc(p.pid)+'">结束</button></td></tr>';
-    }).join('');
-  } catch(e){ document.getElementById('procBody').innerHTML = '<tr><td colspan="6">'+esc(e.message)+'</td></tr>'; }
+  }).join('') : '<tr><td colspan="7">没有匹配的进程</td></tr>';
 }
+
+async function loadProcesses(){
+  try {
+    const list = await call('GET','/processes');
+    procData = Array.isArray(list) ? list : [];
+    renderProcesses();
+  } catch(e){
+    document.getElementById('procBody').innerHTML = '<tr><td colspan="7">'+esc(e.message)+'</td></tr>';
+  }
+}
+const procSearchEl = document.getElementById('procSearch');
+if (procSearchEl) procSearchEl.addEventListener('input', e=>{
+  procQuery = e.target.value; renderProcesses();
+});
 document.getElementById('procBody').addEventListener('click', async e=>{
   const b = e.target.closest('button[data-pid]'); if(!b) return;
   const pid = b.dataset.pid;
@@ -314,13 +397,13 @@ async function saveTempThreshold(){
     const cur = Number(document.getElementById('monInterval').value);
     await call('POST','/settings/monitor',{interval_sec:cur, temp_threshold_c:v});
     toast('温度阈值已保存');
-    loadMonitorSettings();
+    loadMonitorSettings(); loadAlertSettings();
   } catch(e){ toast(e.message); }
 }
 async function saveMonitor(){
   const v = Number(document.getElementById('monInterval').value);
   const th = Number(document.getElementById('tempThreshold').value || 0);
-  try { await call('POST','/settings/monitor',{interval_sec:v, temp_threshold_c:th}); toast('检测设置已保存'); loadMonitorSettings(); }
+  try { await call('POST','/settings/monitor',{interval_sec:v, temp_threshold_c:th}); toast('检测设置已保存'); loadMonitorSettings(); loadAlertSettings(); }
   catch(e){ toast(e.message); }
 }
 
@@ -1280,6 +1363,12 @@ const INLINE_ACTIONS = {
   "doLogout()": () => doLogout(),
   "doChangePassword()": () => doChangePassword(),
   "toggleTheme()": () => toggleTheme(),
+  // 历史趋势 / 资源阈值告警
+  "setMetricsRange('1h')": () => setMetricsRange('1h'),
+  "setMetricsRange('6h')": () => setMetricsRange('6h'),
+  "setMetricsRange('24h')": () => setMetricsRange('24h'),
+  "setMetricsRange('7d')": () => setMetricsRange('7d'),
+  "saveAlertSettings()": () => saveAlertSettings(),
   // 概览 / 日志 / 网络 / 磁盘
   "loadLogs()": () => loadLogs(),
   "loadPanelLogs()": () => loadPanelLogs(),

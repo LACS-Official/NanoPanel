@@ -92,14 +92,32 @@
           <h2>运行概览</h2>
           <div class="grid2" id="statTiles"></div>
         </div>
+        <div class="card">
+          <div class="row-flex" style="margin-bottom:12px">
+            <h2 style="margin:0">历史趋势</h2>
+            <div class="npc-range" id="metricsRanges">
+              <button type="button" class="sm active" data-act="setMetricsRange('1h')">1 小时</button>
+              <button type="button" class="sm" data-act="setMetricsRange('6h')">6 小时</button>
+              <button type="button" class="sm" data-act="setMetricsRange('24h')">24 小时</button>
+              <button type="button" class="sm" data-act="setMetricsRange('7d')">7 天</button>
+            </div>
+          </div>
+          <div id="metricsChart"></div>
+          <div style="font-size:12px;color:var(--gray);margin-top:10px" id="metricsHint">
+            面板每 60 秒采样一次，保留最近 7 天；阈值告警在「应用 → 设置」中配置。
+          </div>
+        </div>
       </div>
 
       <div class="view" id="view-processes">
         <div class="card">
-          <h2>进程管理（按内存排序，前 100）</h2>
+          <div class="row-flex" style="margin-bottom:12px">
+            <h2 style="margin:0">进程管理（按内存排序，前 100）</h2>
+            <input id="procSearch" placeholder="搜索 PID / 用户 / 命令 / 说明" style="width:260px">
+          </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>PID</th><th>用户</th><th>内存占用</th><th>命令</th><th>说明</th><th>操作</th></tr></thead>
+              <thead><tr><th>PID</th><th>用户</th><th>CPU</th><th>内存占用</th><th>命令</th><th>说明</th><th>操作</th></tr></thead>
               <tbody id="procBody"></tbody>
             </table>
           </div>
@@ -263,6 +281,29 @@
               <button class="btn sm" data-act="saveTempThreshold()">保存阈值</button>
             </div>
             <div style="font-size:12px;color:var(--gray);margin-top:10px" id="tempHint"></div>
+          </div>
+          <div class="card">
+            <h2>资源阈值告警</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              CPU / 内存 / 磁盘持续超过阈值达到设定时长后推送一次通知；回落到阈值下方 5 个百分点才判定恢复，
+              避免临界值反复打扰。温度沿用上方「温度告警」。需在「设置 → 通知」勾选「资源阈值告警」事件。
+            </div>
+            <div class="row-flex" style="flex-wrap:wrap;gap:10px 14px;margin-bottom:12px">
+              <label class="lbl">CPU %</label>
+              <input type="number" id="alertCpu" min="0" max="100" step="1" style="width:78px" placeholder="0=关闭">
+              <label class="lbl">内存 %</label>
+              <input type="number" id="alertMem" min="0" max="100" step="1" style="width:78px" placeholder="0=关闭">
+              <label class="lbl">磁盘 %</label>
+              <input type="number" id="alertDisk" min="0" max="100" step="1" style="width:78px" placeholder="0=关闭">
+              <label class="lbl">温度 ℃</label>
+              <input type="number" id="alertTemp" min="0" max="100" step="1" style="width:78px" placeholder="0=关闭">
+              <label class="lbl">持续（秒）</label>
+              <input type="number" id="alertSustain" min="0" max="3600" step="60" style="width:88px" placeholder="300">
+            </div>
+            <div class="row-flex">
+              <button class="btn sm" data-act="saveAlertSettings()">保存告警设置</button>
+              <span class="state-tag" id="alertHint"></span>
+            </div>
           </div>
         </div>
       </div>
@@ -562,6 +603,7 @@
   </div>
 </div>
 
+<script src="chart.js" defer></script>
 <script src="term-core.js" defer></script>
 <script src="terminal.js" defer></script>
 <script src="app.js" defer></script>

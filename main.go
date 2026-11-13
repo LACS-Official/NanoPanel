@@ -131,6 +131,9 @@ func main() {
 	mux.HandleFunc("POST /api/v1/apps/check", srv.AuthMiddleware(srv.CheckAppHealth))
 	mux.HandleFunc("GET /api/v1/settings/monitor", srv.AuthMiddleware(srv.GetMonitorSettings))
 	mux.HandleFunc("POST /api/v1/settings/monitor", srv.AuthMiddleware(srv.SaveMonitorSettings))
+	mux.HandleFunc("GET /api/v1/metrics", srv.AuthMiddleware(srv.Metrics))
+	mux.HandleFunc("GET /api/v1/settings/alerts", srv.AuthMiddleware(srv.GetAlertSettings))
+	mux.HandleFunc("POST /api/v1/settings/alerts", srv.AuthMiddleware(srv.SaveAlertSettings))
 	mux.HandleFunc("GET /api/v1/settings/mirror", srv.AuthMiddleware(srv.MirrorSettings))
 	mux.HandleFunc("GET /api/v1/settings/webhook", srv.AuthMiddleware(srv.GetWebhook))
 	mux.HandleFunc("POST /api/v1/settings/webhook", srv.AuthMiddleware(srv.SaveWebhook))
@@ -193,6 +196,8 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	// 历史指标采样随服务生命周期启停；独立于健康检测开关，保证趋势图始终有数据。
+	srv.StartMetrics(ctx)
 	// 应用健康检测随服务生命周期启停，掉线/恢复会推送 health 事件通知。
 	srv.StartMonitor(ctx)
 	// 定时任务调度器随服务生命周期启停。

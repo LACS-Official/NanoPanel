@@ -54,14 +54,16 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           node --check web/app.js
+          node --check web/chart.js
           node --check web/term-core.js
           node --check web/terminal.js
-          test -z "$(grep -n $'\r' web/app.js web/term-core.js web/terminal.js web/index.html web/style.css)"
+          test -z "$(grep -n $'\r' web/app.js web/chart.js web/term-core.js web/terminal.js web/index.html web/style.css)"
       - name: Terminal frontend tests
         if: runner.os == 'Linux'
         run: |
           node tests/frontend/term-core.test.js
           node tests/frontend/terminal-ui.test.js
+          node tests/frontend/chart.test.js
           node tests/frontend/process-ui.test.js
       - name: CSP inline-action guard
         if: runner.os == 'Linux'
