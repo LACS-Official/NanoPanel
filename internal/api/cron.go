@@ -275,10 +275,11 @@ func (s *Server) StartCron(ctx context.Context) {
 			lastTrigger: make(map[string]time.Time),
 			lastDaily:   make(map[string]string),
 		}
-		// 启动时以当前时间作为基准，避免面板重启即触发全部任务。
+		// 启动时为任务建立调度基准：计划时刻已过则视为本周期已触发（不补跑），
+		// 计划时刻未到则基准落在上一周期，确保到点仍能正常触发。
+		// 详见 primeCronBaseline 的说明。
 		for _, t := range s.loadCronTasks() {
-			state.lastTrigger[t.ID] = time.Now()
-			state.lastDaily[t.ID] = time.Now().Format("2006-01-02")
+			primeCronBaseline(state, t, time.Now())
 		}
 		for {
 			select {
@@ -320,6 +321,39 @@ func (s *Server) StartCron(ctx context.Context) {
 			mu.Unlock()
 		}
 	}()
+}
+
+// primeCronBaseline 为任务建立调度基准。now 为建立基准的时刻。
+//
+// 关键：基准不能一律取 now。若 now 尚未到达本周期的计划时刻，基准必须落在
+// 上一周期，这样到点时 cronDue 才能判定"已进入新周期"并触发；若 now 已越过
+// 计划时刻，基准落在本周期，避免面板重启/任务新建后立即补跑一次历史任务。
+func primeCronBaseline(state *cronState, t CronTask, now time.Time) {
+	switch {
+	case strings.HasPrefix(t.Schedule, "every:"):
+		state.lastTrigger[t.ID] = now
+	case strings.HasPrefix(t.Schedule, "hourly:"):
+		mins, _ := strconv.Atoi(strings.TrimPrefix(t.Schedule, "hourly:"))
+		target := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), mins, 0, 0, now.Location())
+		if now.Before(target) {
+			// 本小时的第 mins 分还没到：基准放在上一小时，到点即可触发。
+			state.lastTrigger[t.ID] = target.Add(-time.Hour)
+		} else {
+			state.lastTrigger[t.ID] = now
+		}
+	case strings.HasPrefix(t.Schedule, "daily:"):
+		parts := strings.Split(strings.TrimPrefix(t.Schedule, "daily:"), ":")
+		hour, _ := strconv.Atoi(parts[0])
+		minute, _ := strconv.Atoi(parts[1])
+		target := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, now.Location())
+		if now.Before(target) {
+			// 今天的计划时刻还没到：记为昨天，允许今天到点触发。
+			state.lastDaily[t.ID] = now.AddDate(0, 0, -1).Format("2006-01-02")
+		} else {
+			state.lastDaily[t.ID] = now.Format("2006-01-02")
+		}
+		state.lastTrigger[t.ID] = now
+	}
 }
 
 // cronDue 判断任务是否到期（同时更新基准时间，保证每周期只触发一次）。
