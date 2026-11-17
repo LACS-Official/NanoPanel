@@ -102,7 +102,9 @@ func (s *Server) sendResourceAlert(label string, value float64, threshold, susta
 		content = fmt.Sprintf("%s 已回落至 %.1f%%（阈值 %d%%），告警解除。", label, value, threshold)
 	}
 	s.notifyAsync("resource", title, content)
-	go s.appendAudit(auditEntry{
+	// 审计日志是本地小文件追加，同步写入即可。异步写入会在进程退出或
+	// 测试临时目录回收时仍在进行，导致日志丢失或目录清理失败（CI 偶发失败）。
+	s.appendAudit(auditEntry{
 		Time:     time.Now().Format("2006-01-02 15:04:05"),
 		IP:       "monitor",
 		User:     s.username(),

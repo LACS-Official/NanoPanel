@@ -45,12 +45,12 @@ func (s *Server) audit(r *http.Request, category, action, detail string) {
 		Action:   action,
 		Detail:   detail,
 	}
-	go s.appendAudit(entry)
+	s.appendAudit(entry)
 	s.notifyAsync(category, action, detail)
 }
 
-// auditMutex 保护日志文件的追加与轮转。appendAudit 在独立 goroutine 中执行，
-// 无锁并发追加同一文件可能产生交错行。
+// auditMutex 保护日志文件的追加与轮转。审计写入为同步调用，但 webhook
+// 异步通知与后台任务仍可能并发追加同一文件，仍需加锁防止交错行。
 var auditMutex sync.Mutex
 
 // 面板日志按大小轮转：panel.log → panel.log.1 → panel.log.2，最多保留 3 份。

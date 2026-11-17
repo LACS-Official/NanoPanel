@@ -142,7 +142,7 @@ func (s *Server) healthAlert(h AppHealth, event string) {
 		content += "\n单元: " + h.Unit
 	}
 	s.notifyAsync("health", title, content)
-	go s.appendAudit(auditEntry{
+	s.appendAudit(auditEntry{
 		Time:     time.Now().Format("2006-01-02 15:04:05"),
 		IP:       "monitor",
 		User:     s.username(),
@@ -237,7 +237,7 @@ func (s *Server) checkTemp(ctx context.Context) {
 		s.tempAlerted.Store(false)
 		s.healthMu.Unlock()
 		s.notifyAsync("temp", "温度已回落", "设备温度已回落至 "+formatCelsius(max))
-		go s.appendAudit(auditEntry{
+		s.appendAudit(auditEntry{
 			Time: time.Now().Format("2006-01-02 15:04:05"), IP: "monitor",
 			User: s.username(), Category: "temp", Action: "温度回落",
 			Detail: label + " " + formatCelsius(max),
@@ -251,7 +251,7 @@ func (s *Server) checkTemp(ctx context.Context) {
 		s.notifyAsync("temp", "设备温度过高",
 			"热区 "+label+" 当前 "+formatCelsius(max)+"，已超过阈值 "+
 				strconv.Itoa(int(threshold))+"℃")
-		go s.appendAudit(auditEntry{
+		s.appendAudit(auditEntry{
 			Time: time.Now().Format("2006-01-02 15:04:05"), IP: "monitor",
 			User: s.username(), Category: "temp", Action: "温度告警",
 			Detail: label + " " + formatCelsius(max) + "（阈值 " + strconv.Itoa(int(threshold)) + "℃）",

@@ -310,7 +310,7 @@ func (s *Server) StartCron(ctx context.Context) {
 						content += "\n输出:\n" + output
 					}
 					s.notifyAsync("task", title, content)
-					go s.appendAudit(auditEntry{
+					s.appendAudit(auditEntry{
 						Time: time.Now().Format("2006-01-02 15:04:05"), IP: "cron",
 						User: s.username(), Category: "task",
 						Action: "定时任务" + map[bool]string{true: "成功", false: "失败"}[status == "ok"],
