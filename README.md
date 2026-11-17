@@ -45,7 +45,7 @@
 - **实时安装输出**：应用安装/卸载过程在弹窗中实时滚动显示脚本输出，可随时关闭弹窗不中断任务
 - **metacubexd 管理面板**：Mihomo 应用卡片一键打开 metacubexd（自动下载、自动配置鉴权），完整代理管理能力由 metacubexd 提供
 - **持久化登录**：登录 token 经 HMAC 签名、密钥随配置落盘，面板重启不掉登录态；改密自动轮换密钥，吊销全部历史 token
-- **Webhook 通知**：支持企业微信、钉钉、飞书、Server酱与通用 JSON 五种格式，按事件类别订阅推送（登录/服务/进程/应用/设置/系统/掉线/磁盘）
+- **Webhook 通知**：支持企业微信、钉钉、飞书、Server酱与通用 JSON 五种格式，按 14 类事件订阅推送（登录 / 服务 / 进程 / 应用 / 设置 / 系统 / 掉线 / 磁盘 / 安全 / 温度 / 文件 / 定时任务 / 更新 / 资源阈值）
 - **应用健康检测**：定时检查已安装应用的 systemd 单元，掉线或恢复时自动推送 Webhook 并写入面板日志
 - **日志中心**：系统日志可按服务与已安装应用筛选，面板操作全程留痕可审计
 - 用户名 + 密码登录、PBKDF2 加盐哈希、登录限速、输入白名单、安全响应头
@@ -64,7 +64,7 @@ curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash
 
 ```bash
 # 指定版本 / 端口
-curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_VERSION=v0.1.6 NP_PORT=9090 bash
+curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_VERSION=v0.1.7 NP_PORT=9090 bash
 
 # 强制走某个镜像（跳过测速）
 curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_MIRROR=https://ghfast.top/https://github.com bash
@@ -110,7 +110,7 @@ sudo ./install.sh          # WSL 默认 root 时可直接 ./install.sh
   Windows  : http://localhost:8080  (WSL2 端口转发)
   用户名   : admin
   密码     : KK5fuGszsWE5Mktb
-  版本     : 0.1.6
+  版本     : 0.1.7
   下载源   : github (0.361059s)
   软件源   : ustc (0.220176s)
 ------------------------------------------------------------
@@ -140,7 +140,7 @@ Windows 浏览器打开 **http://localhost:8080** 即可（WSL2 自带 localhost
 | 变量 | 默认值 | 说明 |
 |---|---|---|
 | `NP_REPO` | `LACS-Official/NanoPanel` | GitHub `owner/repo`，指向自己的 fork 即可自建发布 |
-| `NP_VERSION` | `latest` | `latest` 跟随最新 Release，也可写 `v0.1.6` |
+| `NP_VERSION` | `latest` | `latest` 跟随最新 Release，也可写 `v0.1.7` |
 | `NP_PORT` | `8080` | 面板监听端口 |
 | `NP_USERNAME` | `admin` | 登录用户名 |
 | `NP_PASSWORD` | 随机 16 位 | 登录密码；留空自动生成 |

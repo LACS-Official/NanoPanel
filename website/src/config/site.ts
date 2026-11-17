@@ -45,15 +45,15 @@ export const SITE_CONFIG = {
   release: {
     repo: "LACS-Official/NanoPanel",
     apiBase: "https://api.github.com",
-    fallbackVersion: "0.1.6",
-    fallbackDate: "2026-11-09",
+    fallbackVersion: "0.1.7",
+    fallbackDate: "2026-11-17",
   },
 
   // 产品信息
   product: {
     // 展示用兜底版本；页面实际使用 release.ts 解析出的真实版本
-    version: "0.1.6",
-    releaseDate: "2026-11-09",
+    version: "0.1.7",
+    releaseDate: "2026-11-17",
     platforms: ["Linux amd64", "Linux arm64", "Linux armv7"],
     license: "MIT License",
     size: "约 12 MB",
@@ -99,7 +99,7 @@ export const SITE_CONFIG = {
       { value: "1", label: "个可执行文件", desc: "无依赖、无数据库、无容器" },
       { value: "<30MB", label: "常驻内存", desc: "512MB 内存设备也能流畅运行" },
       { value: "3", label: "种架构", desc: "amd64 / arm64 / armv7 全支持" },
-      { value: "12", label: "类告警事件", desc: "Webhook 推送到你的手机" },
+      { value: "14", label: "类告警事件", desc: "Webhook 推送到你的手机" },
     ],
     features: [
       {
@@ -194,7 +194,7 @@ export const SITE_CONFIG = {
       {
         title: "运维：把重复劳动自动化",
         desc: "内置文件管理器、一键备份恢复、定时任务与 Webhook 通知，把日常的重复操作交给面板。",
-        bullets: ["tar.gz 流式备份与恢复", "cron 三种调度表达式", "12 类事件 Webhook 推送", "面板日志 5MB × 3 轮转"],
+        bullets: ["tar.gz 流式备份与恢复", "cron 三种调度表达式", "14 类事件 Webhook 推送", "面板日志 5MB × 3 轮转"],
       },
       {
         title: "安全：默认就不留后门",
