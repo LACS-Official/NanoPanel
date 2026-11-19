@@ -37,7 +37,12 @@
 - **WSL / systemd 自适应**：WSL2 Ubuntu 可直接安装；无 systemd 时自动回退为进程守护
 - 系统概览、进程管理（含内存占用、CPU 占用、即时搜索与用途说明）、日志中心、Ping、磁盘管理、文件管理、应用商店（含可升级检测与应用页面直达）、系统重启、修改密码
 - **资源历史趋势**：后台每 60 秒采样 CPU / 内存 / 磁盘 / 温度 / 网卡流量，JSONL 落盘保留 7 天；概览页零依赖 SVG 折线图支持 1 小时 / 6 小时 / 24 小时 / 7 天切换、曲线显隐与悬停读数，磁盘不可写时自动降级为纯内存
-- **资源阈值告警**：CPU / 内存 / 磁盘分别设阈值，持续超阈值达到设定时长才通知，回落滞回 5 个百分点判定恢复并带 30 分钟冷却；复用 Webhook 与审计日志，温度沿用原有超温告警
+- **资源阈值告警**：CPU / 内存 / 磁盘分别设阈值，持续超阈值达到设定时长才通知，回落滞回 5 个百分点判定恢复并带 30 分钟冷却；可设每日免打扰时段（支持跨午夜），静默期只记审计不推送；复用 Webhook 与审计日志，温度沿用原有超温告警
+- **趋势图导出 CSV**：按当前时间窗导出全部原始采样点为 CSV，含中文表头与 UTF-8 BOM，Excel 直接打开
+- **定时任务扩展**：支持 `every:Nm` / `hourly:MM` / `daily:HH:MM` / `weekly:W:HH:MM` / `once:YYYY-MM-DDTHH:MM` 五种调度，一次性任务执行后自动禁用
+- **两步验证（TOTP）**：兼容主流验证器 App 的 6 位动态码登录（RFC 6238），提供 10 个一次性恢复码应对验证器丢失，纯标准库实现
+- **远程备份**：备份 tar.gz 自动上传 WebDAV 或 S3 兼容存储，支持每日定时与手动执行，失败重试并通知；S3 采用 AWS Signature V4
+- **只读 API Token**：生成仅可执行 GET 的 token 供监控脚本拉取指标，写操作一律 403；scope 纳入签名防篡改
 - **进程用途说明**：内置 150+ 常见进程的中文用途字典，本地推断、零网络依赖；通用解释器结合完整命令行细化，未收录进程给出自助排查命令
 - **磁盘管理**：块设备与挂载点总览（容量 / 用量 / 文件系统），面板内一键挂载、卸载，可选写入 `/etc/fstab` 开机自动挂载
 - **应用商店**：内置 CUPS、AdGuard Home、Tailscale、Mihomo、PicoClaw、WebDAV、Samba 七个真实应用，面板内可视化配置常用参数（端口、订阅链接、AuthKey、模型密钥等）
@@ -64,7 +69,7 @@ curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash
 
 ```bash
 # 指定版本 / 端口
-curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_VERSION=v0.1.7 NP_PORT=9090 bash
+curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_VERSION=v0.1.8 NP_PORT=9090 bash
 
 # 强制走某个镜像（跳过测速）
 curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_MIRROR=https://ghfast.top/https://github.com bash
@@ -110,7 +115,7 @@ sudo ./install.sh          # WSL 默认 root 时可直接 ./install.sh
   Windows  : http://localhost:8080  (WSL2 端口转发)
   用户名   : admin
   密码     : KK5fuGszsWE5Mktb
-  版本     : 0.1.7
+  版本     : 0.1.8
   下载源   : github (0.361059s)
   软件源   : ustc (0.220176s)
 ------------------------------------------------------------
@@ -140,7 +145,7 @@ Windows 浏览器打开 **http://localhost:8080** 即可（WSL2 自带 localhost
 | 变量 | 默认值 | 说明 |
 |---|---|---|
 | `NP_REPO` | `LACS-Official/NanoPanel` | GitHub `owner/repo`，指向自己的 fork 即可自建发布 |
-| `NP_VERSION` | `latest` | `latest` 跟随最新 Release，也可写 `v0.1.7` |
+| `NP_VERSION` | `latest` | `latest` 跟随最新 Release，也可写 `v0.1.8` |
 | `NP_PORT` | `8080` | 面板监听端口 |
 | `NP_USERNAME` | `admin` | 登录用户名 |
 | `NP_PASSWORD` | 随机 16 位 | 登录密码；留空自动生成 |

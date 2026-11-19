@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -30,13 +31,10 @@ func (s *Server) backupFixedFiles() []struct{ rel, abs string } {
 	}
 }
 
-// Backup 导出面板与应用配置为 tar.gz 附件。
-func (s *Server) Backup(w http.ResponseWriter, r *http.Request) {
-	gz := gzip.NewWriter(w)
+// writeBackupArchive 把面板与应用配置写入 tar.gz 流。Backup 与远程备份共用。
+func (s *Server) writeBackupArchive(out io.Writer) error {
+	gz := gzip.NewWriter(out)
 	tw := tar.NewWriter(gz)
-	// 注意关闭顺序：必须先关 tar（写出收尾块）再关 gzip（写出压缩尾）。
-	defer gz.Close()
-	defer tw.Close()
 
 	add := func(rel, abs string) {
 		data, err := os.ReadFile(abs)
@@ -67,10 +65,24 @@ func (s *Server) Backup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// 关闭顺序：先 tar（写收尾块）再 gzip（写压缩尾）。
+	if err := tw.Close(); err != nil {
+		_ = gz.Close()
+		return err
+	}
+	return gz.Close()
+}
+
+// Backup 导出面板与应用配置为 tar.gz 附件。
+func (s *Server) Backup(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/gzip")
 	w.Header().Set("Content-Disposition",
 		fmt.Sprintf("attachment; filename=nanopanel-backup-%s.tar.gz",
 			time.Now().Format("20060102-150405")))
+	if err := s.writeBackupArchive(w); err != nil {
+		// 响应头与部分数据已写出，无法再改状态码，记录日志即可。
+		log.Printf("生成备份失败: %v", err)
+	}
 }
 
 // restoreReport 汇总恢复结果给前端。

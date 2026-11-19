@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -88,6 +89,29 @@ type Config struct {
 	TerminalEnabled *bool `json:"terminal_enabled,omitempty"`
 	// TerminalShell 指定终端使用的 shell 绝对路径，空则自动探测。
 	TerminalShell string `json:"terminal_shell,omitempty"`
+
+	// QuietEnabled 开启告警免打扰时段。
+	// QuietStart / QuietEnd 为 "HH:MM"，支持跨午夜（如 23:00 -> 07:00）。
+	// QuietExemptHealth 为 true 时，健康掉线等紧急事件在免打扰时段仍推送。
+	QuietEnabled      bool   `json:"quiet_enabled,omitempty"`
+	QuietStart        string `json:"quiet_start,omitempty"`
+	QuietEnd          string `json:"quiet_end,omitempty"`
+	QuietExemptHealth bool   `json:"quiet_exempt_health,omitempty"`
+
+	// 远程备份：类型为空表示关闭；webdav / s3 分别用对应协议 PUT 上传。
+	RemoteBackupType     string `json:"remote_backup_type,omitempty"`
+	RemoteBackupURL      string `json:"remote_backup_url,omitempty"`
+	RemoteBackupUser     string `json:"remote_backup_user,omitempty"`
+	RemoteBackupPass     string `json:"remote_backup_pass,omitempty"`
+	RemoteBackupBucket   string `json:"remote_backup_bucket,omitempty"`
+	RemoteBackupRegion   string `json:"remote_backup_region,omitempty"`
+	RemoteBackupRetain   int    `json:"remote_backup_retain,omitempty"`
+	RemoteBackupSchedule string `json:"remote_backup_schedule,omitempty"` // daily:HH:MM，空表示仅手动
+
+	// TOTP 双因素认证。Secret 为 Base32 密钥；Recovery 为恢复码的 SHA256 列表（一次性）。
+	TOTPEnabled  bool     `json:"totp_enabled,omitempty"`
+	TOTPSecret   string   `json:"totp_secret,omitempty"`
+	TOTPRecovery []string `json:"totp_recovery,omitempty"`
 }
 
 // DefaultMonitorIntervalSec 是应用掉线检测的默认间隔。
@@ -243,10 +267,80 @@ func (c *Config) Validate() error {
 	if c.AlertSustainSec != 0 && (c.AlertSustainSec < 60 || c.AlertSustainSec > 3600) {
 		return fmt.Errorf("alert_sustain_sec 超出范围（60-3600 秒，或 0 使用默认）: %d", c.AlertSustainSec)
 	}
+	if c.QuietEnabled {
+		if _, err := parseHHMM(c.QuietStart); err != nil {
+			return fmt.Errorf("quiet_start 无效: %w", err)
+		}
+		if _, err := parseHHMM(c.QuietEnd); err != nil {
+			return fmt.Errorf("quiet_end 无效: %w", err)
+		}
+	}
+	switch c.RemoteBackupType {
+	case "", "webdav", "s3":
+	default:
+		return fmt.Errorf("remote_backup_type 不支持: %q（仅 webdav / s3）", c.RemoteBackupType)
+	}
+	if c.RemoteBackupType != "" {
+		if len(c.RemoteBackupURL) > 2048 ||
+			(!strings.HasPrefix(c.RemoteBackupURL, "http://") && !strings.HasPrefix(c.RemoteBackupURL, "https://")) {
+			return fmt.Errorf("remote_backup_url 不合法")
+		}
+		if c.RemoteBackupType == "s3" && c.RemoteBackupBucket == "" {
+			return fmt.Errorf("s3 远程备份需要 remote_backup_bucket")
+		}
+		if c.RemoteBackupRetain < 0 || c.RemoteBackupRetain > 100 {
+			return fmt.Errorf("remote_backup_retain 超出范围（0-100）: %d", c.RemoteBackupRetain)
+		}
+		if c.RemoteBackupSchedule != "" && !strings.HasPrefix(c.RemoteBackupSchedule, "daily:") {
+			return fmt.Errorf("remote_backup_schedule 仅支持 daily:HH:MM")
+		}
+	}
 	if c.UpdateCheckHour < 0 || c.UpdateCheckHour > 23 {
 		return fmt.Errorf("update_check_hour 超出范围（0-23）: %d", c.UpdateCheckHour)
 	}
 	return nil
+}
+
+// ValidHHMM 判断字符串是否为合法的 "HH:MM"（00:00-23:59）。
+func ValidHHMM(v string) bool {
+	_, err := parseHHMM(v)
+	return err == nil
+}
+
+// parseHHMM 解析 "HH:MM" 返回当天的分钟数（0-1439）。
+func parseHHMM(v string) (int, error) {
+	parts := strings.Split(v, ":")
+	if len(parts) != 2 || len(parts[0]) != 2 || len(parts[1]) != 2 {
+		return 0, fmt.Errorf("需为 HH:MM 格式")
+	}
+	h, err1 := strconv.Atoi(parts[0])
+	m, err2 := strconv.Atoi(parts[1])
+	if err1 != nil || err2 != nil || h < 0 || h > 23 || m < 0 || m > 59 {
+		return 0, fmt.Errorf("需为 HH:MM 格式（00:00-23:59）")
+	}
+	return h*60 + m, nil
+}
+
+// InQuietHours 判断给定时刻是否落在免打扰时段。支持跨午夜，
+// 例如 start=23:00 end=07:00 时，23:00-23:59 与 00:00-06:59 均视为免打扰。
+// start == end 表示全天免打扰。
+func (c *Config) InQuietHours(now time.Time) bool {
+	if !c.QuietEnabled {
+		return false
+	}
+	start, err1 := parseHHMM(c.QuietStart)
+	end, err2 := parseHHMM(c.QuietEnd)
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	cur := now.Hour()*60 + now.Minute()
+	if start == end {
+		return true
+	}
+	if start < end {
+		return cur >= start && cur < end
+	}
+	return cur >= start || cur < end
 }
 
 // ValidNotifyEvent 判断事件类别是否受支持。

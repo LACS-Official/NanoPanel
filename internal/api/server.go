@@ -81,6 +81,20 @@ type Server struct {
 	metricsWrites      int
 	// alertTracks 保存各指标的告警状态机，与 metricsMu 共用同一把锁。
 	alertTracks map[string]*alertTrack
+
+	// mfaMu 保护 TOTP 登录两步验证的临时票据。票据在密码校验通过后签发，
+	// 5 分钟内有效、一次性使用，仅在内存中保存，面板重启即失效。
+	mfaMu      sync.Mutex
+	mfaPending map[string]mfaPending
+
+	// lastBackupResult 记录最近一次远程备份结果，供设置页展示，由 s.mu 保护。
+	lastBackupResult *remoteBackupResult
+}
+
+// mfaPending 是一次 TOTP 登录验证的中间状态。
+type mfaPending struct {
+	ip      string
+	expires time.Time
 }
 
 // NewServer 创建 API 服务容器。
@@ -104,10 +118,16 @@ func (s *Server) bearer(r *http.Request) string {
 }
 
 // AuthMiddleware 保护需要登录的接口。
+// 只读 token（scope=ro）仅放行 GET / HEAD，任何写操作返回 403。
 func (s *Server) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !s.auth.Valid(s.bearer(r)) {
+		tok := s.bearer(r)
+		if !s.auth.Valid(tok) {
 			fail(w, http.StatusUnauthorized, "未登录或登录已过期")
+			return
+		}
+		if s.auth.Scope(tok) == auth.ScopeRO && r.Method != http.MethodGet && r.Method != http.MethodHead {
+			fail(w, http.StatusForbidden, "只读 token 不允许执行写操作")
 			return
 		}
 		next(w, r)

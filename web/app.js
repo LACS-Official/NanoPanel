@@ -50,6 +50,9 @@ async function call(method, path, body){
 function showLogin(){
   document.getElementById('loginView').classList.remove('hidden');
   document.getElementById('mainView').classList.add('hidden');
+  const mfa = document.getElementById('mfaStep');
+  if (mfa) mfa.classList.add('hidden');
+  mfaTicket = '';
   if (overviewTimer){ clearInterval(overviewTimer); overviewTimer=null; }
 }
 function showMain(){
@@ -59,11 +62,14 @@ function showMain(){
   document.getElementById('sideUser').textContent = saved ? '已登录：' + saved : '';
   switchView('overview'); loadOverview(); loadProcesses(); loadApps();
   loadWebhook(); loadMonitorSettings(); loadAlertSettings();
+  loadMFAStatus(); loadRemoteBackupSettings(); loadCron();
   overviewTimer = setInterval(()=>{ if(currentView()==='overview') loadOverview(); }, 5000);
   metricsTimer = setInterval(()=>{ if(currentView()==='overview') loadMetrics(); }, 60000);
   // 进入面板后自动检查一次更新；延迟执行，避免与首屏数据请求争抢。
   setTimeout(autoUpdateCheck, 1500);
 }
+
+let mfaTicket = '';
 
 async function doLogin(){
   const user = document.getElementById('loginUser').value.trim();
@@ -71,12 +77,42 @@ async function doLogin(){
   if (!user || !pw) return toast('请输入用户名和密码');
   try {
     const d = await call('POST','/login',{username:user, password:pw});
+    if (d.mfa_required){
+      // 密码正确，进入 TOTP 第二步验证。
+      mfaTicket = d.ticket;
+      localStorage.setItem('np_user', user);
+      document.getElementById('loginPwd').value = '';
+      document.getElementById('mfaStep').classList.remove('hidden');
+      document.getElementById('mfaCode').value = '';
+      document.getElementById('mfaCode').focus();
+      return;
+    }
     token = d.token;
     localStorage.setItem('np_token', token);
     localStorage.setItem('np_user', user);
     document.getElementById('loginPwd').value = '';
     showMain();
   } catch(e){ toast(e.message); }
+}
+
+async function doMfaVerify(){
+  const code = document.getElementById('mfaCode').value.trim();
+  if (!code) return toast('请输入验证码');
+  try {
+    const d = await call('POST','/login/verify',{ticket:mfaTicket, code});
+    token = d.token;
+    localStorage.setItem('np_token', token);
+    mfaTicket = '';
+    document.getElementById('mfaStep').classList.add('hidden');
+    showMain();
+  } catch(e){ toast(e.message); }
+}
+
+function cancelMfa(){
+  mfaTicket = '';
+  document.getElementById('mfaStep').classList.add('hidden');
+  document.getElementById('loginPwd').value = '';
+  document.getElementById('loginPwd').focus();
 }
 async function doLogout(){
   if (window.NPTerminal) window.NPTerminal.dispose();
@@ -212,6 +248,22 @@ function setMetricsRange(r){
   loadMetrics();
 }
 
+async function exportMetricsCSV(){
+  try {
+    const res = await fetch(API+'/metrics/export?range='+encodeURIComponent(metricsRange), {
+      headers:{'Authorization':'Bearer '+token}
+    });
+    if (!res.ok) throw new Error('导出失败 HTTP '+res.status);
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'nanopanel-metrics-'+metricsRange+'.csv';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+    toast('CSV 已导出');
+  } catch(e){ toast(e.message); }
+}
+
 async function loadAlertSettings(){
   try {
     const d = await call('GET','/settings/alerts');
@@ -221,6 +273,12 @@ async function loadAlertSettings(){
     set('alertDisk', d.alert_disk_pct||0);
     set('alertTemp', d.temp_threshold_c||0);
     set('alertSustain', d.alert_sustain_sec||d.default_sustain||300);
+    const qe = document.getElementById('quietEnabled');
+    if (qe && document.activeElement!==qe) qe.checked = !!d.quiet_enabled;
+    set('quietStart', d.quiet_start||'23:00');
+    set('quietEnd', d.quiet_end||'07:00');
+    const qx = document.getElementById('quietExempt');
+    if (qx && document.activeElement!==qx) qx.checked = !!d.quiet_exempt_health;
     const hint = document.getElementById('alertHint');
     if (hint) hint.textContent = '采样 '+(d.sample_interval||60)+'s · 冷却 '+
       (d.cooldown_sec||1800)+'s · 滞回 '+(d.hysteresis||5)+' 个百分点';
@@ -229,13 +287,18 @@ async function loadAlertSettings(){
 
 async function saveAlertSettings(){
   const val = id => Number(document.getElementById(id).value||0);
+  const ckb = id => !!document.getElementById(id).checked;
   try {
     await call('POST','/settings/alerts', {
       alert_cpu_pct: val('alertCpu'),
       alert_mem_pct: val('alertMem'),
       alert_disk_pct: val('alertDisk'),
       temp_threshold_c: val('alertTemp'),
-      alert_sustain_sec: val('alertSustain')
+      alert_sustain_sec: val('alertSustain'),
+      quiet_enabled: ckb('quietEnabled'),
+      quiet_start: document.getElementById('quietStart').value,
+      quiet_end: document.getElementById('quietEnd').value,
+      quiet_exempt_health: ckb('quietExempt')
     });
     toast('告警设置已保存');
     loadAlertSettings(); loadMonitorSettings();
@@ -451,7 +514,13 @@ async function loadCron(){
     const d = await call('GET','/cron');
     const sel = document.getElementById('cronSched');
     if (!cronSchedLoaded){
-      sel.innerHTML = (d.schedules||[]).map(s=>'<option value="'+esc(s.value)+'">'+esc(s.label)+'</option>').join('');
+      let opts = (d.schedules||[]).map(s=>'<option value="'+esc(s.value)+'">'+esc(s.label)+'</option>').join('');
+      opts += '<option value="__custom__">自定义（一次性）</option>';
+      sel.innerHTML = opts;
+      sel.addEventListener('change', ()=>{
+        const box = document.getElementById('cronCustom');
+        if (box) box.style.display = sel.value === '__custom__' ? '' : 'none';
+      });
       cronSchedLoaded = true;
     }
     const tb = document.getElementById('cronList');
@@ -479,18 +548,33 @@ function cronDesc(sc){
   if (sc.startsWith('every:')) return '每 '+sc.slice(6,-1)+' 分钟';
   if (sc.startsWith('hourly:')) return '每小时第 '+sc.slice(7)+' 分';
   if (sc.startsWith('daily:')) return '每天 '+sc.slice(6);
+  if (sc.startsWith('weekly:')){
+    const p = sc.slice(7).split(':');
+    const days = ['周日','周一','周二','周三','周四','周五','周六'];
+    return '每'+days[Number(p[0])||0]+' '+(p[1]||'')+':'+(p[2]||'');
+  }
+  if (sc.startsWith('once:')) return '一次性 '+sc.slice(5);
   return sc;
 }
 async function saveCronTask(){
   const name = document.getElementById('cronName').value.trim();
-  const schedule = document.getElementById('cronSched').value;
+  let schedule = document.getElementById('cronSched').value;
   const command = document.getElementById('cronCmd').value.trim();
   if (!name || !command){ toast('名称与命令不能为空'); return; }
+  if (schedule === '__custom__'){
+    schedule = (document.getElementById('cronCustom').value||'').trim();
+    if (!/^once:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(schedule)){
+      toast('一次性格式应为 once:2026-12-01T03:00'); return;
+    }
+  }
   try {
     await call('POST','/cron',{name, schedule, command, enabled:true});
     toast('任务已添加');
     document.getElementById('cronName').value = '';
     document.getElementById('cronCmd').value = '';
+    document.getElementById('cronCustom').value = '';
+    document.getElementById('cronCustom').style.display = 'none';
+    document.getElementById('cronSched').value = 'every:30m';
     loadCron();
   } catch(e){ toast(e.message); }
 }
@@ -1349,6 +1433,176 @@ function toggleTheme(){
 }
 applyTheme();
 
+/* ===== 两步验证 TOTP ===== */
+async function loadMFAStatus(){
+  try {
+    const d = await call('GET','/settings/mfa');
+    const st = document.getElementById('mfaState');
+    if (st) st.textContent = d.enabled ? '已启用 · 剩余恢复码 '+(d.recovery_left||0)+' 个' : '未启用';
+    const setup = document.getElementById('mfaSetup');
+    const dis = document.getElementById('mfaDisableBtn');
+    const reset = document.getElementById('mfaResetBtn');
+    const setupBtn = document.getElementById('mfaSetupBtn');
+    if (setup) setup.style.display = (!d.enabled && d.has_secret) ? '' : 'none';
+    if (dis) dis.style.display = d.enabled ? '' : 'none';
+    if (reset) reset.style.display = d.enabled ? '' : 'none';
+    if (setupBtn) setupBtn.style.display = d.enabled ? 'none' : '';
+    if (d.enabled && d.provisioning_uri){
+      const uri = document.getElementById('mfaUri');
+      if (uri) uri.textContent = d.provisioning_uri;
+    }
+  } catch(e){ /* 静默 */ }
+}
+
+async function setupMFA(){
+  try {
+    const d = await call('POST','/settings/mfa/setup',{});
+    const box = document.getElementById('mfaSetup');
+    document.getElementById('mfaSecret').textContent = d.secret;
+    document.getElementById('mfaUri').textContent = d.provisioning_uri;
+    document.getElementById('mfaEnableCode').value = '';
+    box.style.display = '';
+    document.getElementById('mfaSetupBtn').style.display = 'none';
+    toast('请用验证器扫码并填入验证码');
+  } catch(e){ toast(e.message); }
+}
+
+function cancelMfaSetup(){
+  document.getElementById('mfaSetup').style.display = 'none';
+  document.getElementById('mfaSetupBtn').style.display = '';
+  loadMFAStatus();
+}
+
+async function enableMFA(){
+  const code = document.getElementById('mfaEnableCode').value.trim();
+  if (!code) return toast('请填入验证器显示的 6 位验证码');
+  try {
+    const d = await call('POST','/settings/mfa/enable',{code});
+    const box = document.getElementById('mfaRecovery');
+    document.getElementById('mfaRecoveryCodes').textContent = (d.recovery_codes||[]).join('\n');
+    box.style.display = '';
+    document.getElementById('mfaSetup').style.display = 'none';
+    toast('两步验证已启用，请保存恢复码');
+    loadMFAStatus();
+  } catch(e){ toast(e.message); }
+}
+
+function disableMFA(){
+  const code = prompt('输入验证器 6 位验证码（或任一未使用的恢复码）以关闭两步验证：');
+  if (!code) return;
+  call('POST','/settings/mfa/disable',{code}).then(()=>{
+    document.getElementById('mfaRecovery').style.display = 'none';
+    toast('两步验证已关闭'); loadMFAStatus();
+  }).catch(e=>toast(e.message));
+}
+
+function resetMfaRecovery(){
+  const code = prompt('输入验证器 6 位验证码以重置恢复码：');
+  if (!code) return;
+  call('POST','/settings/mfa/recovery',{code}).then(d=>{
+    document.getElementById('mfaRecoveryCodes').textContent = (d.recovery_codes||[]).join('\n');
+    document.getElementById('mfaRecovery').style.display = '';
+    toast('恢复码已重置'); loadMFAStatus();
+  }).catch(e=>toast(e.message));
+}
+
+/* ===== 只读 API Token ===== */
+async function createReadonlyToken(){
+  try {
+    const d = await call('POST','/tokens/readonly',{});
+    document.getElementById('readonlyToken').textContent = d.token;
+    document.getElementById('readonlyTokenBox').style.display = '';
+    toast('只读 token 已生成（仅显示一次，请立即复制保存）');
+  } catch(e){ toast(e.message); }
+}
+
+function copyReadonlyToken(){
+  const t = document.getElementById('readonlyToken').textContent;
+  if (!t) return toast('尚无 token');
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(()=>toast('已复制')).catch(()=>toast('复制失败，请手动选择'));
+  else toast('请手动选择复制');
+}
+
+async function revokeToken(){
+  const t = document.getElementById('revokeTokenInput').value.trim();
+  if (!t) return toast('请输入要吊销的 token');
+  if (!confirm('确认吊销该 token？吊销后立即失效。')) return;
+  try {
+    await call('POST','/tokens/revoke',{token:t});
+    document.getElementById('revokeTokenInput').value = '';
+    if (t === document.getElementById('readonlyToken').textContent) document.getElementById('readonlyTokenBox').style.display = 'none';
+    toast('token 已吊销');
+  } catch(e){ toast(e.message); }
+}
+
+/* ===== 远程备份 ===== */
+async function loadRemoteBackupSettings(){
+  try {
+    const d = await call('GET','/settings/remote-backup');
+    const set = (id,v)=>{ const el=document.getElementById(id); if(el && document.activeElement!==el) el.value=v; };
+    set('rbType', d.remote_type||'');
+    set('rbUrl', d.remote_url||'');
+    set('rbUser', d.remote_user||'');
+    set('rbBucket', d.remote_bucket||'');
+    set('rbRegion', d.remote_region||'us-east-1');
+    set('rbRetain', d.remote_retain||0);
+    // <input type=time> 只接受 HH:MM
+    set('rbSchedule', (d.remote_schedule||'').replace(/^daily:/,''));
+    const mask = document.getElementById('rbPassMask');
+    if (mask) mask.textContent = d.remote_pass_set ? ('已设置 '+d.remote_pass_mask) : '未设置';
+    applyRbTypeVisibility();
+    const last = document.getElementById('rbLast');
+    if (last && d.last_result){
+      const r = d.last_result;
+      last.textContent = '上次备份：'+(r.ok?'成功':'失败')+' · '+r.at+
+        (r.filename?(' · '+r.filename):'')+(r.error?(' · '+r.error):'');
+      last.style.color = r.ok ? 'var(--green)' : '#d70015';
+    }
+  } catch(e){ /* 静默 */ }
+}
+
+function applyRbTypeVisibility(){
+  const t = document.getElementById('rbType');
+  if (!t) return;
+  const wd = document.getElementById('rbWebdavRow');
+  const s3 = document.getElementById('rbS3Row');
+  if (wd) wd.style.display = t.value === 'webdav' ? '' : 'none';
+  if (s3) s3.style.display = t.value === 's3' ? '' : 'none';
+}
+document.addEventListener('change', e=>{ if (e.target && e.target.id === 'rbType') applyRbTypeVisibility(); });
+
+async function saveRemoteBackup(){
+  const v = id => document.getElementById(id).value.trim();
+  const sched = v('rbSchedule');
+  try {
+    await call('POST','/settings/remote-backup',{
+      remote_type: v('rbType'),
+      remote_url: v('rbType')==='webdav' ? v('rbUrl') : v('rbEndpoint'),
+      remote_user: v('rbUser'),
+      remote_pass: v('rbPass'),
+      remote_bucket: v('rbBucket'),
+      remote_region: v('rbRegion'),
+      remote_retain: Number(document.getElementById('rbRetain').value||0),
+      remote_schedule: sched ? 'daily:'+sched : ''
+    });
+    document.getElementById('rbPass').value = '';
+    const hint = document.getElementById('rbHint');
+    if (hint){ hint.textContent = '已保存'; setTimeout(()=>hint.textContent='', 2500); }
+    loadRemoteBackupSettings();
+  } catch(e){ toast(e.message); }
+}
+
+async function runRemoteBackup(){
+  const hint = document.getElementById('rbHint');
+  if (hint) hint.textContent = '正在备份并上传…';
+  try {
+    const d = await call('POST','/remote-backup/run',{});
+    if (hint) hint.textContent = '备份成功 · '+(d.filename||'')+' · '+d.bytes+' 字节';
+    toast('远程备份成功');
+    loadRemoteBackupSettings();
+  } catch(e){ if (hint) hint.textContent = e.message; toast(e.message); }
+}
+
 // ===== 内联事件桥接（CSP 严格模式） =====
 // CSP 的 script-src 'self' 禁止 HTML 内联事件处理器，页面因此改用
 // data-act / data-keydown / data-change 声明动作，此处以显式白名单分发。
@@ -1357,17 +1611,34 @@ const INLINE_ACTIONS = {
   // 登录与会话
   "doLogin()": () => doLogin(),
   "if(event.key==='Enter')doLogin()": (ev) => { if (ev.key === 'Enter') doLogin(); },
+  "doMfaVerify()": () => doMfaVerify(),
+  "cancelMfa()": () => cancelMfa(),
+  "if(event.key==='Enter')doMfaVerify()": (ev) => { if (ev.key === 'Enter') doMfaVerify(); },
   "if(event.key==='Enter')document.getElementById('loginPwd').focus()": (ev) => {
     if (ev.key === 'Enter') document.getElementById('loginPwd').focus();
   },
   "doLogout()": () => doLogout(),
   "doChangePassword()": () => doChangePassword(),
   "toggleTheme()": () => toggleTheme(),
+  // 两步验证
+  "setupMFA()": () => setupMFA(),
+  "cancelMfaSetup()": () => cancelMfaSetup(),
+  "enableMFA()": () => enableMFA(),
+  "disableMFA()": () => disableMFA(),
+  "resetMfaRecovery()": () => resetMfaRecovery(),
+  // 只读 token
+  "createReadonlyToken()": () => createReadonlyToken(),
+  "copyReadonlyToken()": () => copyReadonlyToken(),
+  "revokeToken()": () => revokeToken(),
+  // 远程备份
+  "saveRemoteBackup()": () => saveRemoteBackup(),
+  "runRemoteBackup()": () => runRemoteBackup(),
   // 历史趋势 / 资源阈值告警
   "setMetricsRange('1h')": () => setMetricsRange('1h'),
   "setMetricsRange('6h')": () => setMetricsRange('6h'),
   "setMetricsRange('24h')": () => setMetricsRange('24h'),
   "setMetricsRange('7d')": () => setMetricsRange('7d'),
+  "exportMetricsCSV()": () => exportMetricsCSV(),
   "saveAlertSettings()": () => saveAlertSettings(),
   // 概览 / 日志 / 网络 / 磁盘
   "loadLogs()": () => loadLogs(),

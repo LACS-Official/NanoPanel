@@ -2,11 +2,13 @@ package api
 
 // 定时任务：面板内管理小型例行任务（清理日志、定时脚本等）。
 // 任务持久化在配置目录的 cron.json；调度器随面板启动，
-// 支持三种周期：every:Nm（每 N 分钟）、hourly:MM（每小时第 MM 分）、daily:HH:MM。
+// 支持五种周期：every:Nm（每 N 分钟）、hourly:MM（每小时第 MM 分）、
+// daily:HH:MM、weekly:W:HH:MM（W=0 周日..6 周六）、once:YYYY-MM-DDTHH:MM（一次性）。
 
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -87,6 +89,19 @@ func validSchedule(sc string) bool {
 		h, err1 := strconv.Atoi(parts[0])
 		m, err2 := strconv.Atoi(parts[1])
 		return err1 == nil && err2 == nil && h >= 0 && h <= 23 && m >= 0 && m <= 59
+	case strings.HasPrefix(sc, "weekly:"):
+		parts := strings.Split(strings.TrimPrefix(sc, "weekly:"), ":")
+		if len(parts) != 3 {
+			return false
+		}
+		w, err0 := strconv.Atoi(parts[0])
+		h, err1 := strconv.Atoi(parts[1])
+		m, err2 := strconv.Atoi(parts[2])
+		return err0 == nil && err1 == nil && err2 == nil &&
+			w >= 0 && w <= 6 && h >= 0 && h <= 23 && m >= 0 && m <= 59
+	case strings.HasPrefix(sc, "once:"):
+		_, err := time.ParseInLocation("2006-01-02T15:04", strings.TrimPrefix(sc, "once:"), time.Local)
+		return err == nil
 	}
 	return false
 }
@@ -101,6 +116,19 @@ func scheduleDesc(sc string) string {
 	if strings.HasPrefix(sc, "daily:") {
 		return "每天 " + strings.TrimPrefix(sc, "daily:")
 	}
+	if strings.HasPrefix(sc, "weekly:") {
+		parts := strings.Split(strings.TrimPrefix(sc, "weekly:"), ":")
+		if len(parts) == 3 {
+			days := []string{"周日", "周一", "周二", "周三", "周四", "周五", "周六"}
+			w, _ := strconv.Atoi(parts[0])
+			if w >= 0 && w <= 6 {
+				return "每" + days[w] + " " + parts[1] + ":" + parts[2]
+			}
+		}
+	}
+	if strings.HasPrefix(sc, "once:") {
+		return "一次性 " + strings.TrimPrefix(sc, "once:")
+	}
 	return sc
 }
 
@@ -114,6 +142,8 @@ func (s *Server) ListCron(w http.ResponseWriter, r *http.Request) {
 			{"value": "every:360m", "label": "每 6 小时"},
 			{"value": "hourly:15", "label": "每小时第 15 分"},
 			{"value": "daily:03:30", "label": "每天 03:30"},
+			{"value": "weekly:0:03:30", "label": "每周日 03:30"},
+			{"value": "weekly:1:09:00", "label": "每周一 09:00"},
 		},
 	})
 }
@@ -144,7 +174,8 @@ func (s *Server) SaveCron(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !validSchedule(req.Schedule) {
-		fail(w, http.StatusBadRequest, "调度表达式不合法（every:Nm / hourly:MM / daily:HH:MM）")
+		fail(w, http.StatusBadRequest,
+			"调度表达式不合法（every:Nm / hourly:MM / daily:HH:MM / weekly:W:HH:MM / once:YYYY-MM-DDTHH:MM）")
 		return
 	}
 
@@ -253,6 +284,18 @@ func runCronCommand(ctx context.Context, command string) (status, output string)
 	return "ok", string(out)
 }
 
+// disableCronTask 将指定任务置为禁用并持久化（一次性任务执行后调用）。
+func (s *Server) disableCronTask(id string) {
+	tasks := s.loadCronTasks()
+	for i := range tasks {
+		if tasks[i].ID == id {
+			tasks[i].Enabled = false
+			break
+		}
+	}
+	_ = s.saveCronTasks(tasks)
+}
+
 // recordCronResult 更新任务的执行结果并持久化。
 func (s *Server) recordCronResult(id, status, output string) {
 	tasks := s.loadCronTasks()
@@ -297,6 +340,10 @@ func (s *Server) StartCron(ctx context.Context) {
 					continue
 				}
 				go func(task CronTask) {
+					// 一次性任务执行后自动禁用，避免列表里长期显示"已启用"。
+					if strings.HasPrefix(task.Schedule, "once:") {
+						s.disableCronTask(task.ID)
+					}
 					ctx2, cancel := context.WithTimeout(ctx, 10*time.Minute)
 					defer cancel()
 					status, output := runCronCommand(ctx2, task.Command)
@@ -353,7 +400,43 @@ func primeCronBaseline(state *cronState, t CronTask, now time.Time) {
 			state.lastDaily[t.ID] = now.Format("2006-01-02")
 		}
 		state.lastTrigger[t.ID] = now
+	case strings.HasPrefix(t.Schedule, "weekly:"):
+		// 本周的目标星期若已过，视为本周已触发（不补跑）；未到则记为上一周。
+		parts := strings.Split(strings.TrimPrefix(t.Schedule, "weekly:"), ":")
+		w, _ := strconv.Atoi(parts[0])
+		hour, _ := strconv.Atoi(parts[1])
+		minute, _ := strconv.Atoi(parts[2])
+		target := weeklyTarget(now, w, hour, minute)
+		key := isoWeek(now)
+		if now.Before(target) {
+			key = isoWeek(now.AddDate(0, 0, -7))
+		}
+		state.lastDaily[t.ID] = key
+		state.lastTrigger[t.ID] = now
+	case strings.HasPrefix(t.Schedule, "once:"):
+		// 一次性任务：清理旧的 fired 标记，让它按计划时间判定。
+		// 计划时刻已过则直接标为 fired（重启不补跑历史一次性任务）。
+		target, err := time.ParseInLocation("2006-01-02T15:04", strings.TrimPrefix(t.Schedule, "once:"), time.Local)
+		if err != nil || !now.Before(target) {
+			state.lastDaily[t.ID] = "fired"
+		} else {
+			delete(state.lastDaily, t.ID)
+		}
 	}
+}
+
+// weeklyTarget 返回 now 所在周内、星期 w（0=周日）hour:minute 的时刻。
+func weeklyTarget(now time.Time, w, hour, minute int) time.Time {
+	// Go 的 Weekday: 周日=0..周六=6，与表达式一致。
+	delta := (w - int(now.Weekday()) + 7) % 7
+	day := now.AddDate(0, 0, delta)
+	return time.Date(day.Year(), day.Month(), day.Day(), hour, minute, 0, 0, now.Location())
+}
+
+// isoWeek 返回 now 所在的 ISO 周标识，如 "2026-W47"。
+func isoWeek(now time.Time) string {
+	year, week := now.ISOWeek()
+	return fmt.Sprintf("%04d-W%02d", year, week)
 }
 
 // cronDue 判断任务是否到期（同时更新基准时间，保证每周期只触发一次）。
@@ -392,6 +475,31 @@ func cronDue(state *cronState, t CronTask, now time.Time) bool {
 		}
 		if now.Hour() > h || (now.Hour() == h && now.Minute() >= m) {
 			state.lastDaily[t.ID] = today
+			state.lastTrigger[t.ID] = now
+			return true
+		}
+	case strings.HasPrefix(t.Schedule, "weekly:"):
+		parts := strings.Split(strings.TrimPrefix(t.Schedule, "weekly:"), ":")
+		w, _ := strconv.Atoi(parts[0])
+		h, _ := strconv.Atoi(parts[1])
+		m, _ := strconv.Atoi(parts[2])
+		key := isoWeek(now)
+		if state.lastDaily[t.ID] == key {
+			return false
+		}
+		target := weeklyTarget(now, w, h, m)
+		if !now.Before(target) {
+			state.lastDaily[t.ID] = key
+			state.lastTrigger[t.ID] = now
+			return true
+		}
+	case strings.HasPrefix(t.Schedule, "once:"):
+		if state.lastDaily[t.ID] == "fired" {
+			return false
+		}
+		target, err := time.ParseInLocation("2006-01-02T15:04", strings.TrimPrefix(t.Schedule, "once:"), time.Local)
+		if err == nil && !now.Before(target) {
+			state.lastDaily[t.ID] = "fired"
 			state.lastTrigger[t.ID] = now
 			return true
 		}

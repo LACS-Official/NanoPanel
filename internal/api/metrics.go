@@ -3,12 +3,15 @@ package api
 import (
 	"bufio"
 	"context"
+	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -264,6 +267,48 @@ func (s *Server) Metrics(w http.ResponseWriter, r *http.Request) {
 		"total":          len(points),
 		"disk_ok":        diskOK,
 	})
+}
+
+// MetricsExport 将指定时间窗内的历史采样点导出为 CSV 附件。
+// 与 Metrics 不同，导出使用窗口内的全部原始点（不降采样），便于外部工具分析。
+// 网络列导出为累计字节数（net_rx_bytes / net_tx_bytes），时间列同时给出
+// Unix 秒与本地可读时间。
+func (s *Server) MetricsExport(w http.ResponseWriter, r *http.Request) {
+	win := parseMetricsRange(r.URL.Query().Get("range"))
+	since := time.Now().Add(-win).Unix()
+
+	s.metricsMu.Lock()
+	all := append([]MetricPoint(nil), s.metricsData...)
+	s.metricsMu.Unlock()
+
+	points := make([]MetricPoint, 0, len(all))
+	for _, p := range all {
+		if p.TS >= since {
+			points = append(points, p)
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(
+		"attachment; filename=nanopanel-metrics-%s.csv", time.Now().Format("20060102-150405")))
+	// BOM 让 Excel 正确识别 UTF-8 中文表头。
+	_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF})
+
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"time", "time_unix", "cpu_pct", "mem_pct", "disk_pct", "temp_c", "net_rx_bytes", "net_tx_bytes"})
+	for _, p := range points {
+		_ = cw.Write([]string{
+			time.Unix(p.TS, 0).Format("2006-01-02 15:04:05"),
+			strconv.FormatInt(p.TS, 10),
+			strconv.FormatFloat(p.CPU, 'f', 1, 64),
+			strconv.FormatFloat(p.Mem, 'f', 1, 64),
+			strconv.FormatFloat(p.Disk, 'f', 1, 64),
+			strconv.FormatFloat(p.Temp, 'f', 1, 64),
+			strconv.FormatUint(p.NetRx, 10),
+			strconv.FormatUint(p.NetTx, 10),
+		})
+	}
+	cw.Flush()
 }
 
 func parseMetricsRange(v string) time.Duration {

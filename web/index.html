@@ -31,6 +31,14 @@
     <input id="loginPwd" type="password" placeholder="登录密码" autocomplete="current-password"
            data-keydown="if(event.key==='Enter')doLogin()">
     <button class="btn" style="width:100%" data-act="doLogin()">登 录</button>
+    <div id="mfaStep" class="hidden" style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+      <div style="font-size:13px;color:var(--gray);margin-bottom:8px">两步验证：输入验证器 6 位验证码，或一次性恢复码</div>
+      <input id="mfaCode" type="text" placeholder="验证码 / 恢复码" autocomplete="one-time-code"
+             style="text-align:center;letter-spacing:4px"
+             data-keydown="if(event.key==='Enter')doMfaVerify()">
+      <button class="btn" style="width:100%;margin-top:8px" data-act="doMfaVerify()">验证并登录</button>
+      <button class="btn gray" style="width:100%;margin-top:6px" data-act="cancelMfa()">返回</button>
+    </div>
     <div class="login-foot">
       <span class="lf-ver" id="loginVersion">NanoPanel</span>
       <span class="lf-sep">·</span>
@@ -100,6 +108,7 @@
               <button type="button" class="sm" data-act="setMetricsRange('6h')">6 小时</button>
               <button type="button" class="sm" data-act="setMetricsRange('24h')">24 小时</button>
               <button type="button" class="sm" data-act="setMetricsRange('7d')">7 天</button>
+              <button type="button" class="sm gray" data-act="exportMetricsCSV()" title="导出当前时间窗的采样点为 CSV">导出 CSV</button>
             </div>
           </div>
           <div id="metricsChart"></div>
@@ -300,6 +309,20 @@
               <label class="lbl">持续（秒）</label>
               <input type="number" id="alertSustain" min="0" max="3600" step="60" style="width:88px" placeholder="300">
             </div>
+            <div class="row-flex" style="flex-wrap:wrap;gap:10px 14px;margin-bottom:12px;align-items:center">
+              <label class="lbl" style="display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="quietEnabled" style="width:auto"> 免打扰时段
+              </label>
+              <input type="time" id="quietStart" style="width:100px" value="23:00">
+              <span style="color:var(--gray)">至</span>
+              <input type="time" id="quietEnd" style="width:100px" value="07:00">
+              <label class="lbl" style="display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="quietExempt" style="width:auto"> 紧急事件仍推送
+              </label>
+            </div>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              免打扰时段内资源告警只记审计、不推送 Webhook；时段支持跨午夜（如 23:00 至次日 07:00）。
+            </div>
             <div class="row-flex">
               <button class="btn sm" data-act="saveAlertSettings()">保存告警设置</button>
               <span class="state-tag" id="alertHint"></span>
@@ -342,9 +365,55 @@
             <button class="btn" data-act="doChangePassword()">保存修改</button>
           </div>
           <div class="card">
+            <h2>两步验证（TOTP）</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              启用后登录需额外输入验证器 App（如 Google Authenticator、1Password）的 6 位动态码。
+              密钥与恢复码仅存于面板；请妥善保存恢复码，验证器丢失时可用其登录。
+            </div>
+            <div class="row-flex" style="margin-bottom:10px">
+              <span class="state-tag" id="mfaState"></span>
+            </div>
+            <div id="mfaSetup" style="display:none;margin-bottom:12px">
+              <div style="font-size:12px;color:var(--gray);margin-bottom:6px">用验证器扫码或手动输入以下密钥，然后填入 6 位验证码确认启用：</div>
+              <div id="mfaUri" style="font-size:12px;word-break:break-all;color:var(--accent);margin-bottom:6px"></div>
+              <code id="mfaSecret" style="display:block;font-size:14px;letter-spacing:2px;padding:8px;background:var(--bg2);border-radius:6px;margin-bottom:8px"></code>
+              <div class="row-flex">
+                <input id="mfaEnableCode" placeholder="6 位验证码" style="width:140px;margin:0;text-align:center;letter-spacing:4px">
+                <button class="btn sm" data-act="enableMFA()">确认启用</button>
+                <button class="btn sm gray" data-act="cancelMfaSetup()">取消</button>
+              </div>
+            </div>
+            <div id="mfaRecovery" style="display:none;margin-bottom:12px">
+              <div style="font-size:12px;color:#d38b1d;margin-bottom:6px">请立即保存以下恢复码（仅显示一次，每个只能用一次）：</div>
+              <code id="mfaRecoveryCodes" style="display:block;font-size:13px;line-height:1.8;padding:8px;background:var(--bg2);border-radius:6px;word-break:break-all"></code>
+            </div>
+            <div class="row-flex">
+              <button class="btn sm" id="mfaSetupBtn" data-act="setupMFA()">生成密钥并启用</button>
+              <button class="btn sm gray" id="mfaDisableBtn" data-act="disableMFA()" style="display:none">关闭两步验证</button>
+              <button class="btn sm gray" id="mfaResetBtn" data-act="resetMfaRecovery()" style="display:none">重置恢复码</button>
+            </div>
+          </div>
+          <div class="card">
             <h2>登录会话</h2>
             <div style="font-size:12px;color:var(--gray);margin-bottom:12px">退出当前浏览器保存的登录凭据。</div>
             <button class="btn gray" data-act="doLogout()">退出登录</button>
+          </div>
+          <div class="card">
+            <h2>只读 API Token</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              只读 token 仅能调用 GET 类接口，适合交给 Grafana / 监控脚本拉取指标，无法执行重启、改配置等写操作。生成后仅显示一次，请立即保存。
+            </div>
+            <div class="row-flex" style="margin-bottom:8px">
+              <button class="btn sm" data-act="createReadonlyToken()">生成只读 token</button>
+            </div>
+            <div id="readonlyTokenBox" style="display:none">
+              <code id="readonlyToken" style="display:block;font-size:12px;word-break:break-all;padding:8px;background:var(--bg2);border-radius:6px;margin-bottom:8px"></code>
+              <div class="row-flex">
+                <button class="btn sm gray" data-act="copyReadonlyToken()">复制</button>
+                <input id="revokeTokenInput" placeholder="要吊销的 token" style="flex:1;min-width:200px;margin:0">
+                <button class="btn sm danger" data-act="revokeToken()">吊销</button>
+              </div>
+            </div>
           </div>
           <div class="card">
             <h2>内置终端</h2>
@@ -379,15 +448,59 @@
             <div style="font-size:12px;color:var(--gray);margin-top:10px" id="restoreHint"></div>
           </div>
           <div class="card">
+            <h2>远程备份</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              将备份 tar.gz 自动上传到 WebDAV 目录或 S3 兼容存储；上传失败会推送通知并记入面板日志。可设定每日定时执行，也可手动立即备份。
+            </div>
+            <div class="row-flex" style="flex-wrap:wrap;gap:10px 14px;margin-bottom:12px">
+              <label class="lbl">存储类型</label>
+              <select id="rbType" class="sm" style="width:110px">
+                <option value="">关闭</option>
+                <option value="webdav">WebDAV</option>
+                <option value="s3">S3 兼容</option>
+              </select>
+              <label class="lbl">保留份数</label>
+              <input type="number" id="rbRetain" min="0" max="100" style="width:80px" placeholder="0=不限">
+              <label class="lbl">每日时间</label>
+              <input type="time" id="rbSchedule" style="width:100px" placeholder="留空仅手动">
+            </div>
+            <div class="row-flex" style="flex-wrap:wrap;gap:10px 14px;margin-bottom:12px" id="rbWebdavRow">
+              <label class="lbl">WebDAV URL</label>
+              <input id="rbUrl" placeholder="https://dav.example.com/backups" style="flex:1;min-width:220px;margin:0">
+            </div>
+            <div class="row-flex" style="flex-wrap:wrap;gap:10px 14px;margin-bottom:12px;display:none" id="rbS3Row">
+              <label class="lbl">端点</label>
+              <input id="rbEndpoint" placeholder="https://s3.example.com" style="width:200px;margin:0">
+              <label class="lbl">桶</label>
+              <input id="rbBucket" placeholder="backups" style="width:110px;margin:0">
+              <label class="lbl">区域</label>
+              <input id="rbRegion" placeholder="us-east-1" style="width:120px;margin:0">
+            </div>
+            <div class="row-flex" style="flex-wrap:wrap;gap:10px 14px;margin-bottom:12px">
+              <label class="lbl">访问密钥 / 用户名</label>
+              <input id="rbUser" placeholder="用户名 / AccessKey" style="width:180px;margin:0">
+              <label class="lbl">密码 / SecretKey</label>
+              <input id="rbPass" type="password" placeholder="留空表示不修改" style="width:180px;margin:0">
+              <span id="rbPassMask" style="font-size:12px;color:var(--gray)"></span>
+            </div>
+            <div class="row-flex">
+              <button class="btn sm" data-act="saveRemoteBackup()">保存配置</button>
+              <button class="btn sm gray" data-act="runRemoteBackup()">立即备份</button>
+              <span class="state-tag" id="rbHint"></span>
+            </div>
+            <div style="font-size:12px;color:var(--gray);margin-top:10px" id="rbLast"></div>
+          </div>
+          <div class="card">
             <h2>定时任务</h2>
             <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
               面板内管理例行任务（如日志清理、定时脚本）。任务持久化保存，面板重启不丢失；
               执行结果推送「定时任务执行结果」Webhook 并写入面板日志。
             </div>
             <div class="row-flex" style="margin-bottom:12px">
-              <input id="cronName" placeholder="任务名称" style="width:140px;margin:0">
-              <select id="cronSched" class="sm" style="width:130px"></select>
-              <input id="cronCmd" placeholder="Shell 命令，如 journalctl --vacuum-size=50M" style="flex:1;min-width:220px;margin:0">
+              <input id="cronName" placeholder="任务名称" style="width:130px;margin:0">
+              <select id="cronSched" class="sm" style="width:140px"></select>
+              <input id="cronCustom" placeholder="自定义：once:2026-12-01T03:00" style="width:210px;margin:0;display:none">
+              <input id="cronCmd" placeholder="Shell 命令，如 journalctl --vacuum-size=50M" style="flex:1;min-width:200px;margin:0">
               <button class="btn sm" data-act="saveCronTask()">添加任务</button>
             </div>
             <div class="table-wrap">

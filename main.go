@@ -104,11 +104,19 @@ func main() {
 
 	// 公开接口
 	mux.HandleFunc("POST /api/v1/login", srv.Login)
+	mux.HandleFunc("POST /api/v1/login/verify", srv.VerifyLogin)
 	mux.HandleFunc("GET /api/v1/health", srv.Health)
 
 	// 需要登录的接口
 	mux.HandleFunc("POST /api/v1/logout", srv.AuthMiddleware(srv.Logout))
+	mux.HandleFunc("POST /api/v1/tokens/readonly", srv.AuthMiddleware(srv.CreateReadonlyToken))
+	mux.HandleFunc("POST /api/v1/tokens/revoke", srv.AuthMiddleware(srv.RevokeToken))
 	mux.HandleFunc("GET /api/v1/overview", srv.AuthMiddleware(srv.Overview))
+	mux.HandleFunc("GET /api/v1/settings/mfa", srv.AuthMiddleware(srv.GetMFASettings))
+	mux.HandleFunc("POST /api/v1/settings/mfa/setup", srv.AuthMiddleware(srv.SetupMFA))
+	mux.HandleFunc("POST /api/v1/settings/mfa/enable", srv.AuthMiddleware(srv.EnableMFA))
+	mux.HandleFunc("POST /api/v1/settings/mfa/disable", srv.AuthMiddleware(srv.DisableMFA))
+	mux.HandleFunc("POST /api/v1/settings/mfa/recovery", srv.AuthMiddleware(srv.ResetRecoveryCodes))
 	mux.HandleFunc("POST /api/v1/change-password", srv.AuthMiddleware(srv.ChangePassword))
 	mux.HandleFunc("GET /api/v1/services", srv.AuthMiddleware(srv.ListServices))
 	mux.HandleFunc("POST /api/v1/service/action", srv.AuthMiddleware(srv.ServiceAction))
@@ -132,6 +140,7 @@ func main() {
 	mux.HandleFunc("GET /api/v1/settings/monitor", srv.AuthMiddleware(srv.GetMonitorSettings))
 	mux.HandleFunc("POST /api/v1/settings/monitor", srv.AuthMiddleware(srv.SaveMonitorSettings))
 	mux.HandleFunc("GET /api/v1/metrics", srv.AuthMiddleware(srv.Metrics))
+	mux.HandleFunc("GET /api/v1/metrics/export", srv.AuthMiddleware(srv.MetricsExport))
 	mux.HandleFunc("GET /api/v1/settings/alerts", srv.AuthMiddleware(srv.GetAlertSettings))
 	mux.HandleFunc("POST /api/v1/settings/alerts", srv.AuthMiddleware(srv.SaveAlertSettings))
 	mux.HandleFunc("GET /api/v1/settings/mirror", srv.AuthMiddleware(srv.MirrorSettings))
@@ -156,6 +165,9 @@ func main() {
 	// 备份与恢复
 	mux.HandleFunc("GET /api/v1/backup", srv.AuthMiddleware(srv.Backup))
 	mux.HandleFunc("POST /api/v1/restore", srv.AuthMiddleware(srv.Restore))
+	mux.HandleFunc("GET /api/v1/settings/remote-backup", srv.AuthMiddleware(srv.RemoteBackupSettings))
+	mux.HandleFunc("POST /api/v1/settings/remote-backup", srv.AuthMiddleware(srv.SaveRemoteBackupSettings))
+	mux.HandleFunc("POST /api/v1/remote-backup/run", srv.AuthMiddleware(srv.RemoteBackupNow))
 
 	// 定时任务
 	mux.HandleFunc("GET /api/v1/cron", srv.AuthMiddleware(srv.ListCron))
@@ -202,6 +214,8 @@ func main() {
 	srv.StartMonitor(ctx)
 	// 定时任务调度器随服务生命周期启停。
 	srv.StartCron(ctx)
+	// 远程备份调度器随服务生命周期启停（按配置的 daily:HH:MM 执行）。
+	srv.StartRemoteBackup(ctx)
 	// 后台自动更新检查随服务生命周期启停（每日在配置小时检查、可自动安装）。
 	srv.StartAutoUpdate(ctx)
 	go func() {
