@@ -1314,7 +1314,8 @@ async function checkUpdate(){
   status.textContent = '正在检查…';
   try {
     const d = await call('GET','/update/check');
-    const u = d.data || {};
+    // call() 已解包响应的 data 字段，d 本身就是 UpdateInfo，不能再取一层 .data
+    const u = d || {};
     if (u.status === 'unreachable' || u.status === 'unknown'){
       status.textContent = '暂无法连接更新源（'+(u.message||'网络不可达')+'）';
       return;
@@ -1367,9 +1368,10 @@ async function autoUpdateCheck(){
       call('GET','/update/check'),
       new Promise((_, reject)=>setTimeout(()=>reject(new Error('检查超时')), 15000))
     ]);
-    const u = (d && d.data) || {};
+    // call() 已解包响应的 data 字段，d 本身就是 UpdateInfo，不能再取一层 .data
+    const u = d || {};
     if (u.status !== 'ok' || !u.has_update || !u.latest_version) return;
-    if (localStorage.getItem('np_update_skip') === u.latest_version) return;
+    // 强制更新：不再读取 np_update_skip，任何新版本都会弹出提示。
     showUpdateDialog(u);
   } catch(e){
     /* 自动检查属于增强提示，失败时由「关于」页手动检查兜底 */
@@ -1380,7 +1382,6 @@ function showUpdateDialog(u){
   const cur = document.getElementById('updCurrent');
   const latest = document.getElementById('updLatest');
   const link = document.getElementById('updReleaseLink');
-  const skip = document.getElementById('updSkip');
   const mask = document.getElementById('updateMask');
   if (!cur || !latest || !mask) return;
   cur.textContent = fmtVersion(u.current_version) || npVersion || '-';
@@ -1390,16 +1391,10 @@ function showUpdateDialog(u){
     link.href = u.release_url || '#';
     link.style.display = u.release_url ? '' : 'none';
   }
-  if (skip) skip.checked = false;
   mask.classList.remove('hidden');
 }
 
 function closeUpdateDlg(){
-  const skip = document.getElementById('updSkip');
-  const latest = document.getElementById('updLatest');
-  if (skip && skip.checked && latest && latest.dataset.ver) {
-    localStorage.setItem('np_update_skip', latest.dataset.ver);
-  }
   const mask = document.getElementById('updateMask');
   if (mask) mask.classList.add('hidden');
 }
