@@ -69,7 +69,7 @@ curl -fsSL https://npanel.lacs.cc/install.sh | sudo bash
 
 ```bash
 # 指定版本 / 端口
-curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_VERSION=v0.1.9 NP_PORT=9090 bash
+curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_VERSION=v0.2.0 NP_PORT=9090 bash
 
 # 强制走某个镜像（跳过测速）
 curl -fsSL https://npanel.lacs.cc/install.sh | sudo NP_MIRROR=https://ghfast.top/https://github.com bash
@@ -115,7 +115,7 @@ sudo ./install.sh          # WSL 默认 root 时可直接 ./install.sh
   Windows  : http://localhost:8080  (WSL2 端口转发)
   用户名   : admin
   密码     : KK5fuGszsWE5Mktb
-  版本     : 0.1.9
+  版本     : 0.2.0
   下载源   : github (0.361059s)
   软件源   : ustc (0.220176s)
 ------------------------------------------------------------
@@ -145,7 +145,7 @@ Windows 浏览器打开 **http://localhost:8080** 即可（WSL2 自带 localhost
 | 变量 | 默认值 | 说明 |
 |---|---|---|
 | `NP_REPO` | `LACS-Official/NanoPanel` | GitHub `owner/repo`，指向自己的 fork 即可自建发布 |
-| `NP_VERSION` | `latest` | `latest` 跟随最新 Release，也可写 `v0.1.9` |
+| `NP_VERSION` | `latest` | `latest` 跟随最新 Release，也可写 `v0.2.0` |
 | `NP_PORT` | `8080` | 面板监听端口 |
 | `NP_USERNAME` | `admin` | 登录用户名 |
 | `NP_PASSWORD` | 随机 16 位 | 登录密码；留空自动生成 |

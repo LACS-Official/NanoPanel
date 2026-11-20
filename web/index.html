@@ -88,32 +88,35 @@
       <div class="notice hidden" id="platformNotice"></div>
 
       <div class="view active" id="view-overview">
-        <div class="card">
-          <h2>系统信息</h2>
-          <div class="grid2" id="sysMetrics"></div>
-        </div>
-        <div class="card">
-          <h2>资源占用</h2>
-          <div id="resBars"></div>
-        </div>
-        <div class="card">
-          <h2>运行概览</h2>
-          <div class="grid2" id="statTiles"></div>
-        </div>
-        <div class="card">
-          <div class="row-flex" style="margin-bottom:12px">
-            <h2 style="margin:0">历史趋势</h2>
-            <div class="npc-range" id="metricsRanges">
-              <button type="button" class="sm active" data-act="setMetricsRange('1h')">1 小时</button>
-              <button type="button" class="sm" data-act="setMetricsRange('6h')">6 小时</button>
-              <button type="button" class="sm" data-act="setMetricsRange('24h')">24 小时</button>
-              <button type="button" class="sm" data-act="setMetricsRange('7d')">7 天</button>
-              <button type="button" class="sm gray" data-act="exportMetricsCSV()" title="导出当前时间窗的采样点为 CSV">导出 CSV</button>
+        <div class="overview-grid">
+          <div class="card ov-sys">
+            <h2>系统信息</h2>
+            <div class="grid2" id="sysMetrics"></div>
+            <div id="tempReadings" class="temp-readings hidden"></div>
+          </div>
+          <div class="card ov-res">
+            <h2>资源占用</h2>
+            <div id="resBars"></div>
+          </div>
+          <div class="card ov-trend">
+            <div class="row-flex" style="margin-bottom:12px">
+              <h2 style="margin:0">历史趋势</h2>
+              <div class="npc-range" id="metricsRanges">
+                <button type="button" class="sm active" data-act="setMetricsRange('1h')">1 小时</button>
+                <button type="button" class="sm" data-act="setMetricsRange('6h')">6 小时</button>
+                <button type="button" class="sm" data-act="setMetricsRange('24h')">24 小时</button>
+                <button type="button" class="sm" data-act="setMetricsRange('7d')">7 天</button>
+                <button type="button" class="sm gray" data-act="exportMetricsCSV()" title="导出当前时间窗的采样点为 CSV">导出 CSV</button>
+              </div>
+            </div>
+            <div id="metricsChart"></div>
+            <div style="font-size:12px;color:var(--gray);margin-top:10px" id="metricsHint">
+              面板每 60 秒采样一次，保留最近 7 天；阈值告警在「应用 → 设置」中配置。
             </div>
           </div>
-          <div id="metricsChart"></div>
-          <div style="font-size:12px;color:var(--gray);margin-top:10px" id="metricsHint">
-            面板每 60 秒采样一次，保留最近 7 天；阈值告警在「应用 → 设置」中配置。
+          <div class="card ov-stat">
+            <h2>运行概览</h2>
+            <div class="grid2" id="statTiles"></div>
           </div>
         </div>
       </div>
@@ -249,8 +252,19 @@
           <div class="card">
             <h2>下载源</h2>
             <div class="grid2" id="mirrorMetrics"></div>
+            <div class="mirror-picker">
+              <div class="row-flex" style="gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 10px">
+                <label class="lbl" for="mirrorSource">选择 GitHub 下载源</label>
+                <select id="mirrorSource" class="sm" style="min-width:200px"></select>
+                <button type="button" class="btn sm" data-act="selectMirror()">应用该源</button>
+                <button type="button" class="btn sm gray" data-act="testMirrors()">测试全部源</button>
+              </div>
+              <div id="mirrorTestResult" class="mirror-test">
+                <div class="empty-tip" style="padding:10px 0">点击「测试全部源」检测各节点的连通性与延迟；「当前」标记为正在使用的源。</div>
+              </div>
+            </div>
             <div style="font-size:12px;color:var(--gray);margin-top:12px">
-              安装时自动测速选择的最优源；如需更换，编辑 /etc/nanopanel/mirror.conf 后重启面板服务。
+              切换后立即对更新检查生效，同时写入 <span class="mono">/etc/nanopanel/mirror.conf</span>，重启后保持。
             </div>
           </div>
           <div class="card">
@@ -568,74 +582,77 @@
       </div>
 
       <div class="view" id="view-about">
-        <div class="card about-hero">
-          <div class="np-logo"></div>
-          <div class="about-name">NanoPanel<span class="v" id="aboutVer"></span></div>
-          <div class="about-slogan">面向小内存 Linux 设备的轻量服务器运维面板</div>
-          <p class="about-text">单文件、零依赖，无需数据库与容器，一个二进制即可运行。由 <b>领创工作室（LAC Studio）</b> 开源维护，遵循 MIT 协议。</p>
-        </div>
+        <div class="about-grid">
+          <div class="card about-hero">
+            <div class="np-logo"></div>
+            <div class="about-name">NanoPanel<span class="v" id="aboutVer"></span></div>
+            <div class="about-slogan">面向小内存 Linux 设备的轻量服务器运维面板</div>
+            <p class="about-text">单文件、零依赖，无需数据库与容器，一个二进制即可运行。由 <b>领创工作室（LAC Studio）</b> 开源维护，遵循 MIT 协议。</p>
+          </div>
 
-        <div class="card">
-          <h2>版本与更新</h2>
-          <div class="update-row">
-            <div>
-              <div class="up-cur">当前版本 <b id="aboutCurVer">dev</b></div>
-              <div class="up-status" id="updateStatus">点击右侧按钮检查是否有新版本</div>
+          <div class="card">
+            <h2>版本与更新</h2>
+            <div class="update-row">
+              <div>
+                <div class="up-cur">当前版本 <b id="aboutCurVer">dev</b></div>
+                <div class="up-status" id="updateStatus">点击右侧按钮检查是否有新版本</div>
+              </div>
+              <div class="row-flex" style="gap:8px">
+                <button class="btn" data-act="checkUpdate()">检查更新</button>
+                <button class="btn green" id="applyUpdateBtn" data-act="applyUpdate()" style="display:none">立即升级</button>
+              </div>
             </div>
-            <div class="row-flex" style="gap:8px">
-              <button class="btn" data-act="checkUpdate()">检查更新</button>
-              <button class="btn green" id="applyUpdateBtn" data-act="applyUpdate()" style="display:none">立即升级</button>
+            <div class="update-row" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+              <div>
+                <div class="up-cur">自动更新</div>
+                <div class="up-status" id="autoUpdateDesc">发现新版本时自动下载并安装，并推送通知（需在「设置 → 通知」勾选「版本更新」事件）</div>
+              </div>
+              <div class="row-flex" style="gap:10px;align-items:center;flex-wrap:wrap">
+                <label class="lbl"><input type="checkbox" id="autoUpdateSwitch" data-change="saveUpdateSettings()"> 启用自动更新</label>
+                <span class="lbl">每日</span>
+                <select id="updateHour" class="sm" data-change="saveUpdateSettings()"></select>
+                <span class="lbl">点检查</span>
+              </div>
             </div>
           </div>
-          <div class="update-row" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
-            <div>
-              <div class="up-cur">自动更新</div>
-              <div class="up-status" id="autoUpdateDesc">发现新版本时自动下载并安装，并推送通知（需在「设置 → 通知」勾选「版本更新」事件）</div>
-            </div>
-            <div class="row-flex" style="gap:10px;align-items:center;flex-wrap:wrap">
-              <label class="lbl"><input type="checkbox" id="autoUpdateSwitch" data-change="saveUpdateSettings()"> 启用自动更新</label>
-              <span class="lbl">每日</span>
-              <select id="updateHour" class="sm" data-change="saveUpdateSettings()"></select>
-              <span class="lbl">点检查</span>
-            </div>
-          </div>
-        </div>
 
-        <div class="card donate-card">
-          <div class="donate-head">
-            <div class="donate-icon">♥</div>
-            <div>
-              <div class="donate-title">支持 NanoPanel 开发</div>
-              <div class="donate-sub">如果这个项目对你有帮助，欢迎扫码请作者喝杯咖啡 ☕</div>
+          <div class="card donate-card">
+            <div class="donate-head">
+              <div class="donate-icon">♥</div>
+              <div>
+                <div class="donate-title">支持 NanoPanel 开发</div>
+                <div class="donate-sub">如果这个项目对你有帮助，欢迎扫码请作者喝杯咖啡 ☕</div>
+              </div>
             </div>
+            <div class="donate-qr-row">
+              <figure>
+                <img src="/img/donate-wechat.png" alt="微信赞赏码" loading="lazy">
+                <figcaption>微信赞赏码</figcaption>
+              </figure>
+              <figure>
+                <img src="/img/donate-alipay.png" alt="支付宝收款码" loading="lazy">
+                <figcaption>支付宝收款码</figcaption>
+              </figure>
+            </div>
+            <div class="donate-thanks">每一份支持都会让 NanoPanel 变得更好，感谢你的鼓励！</div>
           </div>
-          <div class="donate-qr-row">
-            <figure>
-              <img src="/img/donate-wechat.png" alt="微信赞赏码" loading="lazy">
-              <figcaption>微信赞赏码</figcaption>
-            </figure>
-            <figure>
-              <img src="/img/donate-alipay.png" alt="支付宝收款码" loading="lazy">
-              <figcaption>支付宝收款码</figcaption>
-            </figure>
-          </div>
-          <div class="donate-thanks">每一份支持都会让 NanoPanel 变得更好，感谢你的鼓励！</div>
-        </div>
 
-        <div class="card">
-          <div class="about-links">
-            <a class="alink" href="https://lacs.cc" target="_blank" rel="noopener">
-              <span class="al-k">领创工作室官网</span><span class="al-v">lacs.cc<span class="ar">↗</span></span></a>
-            <a class="alink" href="https://npanel.lacs.cc" target="_blank" rel="noopener">
-              <span class="al-k">项目官网</span><span class="al-v">npanel.lacs.cc<span class="ar">↗</span></span></a>
-            <a class="alink" href="https://npanel.lacs.cc/docs" target="_blank" rel="noopener">
-              <span class="al-k">部署文档</span><span class="al-v">npanel.lacs.cc/docs<span class="ar">↗</span></span></a>
-            <a class="alink" href="https://npanel.lacs.cc/download" target="_blank" rel="noopener">
-              <span class="al-k">下载与一键安装</span><span class="al-v">npanel.lacs.cc/download<span class="ar">↗</span></span></a>
-            <a class="alink" href="https://github.com/LACS-Official/NanoPanel" target="_blank" rel="noopener">
-              <span class="al-k">GitHub 仓库</span><span class="al-v">LACS-Official/NanoPanel<span class="ar">↗</span></span></a>
+          <div class="card">
+            <h2>相关链接</h2>
+            <div class="about-links">
+              <a class="alink" href="https://lacs.cc" target="_blank" rel="noopener">
+                <span class="al-k">领创工作室官网</span><span class="al-v">lacs.cc<span class="ar">↗</span></span></a>
+              <a class="alink" href="https://npanel.lacs.cc" target="_blank" rel="noopener">
+                <span class="al-k">项目官网</span><span class="al-v">npanel.lacs.cc<span class="ar">↗</span></span></a>
+              <a class="alink" href="https://npanel.lacs.cc/docs" target="_blank" rel="noopener">
+                <span class="al-k">部署文档</span><span class="al-v">npanel.lacs.cc/docs<span class="ar">↗</span></span></a>
+              <a class="alink" href="https://npanel.lacs.cc/download" target="_blank" rel="noopener">
+                <span class="al-k">下载与一键安装</span><span class="al-v">npanel.lacs.cc/download<span class="ar">↗</span></span></a>
+              <a class="alink" href="https://github.com/LACS-Official/NanoPanel" target="_blank" rel="noopener">
+                <span class="al-k">GitHub 仓库</span><span class="al-v">LACS-Official/NanoPanel<span class="ar">↗</span></span></a>
+            </div>
+            <div class="about-foot">由 领创工作室（LAC Studio） 开源维护 · MIT License</div>
           </div>
-          <div class="about-foot">由 领创工作室（LAC Studio） 开源维护 · MIT License</div>
         </div>
       </div>
     </main>

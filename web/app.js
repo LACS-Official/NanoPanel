@@ -190,34 +190,74 @@ function fmtUptime(sec){
   return d+'天 '+h+'时 '+m+'分';
 }
 function metric(k,v){ return '<div class="metric"><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div></div>'; }
+// 受控富文本 metric：k 仍转义，v 由调用方保证安全（内部值均经 esc），用于温度状态色等。
+function metricHTML(k,html){ return '<div class="metric"><div class="k">'+esc(k)+'</div><div class="v">'+html+'</div></div>'; }
+
+// 温度展示文案与样式类：数值 + 单位，异常状态单独标注，绝不把原始标签当文本输出。
+function tempView(z){
+  const c = Number(z.celsius);
+  const valid = Number.isFinite(c);
+  const status = z.status || 'ok';
+  if (status === 'suspicious' || !valid){
+    return '<span class="tv-badge tv-susp" title="传感器读数超出合理范围">读数异常</span>';
+  }
+  const cls = status === 'critical' ? 'tv-crit' : status === 'hot' ? 'tv-hot' : status === 'warm' ? 'tv-warm' : 'tv-ok';
+  const label = status === 'critical' ? '过高' : status === 'hot' ? '偏高' : status === 'warm' ? '注意' : '正常';
+  return '<span class="tv-val '+cls+'">'+c.toFixed(0)+'<span class="tv-unit">℃</span></span>'+
+         '<span class="tv-badge '+cls+'">'+label+'</span>';
+}
+function tempLabel(z){ return esc(z.label || 'thermal'); }
 
 async function loadOverview(){
   try {
     const o = await call('GET','/overview');
+    // CPU 型号与拓扑：物理核心/插槽缺失时回退到逻辑核心，不显示误导性的负载值。
+    const cores = Number(o.cpu_cores) || 0;
+    const physical = Number(o.cpu_physical) || 0;
+    const sockets = Number(o.cpu_sockets) || 0;
+    const cpuModel = o.cpu_model || (o.cpu_arch ? (o.cpu_arch+'（型号未上报）') : '未知 CPU 型号');
+    let topo = cores ? cores+' 线程' : '-';
+    if (physical) topo = physical+' 核 / '+topo;
+    if (sockets > 1) topo = sockets+' 路 · '+topo;
     document.getElementById('sysMetrics').innerHTML =
       metric('主机名',o.hostname || '-')+
       metric('系统',o.os || '-')+
       metric('内核',o.kernel || '-')+
       metric('运行时间',fmtUptime(o.uptime_sec))+
-      metric('CPU',o.cpu_model || '-')+
-      metric('核心数 / 负载',o.cpu_cores+' 核 / '+o.load1)+
+      metric('CPU',cpuModel)+
+      metric('架构',o.cpu_arch || '-')+
+      metric('核心 / 线程',topo)+
+      metric('负载 (1/5/15)',[o.load1,o.load5,o.load15].map(v=>(Number(v)||0).toFixed(2)).join(' / '))+
       metric('当前时间',o.server_time || '-')+
-      (o.temps && o.temps.length ? metric('温度',
-        o.temps.map(z=>esc(z.label)+' <b style="color:'+(z.celsius>=70?'#ff3b30':(z.celsius>=55?'#d38b1d':'#1a9e44'))+'">'+z.celsius+'℃</b>').join(' · ')) : '')+
       (o.cpu_freqs && o.cpu_freqs.length ? metric('CPU 频率',
         Math.round(Math.min(...o.cpu_freqs))+' - '+Math.round(Math.max(...o.cpu_freqs))+' MHz') : '');
+    // 温度独立成区：每项一行，数值/单位/状态清晰分列，标签转义防注入。
+    const tbox = document.getElementById('tempReadings');
+    if (tbox){
+      if (o.temps && o.temps.length){
+        tbox.innerHTML = '<div class="temp-grid">'+o.temps.map(z=>
+          '<div class="temp-item"><span class="temp-name" title="'+tempLabel(z)+'">'+tempLabel(z)+'</span>'+tempView(z)+'</div>'
+        ).join('')+'</div>';
+        tbox.classList.remove('hidden');
+      } else {
+        tbox.innerHTML = '<div class="empty-tip" style="padding:8px 0">当前设备未上报温度热区</div>';
+        tbox.classList.remove('hidden');
+      }
+    }
     document.getElementById('resBars').innerHTML =
       bar('CPU 使用率',o.cpu_usage_pct, (Number(o.cpu_usage_pct)||0).toFixed(1)+'%')+
       bar('内存',o.mem_used_pct,(o.mem_total_mb-o.mem_avail_mb)+' / '+o.mem_total_mb+' MB')+
       bar('磁盘',o.disk_used_pct,(o.disk_total_mb-o.disk_avail_mb)+' / '+o.disk_total_mb+' MB');
     const instCount = (appData||[]).filter(a=>a.state==='installed').length;
     const svcCount = (svcData||[]).filter(s=>s.state==='active').length;
-    const maxTemp = (o.temps && o.temps.length) ? Math.max(...o.temps.map(z=>z.celsius)) : null;
+    const validTemps = (o.temps||[]).filter(z=>z.status!=='suspicious' && Number.isFinite(Number(z.celsius)));
+    const maxTemp = validTemps.length ? Math.max(...validTemps.map(z=>Number(z.celsius))) : null;
+    const maxStatus = maxTemp!==null ? (validTemps.find(z=>Number(z.celsius)===maxTemp)||{}).status : null;
     document.getElementById('statTiles').innerHTML =
       metric('进程数', (o.proc_count || o.proc_count===0) ? o.proc_count : '-')+
       metric('已安装应用', instCount)+
       metric('运行中服务', svcCount)+
-      metric('最高温度', maxTemp!==null ? maxTemp+'℃' : '—');
+      metric('最高温度', maxTemp!==null ? tempView({celsius:maxTemp, status:maxStatus}) : '—');
   } catch(e){ /* 定时刷新静默失败，避免打扰 */ }
 }
 /* ===== 历史趋势图与资源阈值告警 ===== */
@@ -777,17 +817,71 @@ document.getElementById('view-apps').addEventListener('click', async e=>{
   if (b) runAppAction(b.dataset.id, b.dataset.act, b.dataset.label);
 });
 
-// ===== 应用设置 =====
+// ===== 应用设置：下载源选择与测速 =====
+let mirrorCandidatesCache = [];
+let mirrorCurrentId = '';
 async function loadMirrorSettings(){
   try {
     const d = await call('GET','/settings/mirror');
     const box = document.getElementById('mirrorMetrics');
     box.innerHTML =
-      metric('GitHub 下载源', d.GITHUB_MIRROR || 'https://github.com（默认）')+
-      metric('apt 软件源', d.APT_MIRROR || '系统默认')+
+      metric('GitHub 下载源', d.GITHUB_MIRROR_NAME || d.GITHUB_MIRROR || 'https://github.com（默认）')+
+      metric('apt 软件源', d.APT_MIRROR_NAME || d.APT_MIRROR || '系统默认')+
       metric('测速延迟', d.GITHUB_MIRROR_LATENCY ? (Number(d.GITHUB_MIRROR_LATENCY).toFixed(2)+' s') : '-')+
       metric('选择时间', d.SELECTED_AT || '-');
   } catch(e){ /* 静默 */ }
+  try {
+    const c = await call('GET','/settings/mirror/candidates');
+    mirrorCandidatesCache = c.candidates || [];
+    mirrorCurrentId = c.current_id || 'github';
+    const sel = document.getElementById('mirrorSource');
+    if (sel){
+      sel.innerHTML = mirrorCandidatesCache.map(m =>
+        '<option value="'+esc(m.id)+'">'+esc(m.name)+' — '+esc(m.prefix)+'</option>').join('');
+      if (mirrorCurrentId === 'custom'){
+        sel.insertAdjacentHTML('afterbegin', '<option value="custom">当前自定义源</option>');
+      }
+      sel.value = mirrorCurrentId;
+    }
+  } catch(e){ /* 静默 */ }
+}
+
+async function testMirrors(){
+  const box = document.getElementById('mirrorTestResult');
+  if (!box) return;
+  box.innerHTML = '<div class="empty-tip" style="padding:10px 0">正在并发测试各下载源，最长约 6 秒…</div>';
+  try {
+    const d = await call('POST','/settings/mirror/test');
+    const results = d.results || [];
+    if (!results.length){ box.innerHTML = '<div class="empty-tip">暂无候选源</div>'; return; }
+    const best = results.find(r=>r.ok);
+    box.innerHTML = '<table class="mirror-table"><thead><tr><th>下载源</th><th>状态</th><th>延迟</th><th>测试详情</th></tr></thead><tbody>'+
+      results.map(r=>{
+        const isCur = r.id === mirrorCurrentId;
+        const isBest = best && r.id === best.id;
+        return '<tr'+(isCur?' class="mirror-cur"':'')+'>'+
+          '<td><b>'+esc(r.name)+'</b>'+(isCur?' <span class="cur-tag">当前</span>':'')+(isBest?' <span class="best-tag">最快</span>':'')+'</td>'+
+          '<td><span class="state-tag '+(r.ok?'st-ok':'st-off')+'">'+(r.ok?'可用':'不可用')+'</span></td>'+
+          '<td class="mono">'+(r.ok && r.latency ? Number(r.latency).toFixed(0)+' ms' : '—')+'</td>'+
+          '<td style="color:var(--gray)">'+esc(r.status || '-')+'</td></tr>';
+      }).join('')+'</tbody></table>';
+  } catch(e){
+    box.innerHTML = '<div class="empty-tip">测试失败：'+esc(e.message)+'</div>';
+  }
+}
+
+async function selectMirror(){
+  const sel = document.getElementById('mirrorSource');
+  if (!sel || !sel.value || sel.value === 'custom') return toast('请选择内置下载源');
+  const opt = sel.options[sel.selectedIndex];
+  if (!confirm('确认切换下载源为「'+opt.text+'」？\n切换后立即对更新检查生效，并写入配置文件。')) return;
+  try {
+    const d = await call('POST','/settings/mirror/select',{id:sel.value});
+    toast(d.message || '下载源已切换');
+    mirrorCurrentId = d.id || sel.value;
+    await loadMirrorSettings();
+    await testMirrors();
+  } catch(e){ toast(e.message); }
 }
 
 // ===== 网卡流量图表 =====
@@ -1648,8 +1742,10 @@ const INLINE_ACTIONS = {
   "fmSaveEdit()": () => fmSaveEdit(),
   "closeFmEdit()": () => closeFmEdit(),
   "if(event.target===this)closeFmEdit()": (ev, el) => { if (ev.target === el) closeFmEdit(); },
-  // 应用
+  // 应用 / 下载源
   "updateManifest()": () => updateManifest(),
+  "testMirrors()": () => testMirrors(),
+  "selectMirror()": () => selectMirror(),
   "checkAppsNow()": () => checkAppsNow(),
   "saveMonitor()": () => saveMonitor(),
   "saveTempThreshold()": () => saveTempThreshold(),

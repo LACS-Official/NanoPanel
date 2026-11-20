@@ -3,14 +3,17 @@
 package sysinfo
 
 import (
+	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
 
 // Temperatures 读取全部热区温度（/sys/class/thermal/thermal_zone*）。
-// 读不到或值异常（≤0 或 ≥150）的分区被跳过；无热区时返回空。
+// 跳过完全无效（解析失败）的分区；数值异常（<0 或 >150）的分区保留并标记
+// suspicious，让前端能明确提示"读数异常"而不是静默隐藏。
 func Temperatures() []TempZone {
 	matches, err := filepath.Glob("/sys/class/thermal/thermal_zone*")
 	if err != nil {
@@ -23,21 +26,27 @@ func Temperatures() []TempZone {
 			continue
 		}
 		milli, err := strconv.ParseFloat(strings.TrimSpace(string(raw)), 64)
-		if err != nil {
+		if err != nil || math.IsNaN(milli) || math.IsInf(milli, 0) {
 			continue
 		}
-		c := milli / 1000
-		if c <= 0 || c >= 150 {
-			continue
-		}
+		c := round1(milli / 1000)
 		label := "thermal"
 		if t, err := os.ReadFile(filepath.Join(dir, "type")); err == nil {
 			if v := strings.TrimSpace(string(t)); v != "" {
 				label = v
 			}
 		}
-		out = append(out, TempZone{Label: label, Celsius: round1(c)})
+		out = append(out, TempZone{Label: label, Celsius: c, Status: tempStatus(c)})
 	}
+	// 温度高的排前面，异常值（suspicious）放最后，便于用户一眼看到最需要关注的项。
+	sort.SliceStable(out, func(i, j int) bool {
+		si := out[i].Status == "suspicious"
+		sj := out[j].Status == "suspicious"
+		if si != sj {
+			return !si
+		}
+		return out[i].Celsius > out[j].Celsius
+	})
 	return out
 }
 

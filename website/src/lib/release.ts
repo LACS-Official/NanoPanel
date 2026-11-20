@@ -48,7 +48,7 @@ export interface ReleaseInfo {
 
 /** 单个版本的更新日志条目（已渲染为 HTML）。 */
 export interface ChangelogEntry {
-  /** 不带 v 的版本号，如 0.1.9 */
+  /** 不带 v 的版本号，如 0.2.0 */
   version: string;
   /** 发布日期 YYYY-MM-DD，未知时为空串 */
   date: string;

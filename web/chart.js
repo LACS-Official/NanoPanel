@@ -11,6 +11,25 @@
   ];
   var NET_COLOR = '#bf5af2';
 
+  // 深色模式下读取 CSS 变量里的高对比色；无 DOM（如单测）或变量缺失时回退到上面的默认值。
+  var CSS_COLOR_VARS = { cpu: '--chart-cpu', mem: '--chart-mem', disk: '--chart-disk', temp: '--chart-temp' };
+  function resolveColors() {
+    var out = {};
+    var cs = null;
+    try {
+      if (typeof document !== 'undefined' && document.documentElement && typeof getComputedStyle === 'function') {
+        cs = getComputedStyle(document.documentElement);
+      }
+    } catch (e) { cs = null; }
+    SERIES.forEach(function (s) {
+      var v = cs ? String(cs.getPropertyValue(CSS_COLOR_VARS[s.key] || '') || '').trim() : '';
+      out[s.key] = v || s.color;
+    });
+    var nv = cs ? String(cs.getPropertyValue('--chart-net') || '').trim() : '';
+    out.net = nv || NET_COLOR;
+    return out;
+  }
+
   var hidden = {};
   var lastContainer = null;
   var lastPayload = null;
@@ -101,6 +120,7 @@
     }
 
     var hasTemp = points.some(function (p) { return num(p.temp) > 0; });
+    var colors = resolveColors();
     var W = 800, H = 220, left = 40, right = 12, top = 12, bottom = 26;
     var w = W - left - right, h = H - top - bottom;
     var netTop = 12, netH = 96, netBottom = 24, netW = w;
@@ -111,7 +131,7 @@
       if (s.key === 'temp' && !hasTemp) return;
       var last = points[points.length - 1][s.key];
       legend += '<button type="button" class="npc-leg' + (hidden[s.key] ? ' off' : '') +
-        '" data-key="' + s.key + '"><i style="background:' + s.color + '"></i>' +
+        '" data-key="' + s.key + '"><i style="background:' + colors[s.key] + '"></i>' +
         esc(s.label) + ' <b>' + esc(num(last).toFixed(1)) + esc(s.unit) + '</b></button>';
     });
     legend += '<span class="npc-legend-tip">点击图例可隐藏曲线</span></div>';
@@ -121,7 +141,7 @@
     SERIES.forEach(function (s) {
       if (hidden[s.key] || (s.key === 'temp' && !hasTemp)) return;
       svg += '<path d="' + pathFor(points, s.key, left, top, w, h, 100) +
-        '" fill="none" stroke="' + s.color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+        '" fill="none" stroke="' + colors[s.key] + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
     });
     // 时间轴 3 个刻度
     [0, Math.floor((points.length - 1) / 2), points.length - 1].forEach(function (i) {
@@ -145,16 +165,16 @@
       netPath += (i === 0 ? 'M' : 'L') + xAt(i, points.length, left, netW).toFixed(1) +
         ' ' + yAt(netRate(points, i), netTop, netH, maxNet).toFixed(1) + ' ';
     }
-    netSVG += '<path d="' + netPath.trim() + '" fill="none" stroke="' + NET_COLOR + '" stroke-width="2" stroke-linejoin="round"/>';
+    netSVG += '<path d="' + netPath.trim() + '" fill="none" stroke="' + colors.net + '" stroke-width="2" stroke-linejoin="round"/>';
     netSVG += '<text class="npc-axis" x="' + (W - right) + '" y="' + (netTop + netH + 16) +
       '" text-anchor="end">峰值 ' + esc(fmtRate(maxNet / 1.2)) + '</text>';
     netSVG += '</svg>';
 
     container.innerHTML = legend + svg + netSVG + '<div class="npc-tip" id="npcTip"></div>';
-    bindEvents(container, points, range, hasTemp, left, w, maxNet);
+    bindEvents(container, points, range, hasTemp, left, w, maxNet, colors);
   }
 
-  function bindEvents(container, points, range, hasTemp, left, w, maxNet) {
+  function bindEvents(container, points, range, hasTemp, left, w, maxNet, colors) {
     container.querySelectorAll('.npc-leg').forEach(function (b) {
       b.addEventListener('click', function () {
         var k = b.dataset.key;
@@ -180,10 +200,10 @@
       var html = '<b>' + esc(new Date(points[i].ts * 1000).toLocaleString()) + '</b>';
       SERIES.forEach(function (s) {
         if (hidden[s.key] || (s.key === 'temp' && !hasTemp)) return;
-        html += '<span><i style="background:' + s.color + '"></i>' + esc(s.label) +
+        html += '<span><i style="background:' + colors[s.key] + '"></i>' + esc(s.label) +
           ' ' + esc(num(points[i][s.key]).toFixed(1)) + esc(s.unit) + '</span>';
       });
-      html += '<span><i style="background:' + NET_COLOR + '"></i>流量 ' + esc(fmtRate(netRate(points, i))) + '</span>';
+      html += '<span><i style="background:' + colors.net + '"></i>流量 ' + esc(fmtRate(netRate(points, i))) + '</span>';
       tip.innerHTML = html;
       tip.style.display = 'block';
       // tooltip 跟随鼠标但不出容器右边界
