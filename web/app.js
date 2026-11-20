@@ -1532,7 +1532,7 @@ function openUpdateLog(ver){
   if (!mask || !pre) return;
   pre.textContent = '';
   const label = document.getElementById('updLogVer');
-  if (label) label.textContent = ver ? ('→ v'+fmtVersion(ver)) : '';
+  if (label) label.textContent = ver ? ('→ '+fmtVersion(ver)) : '';
   const node = document.getElementById('updLogNode');
   if (node) node.textContent = '';
   const acts = document.getElementById('updLogActions');
@@ -1610,7 +1610,7 @@ async function applyUpdate(skipConfirm, targetVer){
           if (m.ok && m.status === 'updating'){
             updLogState('升级完成 · 即将重启', '#1a9e44');
             const label = document.getElementById('updLogVer');
-            if (label && m.latest) label.textContent = '→ v'+fmtVersion(m.latest);
+            if (label && m.latest) label.textContent = '→ '+fmtVersion(m.latest);
             if (status) status.textContent = '升级完成，面板即将重启…';
             finishUpdateLog();
             setTimeout(() => location.reload(), 6000);

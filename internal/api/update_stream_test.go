@@ -110,3 +110,67 @@ func TestFmtBytes(t *testing.T) {
 		}
 	}
 }
+
+// 回归：latestReleaseTag 返回的是去掉 v 的纯版本号，早期代码直接拼进下载路径，
+// 导致所有节点返回 404（GitHub 真实 tag 为 v0.2.2）。以下测试锁定 URL 中的 v 前缀。
+func TestReleaseTag(t *testing.T) {
+	cases := map[string]string{
+		"0.2.2":   "v0.2.2",
+		"v0.2.2":  "v0.2.2",
+		"V0.2.3":  "v0.2.3",
+		" 0.2.2 ": "v0.2.2",
+		"":        "",
+	}
+	for in, want := range cases {
+		if got := releaseTag(in); got != want {
+			t.Fatalf("releaseTag(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestProbeUpdateNodesUsesVersionedTag(t *testing.T) {
+	paths := make(chan string, 8)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths <- r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	probeUpdateNodes("0.2.2", "nanopanel-linux-arm64.tar.gz",
+		[]updateNode{{ID: "x", Name: "测试节点", Base: srv.URL}}, nil)
+
+	want := "/" + updateRepo + "/releases/download/v0.2.2/nanopanel-linux-arm64.tar.gz"
+	select {
+	case got := <-paths:
+		if got != want {
+			t.Fatalf("探测路径应为 %s，实际 %s", want, got)
+		}
+	default:
+		t.Fatal("未发起任何探测请求")
+	}
+}
+
+func TestDownloadReleaseAssetUsesVersionedTag(t *testing.T) {
+	paths := make(chan string, 8)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths <- r.URL.Path
+		_, _ = w.Write([]byte("binary"))
+	}))
+	defer srv.Close()
+
+	dest := filepath.Join(t.TempDir(), "asset")
+	s := &Server{}
+	if _, err := s.downloadReleaseAsset("0.2.2", "nanopanel-arm64", dest,
+		[]updateNode{{ID: "x", Name: "测试节点", Base: srv.URL}}, nil); err != nil {
+		t.Fatalf("下载失败: %v", err)
+	}
+	want := "/" + updateRepo + "/releases/download/v0.2.2/nanopanel-arm64"
+	select {
+	case got := <-paths:
+		if got != want {
+			t.Fatalf("下载路径应为 %s，实际 %s", want, got)
+		}
+	default:
+		t.Fatal("未发起任何下载请求")
+	}
+}

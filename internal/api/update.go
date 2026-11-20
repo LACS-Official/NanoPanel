@@ -185,7 +185,7 @@ func parseSemver(v string) [3]int {
 func (s *Server) downloadReleaseAsset(tag, asset, dest string, nodes []updateNode, logf updateLogf) (string, error) {
 	client := &http.Client{Timeout: 300 * time.Second}
 	for _, n := range nodes {
-		url := n.Base + "/" + updateRepo + "/releases/download/" + tag + "/" + asset
+		url := n.Base + "/" + updateRepo + "/releases/download/" + releaseTag(tag) + "/" + asset
 		req, rerr := http.NewRequest(http.MethodGet, url, nil)
 		if rerr != nil {
 			if logf != nil {

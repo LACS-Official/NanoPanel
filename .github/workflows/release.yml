@@ -78,3 +78,38 @@ jobs:
             install.sh
             uninstall.sh
             npctl
+
+      # 兼容桥接：v0.2.2 及更早版本的面板把去掉 v 的版本号直接拼进下载路径，
+      # 会请求 /releases/download/0.2.3/... 而得到 404（真实 tag 为 v0.2.3）。
+      # 这些旧二进制无法通过发布新版本自愈，故额外发布一份去 v 前缀的
+      # prerelease 资产副本，让旧版「立即升级」也能拿到修复版。
+      # 标记 prerelease 可确保 /releases/latest 仍指向上面的正式 Release。
+      - name: Resolve legacy-compatible tag
+        id: compat
+        env:
+          VALUE: ${{ steps.ver.outputs.value }}
+        run: echo "tag=${VALUE#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish legacy-compatible release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.compat.outputs.tag }}
+          name: "兼容镜像 ${{ steps.compat.outputs.tag }}（旧版面板升级用）"
+          prerelease: true
+          body: |
+            仅供 v0.2.2 及更早版本面板的站内自动升级使用。
+
+            这些版本的下载路径缺少 `v` 前缀，会请求 `/releases/download/${{ steps.compat.outputs.tag }}/...`；
+            本 Release 提供与正式版 `v${{ steps.compat.outputs.tag }}` 完全相同的资产副本，
+            使旧版可一键升级到修复版。普通用户请使用带 `v` 前缀的正式 Release。
+          files: |
+            deploy/nanopanel-amd64
+            deploy/nanopanel-amd64.sha256
+            deploy/nanopanel-arm64
+            deploy/nanopanel-arm64.sha256
+            deploy/nanopanel-armv7
+            deploy/nanopanel-armv7.sha256
+            nanopanel-*.tar.gz
+            install.sh
+            uninstall.sh
+            npctl

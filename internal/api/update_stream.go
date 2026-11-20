@@ -61,8 +61,20 @@ func updateNodes() []updateNode {
 // probeUpdateNodes 并发探测各节点对目标资产的实际响应速度，并按可用性/延迟排序。
 // 探测的是真实 Release 下载路径（而非镜像首页），因此排序结果直接反映下载体验。
 // 探测全部失败时保留原始顺序，由下载环节逐个尝试。
+// releaseTag 规范化下载路径中的 tag：GitHub 上真实 tag 形如 v0.2.2，
+// 而 latestReleaseTag 通过 parseTagFromURL 返回的是去掉 v 的纯版本号（如 0.2.2）。
+// 若直接拼进 /releases/download/<tag>/ 会得到 .../download/0.2.2/... 并返回 404，
+// 因此构造探测与下载 URL 前统一补齐小写 v 前缀（与 deploy/npctl 的行为一致）。
+func releaseTag(tag string) string {
+	t := strings.TrimLeft(strings.TrimSpace(tag), "vV")
+	if t == "" {
+		return strings.TrimSpace(tag)
+	}
+	return "v" + t
+}
+
 func probeUpdateNodes(tag, asset string, nodes []updateNode, logf updateLogf) []updateNode {
-	path := "/" + updateRepo + "/releases/download/" + tag + "/" + asset
+	path := "/" + updateRepo + "/releases/download/" + releaseTag(tag) + "/" + asset
 	// 与镜像测速一致：绕过系统代理直连，避免代理缓存让节点延迟失真。
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.Proxy = nil
