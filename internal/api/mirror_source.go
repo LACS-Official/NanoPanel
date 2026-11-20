@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"io"
+	"math"
 	"net/http"
 	"os"
 	"sort"
@@ -74,7 +76,7 @@ func (s *Server) MirrorCandidates(w http.ResponseWriter, r *http.Request) {
 type mirrorTestResult struct {
 	ID      string  `json:"id"`
 	Name    string  `json:"name"`
-	Latency float64 `json:"latency_ms"` // 毫秒，0 表示不可达
+	Latency float64 `json:"latency_ms"` // 毫秒（保留 1 位小数）；测速失败时为 0
 	OK      bool    `json:"ok"`
 	Status  string  `json:"status"` // HTTP 状态码或错误简述
 }
@@ -92,7 +94,11 @@ func (s *Server) TestMirrorSources(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	client := &http.Client{Timeout: 6 * time.Second}
+	// 关键：绕过系统代理直连镜像源。Go 默认 Transport 会读取 HTTP(S)_PROXY，
+	// 若本机代理对探测页做缓存，测出的只是"到代理的延迟"（接近 0），并非真实链路。
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	client := &http.Client{Timeout: 6 * time.Second, Transport: transport}
 	results := make([]mirrorTestResult, len(list))
 	var wg sync.WaitGroup
 	for i, c := range list {
@@ -122,6 +128,7 @@ func probeMirror(client *http.Client, c mirrorCandidate) mirrorTestResult {
 		return res
 	}
 	req.Header.Set("User-Agent", "NanoPanel-MirrorTest/1.0")
+	req.Header.Set("Cache-Control", "no-cache")
 	start := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
@@ -129,7 +136,13 @@ func probeMirror(client *http.Client, c mirrorCandidate) mirrorTestResult {
 		return res
 	}
 	defer resp.Body.Close()
-	res.Latency = float64(time.Since(start).Milliseconds())
+	// 读取一小段真实响应体再结算：只等响应头时，本机代理缓存命中会测出接近 0 的假延迟。
+	// 读前 8KB 既反映真实往返/传输耗时，又不会因首页体积过大拖慢测速。
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 8192))
+	res.Latency = math.Round(float64(time.Since(start).Microseconds())/10) / 100
+	if res.Latency < 0.1 {
+		res.Latency = 0.1
+	}
 	res.Status = fmt.Sprintf("HTTP %d", resp.StatusCode)
 	res.OK = resp.StatusCode >= 200 && resp.StatusCode < 400
 	return res

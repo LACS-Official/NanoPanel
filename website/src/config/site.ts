@@ -45,15 +45,15 @@ export const SITE_CONFIG = {
   release: {
     repo: "LACS-Official/NanoPanel",
     apiBase: "https://api.github.com",
-    fallbackVersion: "0.2.0",
-    fallbackDate: "2026-11-20",
+    fallbackVersion: "0.2.1",
+    fallbackDate: "2026-11-21",
   },
 
   // 产品信息
   product: {
     // 展示用兜底版本；页面实际使用 release.ts 解析出的真实版本
-    version: "0.2.0",
-    releaseDate: "2026-11-20",
+    version: "0.2.1",
+    releaseDate: "2026-11-21",
     platforms: ["Linux amd64", "Linux arm64", "Linux armv7"],
     license: "MIT License",
     size: "约 12 MB",

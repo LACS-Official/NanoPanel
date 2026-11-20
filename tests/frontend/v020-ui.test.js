@@ -90,6 +90,11 @@ check('镜像源选择与测试结果 UI 齐备', () => {
   assert(/function testMirrors\(/.test(js) && /function selectMirror\(/.test(js), '缺少前端函数');
   assert(/"selectMirror\(\)"/.test(js) && /"testMirrors\(\)"/.test(js), '动作未注册白名单');
   assert(/mirror-cur|cur-tag/.test(css) && /st-ok/.test(css), '测试结果样式缺失');
+  // 亚毫秒响应时延迟不能显示为空（否则出现"状态可用但延迟 —"的自相矛盾）
+  assert(/r\.ok && r\.latency_ms/.test(js), '延迟读取的字段名与后端 latency_ms 不一致');
+  assert(!/r\.latency\b/.test(js.replace('latency_ms', '')), '仍在读取错误的 r.latency 字段');
+  const apiGo = read('internal/api/mirror_source.go');
+  assert(/Microseconds\(\)/.test(apiGo), '后端未按亚毫秒精度计时');
 });
 
 check('后端镜像源 API 三端点已注册', () => {

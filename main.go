@@ -127,6 +127,9 @@ func main() {
 	mux.HandleFunc("GET /api/v1/net/traffic", srv.AuthMiddleware(srv.TrafficStats))
 	mux.HandleFunc("GET /api/v1/logs", srv.AuthMiddleware(srv.Logs))
 	mux.HandleFunc("GET /api/v1/panel-logs", srv.AuthMiddleware(srv.PanelLogs))
+	mux.HandleFunc("GET /api/v1/notifications", srv.AuthMiddleware(srv.Notifications))
+	mux.HandleFunc("POST /api/v1/notifications/read", srv.AuthMiddleware(srv.MarkNotificationsRead))
+	mux.HandleFunc("POST /api/v1/notifications/clear", srv.AuthMiddleware(srv.ClearNotifications))
 	mux.HandleFunc("GET /api/v1/apps", srv.AuthMiddleware(srv.ListApps))
 	mux.HandleFunc("POST /api/v1/app/action", srv.AuthMiddleware(srv.AppAction))
 	mux.HandleFunc("POST /api/v1/app/action/stream", srv.AuthMiddleware(srv.AppActionStream))
@@ -184,6 +187,7 @@ func main() {
 	mux.HandleFunc("GET /api/v1/update/settings", srv.AuthMiddleware(srv.GetUpdateSettings))
 	mux.HandleFunc("POST /api/v1/update/settings", srv.AuthMiddleware(srv.SaveUpdateSettings))
 	mux.HandleFunc("POST /api/v1/update/apply", srv.AuthMiddleware(srv.ApplyUpdate))
+	mux.HandleFunc("POST /api/v1/update/apply/stream", srv.AuthMiddleware(srv.UpdateApplyStream))
 
 	// 内置终端：设置与票据走登录鉴权，WebSocket 用一次性票据自鉴权。
 	mux.HandleFunc("GET /api/v1/terminal/settings", srv.AuthMiddleware(srv.TerminalSettings))

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,7 +9,47 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+// TestProbeMirrorSubMillis 极快响应的延迟也必须是正数，否则前端会显示"状态可用、延迟 —"。
+func TestProbeMirrorSubMillis(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	res := probeMirror(&http.Client{Timeout: 2 * time.Second},
+		mirrorCandidate{ID: "local", Name: "本地", Probe: srv.URL})
+	if !res.OK {
+		t.Fatalf("本地节点应可用: %+v", res)
+	}
+	if res.Latency <= 0 {
+		t.Fatalf("极快响应的延迟也必须大于 0，实际 %v", res.Latency)
+	}
+}
+
+// TestProbeMirrorCountsBodyTransfer 延迟必须计入真实响应体传输，
+// 否则本地代理缓存命中时只读 header 会得到接近 0 的假延迟。
+func TestProbeMirrorCountsBodyTransfer(t *testing.T) {
+	const payloadSize = 1 << 20 // 1MB，传输耗时足以与纯 header 区分
+	body := bytes.Repeat([]byte("x"), payloadSize)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(body)
+	}))
+	defer srv.Close()
+
+	res := probeMirror(&http.Client{Timeout: 5 * time.Second},
+		mirrorCandidate{ID: "slow", Name: "带响应体", Probe: srv.URL})
+	if !res.OK {
+		t.Fatalf("节点应可用: %+v", res)
+	}
+	// 读取 8KB 的往返通常 >0.1ms；这里只要求明显不是被 0.1ms 下限兜住即可。
+	if res.Latency < 0.5 {
+		t.Fatalf("延迟应包含响应体传输时间，实际 %vms（疑似只读 header）", res.Latency)
+	}
+}
 
 // TestMirrorCandidates 返回白名单候选与当前源 id。
 func TestMirrorCandidates(t *testing.T) {

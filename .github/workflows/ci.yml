@@ -68,6 +68,9 @@ jobs:
           node tests/frontend/v018-ui.test.js
           node tests/frontend/update-dialog.test.js
           node tests/frontend/v020-ui.test.js
+          node tests/frontend/update-log.test.js
+          node tests/frontend/mirror-latency.test.js
+          node tests/frontend/status-bar.test.js
       - name: CSP inline-action guard
         if: runner.os == 'Linux'
         run: |

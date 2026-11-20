@@ -75,6 +75,18 @@ func (s *Server) autoUpdateTick() {
 // checkAndApplyUpdate 检查最新版本；apply=true 时在发现新版本后执行安装。
 // 发现新版本时始终推送 "update" 通知（自动更新提示自动安装，手动检查提示手动升级）。
 func (s *Server) checkAndApplyUpdate(apply bool) (UpdateInfo, error) {
+	return s.checkAndApplyUpdateWithLog(apply, nil)
+}
+
+// checkAndApplyUpdateWithLog 与 checkAndApplyUpdate 相同，但把每一步输出到 logf。
+// 手动升级的 SSE 接口传入实时回调；后台自动更新传 nil，走服务端日志。
+func (s *Server) checkAndApplyUpdateWithLog(apply bool, logf updateLogf) (UpdateInfo, error) {
+	if logf == nil {
+		logf = func(format string, args ...interface{}) {
+			log.Printf("更新: "+format, args...)
+		}
+	}
+	logf("正在探测最新版本...")
 	info := UpdateInfo{
 		CurrentVersion: version.Version,
 		CheckedAt:      time.Now().UTC().Format(time.RFC3339),
@@ -89,6 +101,7 @@ func (s *Server) checkAndApplyUpdate(apply bool) (UpdateInfo, error) {
 	info.LatestVersion = tag
 	info.ReleaseURL = url
 	info.Status = "ok"
+	logf("版本检查完成：当前 %s，最新 %s", fmtVer(version.Version), fmtVer(tag))
 	if !VersionGreater(tag, version.Version) {
 		info.HasUpdate = false
 		info.Message = "已是最新版本"
@@ -103,7 +116,7 @@ func (s *Server) checkAndApplyUpdate(apply bool) (UpdateInfo, error) {
 	if !apply {
 		return info, nil
 	}
-	if aerr := s.applyUpdate(tag); aerr != nil {
+	if aerr := s.applyUpdate(tag, logf); aerr != nil {
 		s.notifyAsync("update", "NanoPanel 自动升级失败", aerr.Error())
 		return info, aerr
 	}
@@ -113,14 +126,22 @@ func (s *Server) checkAndApplyUpdate(apply bool) (UpdateInfo, error) {
 
 // applyUpdate 下载新版本、校验、备份当前二进制、替换并重启面板；失败回滚。
 // 优先下载稳定名完整安装包（可一并升级 npctl 与卸载脚本），失败回退单二进制。
-func (s *Server) applyUpdate(tag string) error {
+// logf 非空时逐步输出日志；下载前会并发探测所有候选节点并按延迟择优。
+func (s *Server) applyUpdate(tag string, logf updateLogf) error {
+	if logf == nil {
+		logf = func(format string, args ...interface{}) {
+			log.Printf("升级: "+format, args...)
+		}
+	}
 	s.updateMu.Lock()
 	defer s.updateMu.Unlock()
 
+	logf("开始升级到 %s", fmtVer(tag))
 	arch := updateArch()
 	if arch == "" {
 		return fmt.Errorf("当前架构 %s 暂不支持自动更新", runtime.GOARCH)
 	}
+	logf("目标架构: %s", arch)
 	bin, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("获取当前路径失败: %w", err)
@@ -129,22 +150,35 @@ func (s *Server) applyUpdate(tag string) error {
 		return fmt.Errorf("解析可执行路径失败: %w", err)
 	}
 	backup := bin + ".bak"
+	logf("备份当前程序 → %s", backup)
 	if err := copyFile(bin, backup); err != nil {
 		return fmt.Errorf("备份当前版本失败: %w", err)
 	}
+	logf("备份完成")
+
+	// 下载前先探测全部候选节点对真实资产的延迟，排序后供两种下载路径共用。
+	pkgAsset := "nanopanel-linux-" + arch + ".tar.gz"
+	nodes := probeUpdateNodes(tag, pkgAsset, updateNodes(), logf)
+	if len(nodes) == 0 {
+		return fmt.Errorf("没有可用的下载节点")
+	}
 
 	// 1) 完整安装包：主程序 + npctl + uninstall.sh
-	if err := s.applyFullPackage(tag, arch, bin, backup); err == nil {
+	logf("优先下载完整安装包 %s", pkgAsset)
+	if err := s.applyFullPackage(tag, arch, bin, backup, nodes, logf); err == nil {
+		logf("完整包安装成功")
+		logf("正在重启面板服务...")
 		if rerr := s.restartSelf(); rerr != nil {
 			return fmt.Errorf("升级文件已就位，但重启面板失败（请手动重启）: %w", rerr)
 		}
 		return nil
 	} else {
-		log.Printf("完整包升级不可用，回退单二进制: %v", err)
+		logf("完整包升级不可用（%v），回退单二进制", err)
 	}
 
 	// 2) 回退：仅下载单二进制
 	asset := "nanopanel-" + arch
+	logf("回退下载单二进制 %s", asset)
 	tmp, err := os.CreateTemp("", "nanopanel-update-")
 	if err != nil {
 		return fmt.Errorf("创建临时文件失败: %w", err)
@@ -153,20 +187,23 @@ func (s *Server) applyUpdate(tag string) error {
 	tmp.Close()
 	defer os.Remove(tmpName)
 
-	if err := s.downloadReleaseAsset(tag, asset, tmpName); err != nil {
+	if _, err := s.downloadReleaseAsset(tag, asset, tmpName, nodes, logf); err != nil {
 		return err
 	}
+	logf("正在校验新二进制...")
 	if err := os.Chmod(tmpName, 0755); err != nil {
 		return fmt.Errorf("设置可执行权限失败: %w", err)
 	}
 	if !verifyBinary(tmpName) {
 		return fmt.Errorf("下载的文件无法执行，已取消升级（可能为损坏或不兼容的版本）")
 	}
+	logf("替换主程序 %s", bin)
 	if err := replaceBinary(tmpName, bin); err != nil {
 		_ = copyFile(backup, bin) // 替换失败回滚到备份
 		return fmt.Errorf("替换二进制失败，已回滚: %w", err)
 	}
 	// 让响应与通知先发出，再延迟重启面板服务。
+	logf("正在重启面板服务...")
 	if rerr := s.restartSelf(); rerr != nil {
 		return fmt.Errorf("升级文件已就位，但重启面板失败（请手动重启）: %w", rerr)
 	}
@@ -175,7 +212,7 @@ func (s *Server) applyUpdate(tag string) error {
 
 // applyFullPackage 下载稳定名完整安装包并就地升级主程序与配套工具。
 // 下载或解压失败时返回错误，由调用方回退到单二进制路径。
-func (s *Server) applyFullPackage(tag, arch, bin, backup string) error {
+func (s *Server) applyFullPackage(tag, arch, bin, backup string, nodes []updateNode, logf updateLogf) error {
 	asset := "nanopanel-linux-" + arch + ".tar.gz"
 	tmp, err := os.CreateTemp("", "nanopanel-pkg-")
 	if err != nil {
@@ -184,7 +221,7 @@ func (s *Server) applyFullPackage(tag, arch, bin, backup string) error {
 	tmpName := tmp.Name()
 	tmp.Close()
 	defer os.Remove(tmpName)
-	if err := s.downloadReleaseAsset(tag, asset, tmpName); err != nil {
+	if _, err := s.downloadReleaseAsset(tag, asset, tmpName, nodes, logf); err != nil {
 		return err
 	}
 	dir, err := os.MkdirTemp("", "nanopanel-pkgdir-")
@@ -192,6 +229,7 @@ func (s *Server) applyFullPackage(tag, arch, bin, backup string) error {
 		return fmt.Errorf("创建临时目录失败: %w", err)
 	}
 	defer os.RemoveAll(dir)
+	logf("正在解压安装包...")
 	n, err := extractTarGz(tmpName, dir)
 	if err != nil {
 		return fmt.Errorf("解压安装包失败: %w", err)
@@ -199,6 +237,7 @@ func (s *Server) applyFullPackage(tag, arch, bin, backup string) error {
 	if n == 0 {
 		return fmt.Errorf("安装包内容为空")
 	}
+	logf("解压完成，共 %d 个文件", n)
 	newBin := filepath.Join(dir, "nanopanel-"+arch)
 	if _, err := os.Stat(newBin); err != nil {
 		return fmt.Errorf("安装包内缺少二进制")
@@ -206,9 +245,11 @@ func (s *Server) applyFullPackage(tag, arch, bin, backup string) error {
 	if err := os.Chmod(newBin, 0755); err != nil {
 		return fmt.Errorf("设置可执行权限失败: %w", err)
 	}
+	logf("正在校验新二进制...")
 	if !verifyBinary(newBin) {
 		return fmt.Errorf("新二进制自检失败")
 	}
+	logf("替换主程序 %s", bin)
 	if err := replaceBinary(newBin, bin); err != nil {
 		_ = copyFile(backup, bin) // 替换失败回滚到备份
 		return fmt.Errorf("替换二进制失败，已回滚: %w", err)
@@ -216,12 +257,16 @@ func (s *Server) applyFullPackage(tag, arch, bin, backup string) error {
 	// 配套工具：npctl 与卸载脚本就位（不存在对应文件或不可写时静默跳过）
 	if src := filepath.Join(dir, "npctl"); regularFile(src) {
 		if err := replaceBinary(src, "/usr/local/bin/npctl"); err != nil {
-			log.Printf("更新 npctl 失败（忽略）: %v", err)
+			logf("更新 npctl 失败（忽略）: %v", err)
+		} else {
+			logf("已更新 npctl")
 		}
 	}
 	if src := filepath.Join(dir, "uninstall.sh"); regularFile(src) {
 		if err := replaceBinary(src, filepath.Join(filepath.Dir(bin), "uninstall.sh")); err != nil {
-			log.Printf("更新 uninstall.sh 失败（忽略）: %v", err)
+			logf("更新 uninstall.sh 失败（忽略）: %v", err)
+		} else {
+			logf("已更新 uninstall.sh")
 		}
 	}
 	return nil

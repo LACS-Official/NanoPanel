@@ -27,6 +27,85 @@ function toast(msg){
   t._tm = setTimeout(()=>t.classList.remove('show'), 2600);
 }
 
+/* ===== 底部状态栏 + 分档通知中心 ===== */
+let notifTimer = null;
+let notifOpen = false;
+let notifFilter = 'all';
+let notifCache = [];
+const LEVEL_ICON = { info:'●', success:'✔', warn:'▲', danger:'✖' };
+function initStatusBar(){
+  const ver = document.getElementById('sbVer');
+  if (ver) ver.textContent = fmtVersion(npVersion) || 'dev';
+  const clock = document.getElementById('sbClock');
+  const tick = ()=>{ if (clock) clock.textContent = new Date().toLocaleTimeString('zh-CN',{hour12:false}); };
+  tick();
+  setInterval(tick, 1000);
+  loadNotifications();
+  if (notifTimer) clearInterval(notifTimer);
+  notifTimer = setInterval(loadNotifications, 15000);
+}
+async function loadNotifications(){
+  try {
+    const d = await call('GET','/notifications?limit=200');
+    notifCache = d.items || [];
+    const unread = d.unread || 0;
+    const latest = notifCache[0];
+    const latestEl = document.getElementById('sbLatest');
+    if (latestEl){
+      latestEl.textContent = latest
+        ? (LEVEL_ICON[latest.level]||'●')+' '+latest.title
+        : '暂无通知';
+      latestEl.className = latest ? ('sb-latest lv-'+latest.level) : '';
+    }
+    const dot = document.getElementById('sbDot');
+    if (dot && dot.classList) dot.classList.toggle('has-unread', unread>0);
+    else if (dot) dot.className = 'sb-dot'+(unread>0?' has-unread':'');
+    const badge = document.getElementById('sbUnread');
+    if (badge){
+      badge.textContent = unread > 99 ? '99+' : String(unread);
+      badge.classList.toggle('hidden', unread === 0);
+    }
+    if (notifOpen) renderNotifList();
+  } catch(e){ /* 状态栏属于增强提示，失败静默 */ }
+}
+function toggleNotifPanel(){
+  notifOpen = !notifOpen;
+  const panel = document.getElementById('notifPanel');
+  if (panel) panel.classList.toggle('hidden', !notifOpen);
+  if (notifOpen){ renderNotifList(); loadNotifications(); }
+}
+function filterNotif(level){
+  notifFilter = level;
+  const box = document.getElementById('notifFilters');
+  if (box) Array.prototype.forEach.call(box.querySelectorAll('button'), b=>{
+    b.classList.toggle('active', b.getAttribute('data-act') === "filterNotif('"+level+"')");
+  });
+  renderNotifList();
+}
+function renderNotifList(){
+  const box = document.getElementById('notifList');
+  if (!box) return;
+  const list = notifFilter === 'all' ? notifCache : notifCache.filter(n=>n.level===notifFilter);
+  if (!list.length){ box.innerHTML = '<div class="empty-tip">该档位暂无通知</div>'; return; }
+  box.innerHTML = list.map(n=>
+    '<div class="np-item lv-'+esc(n.level)+(n.read?'':' unread')+'">'+
+      '<span class="np-ico">'+esc(LEVEL_ICON[n.level]||'●')+'</span>'+
+      '<div class="np-body"><div class="np-title">'+esc(n.title)+
+        '<span class="np-tag">'+esc(n.level_text||n.level)+'</span></div>'+
+        (n.content?'<div class="np-content">'+esc(n.content)+'</div>':'')+
+        '<div class="np-time">'+esc(n.time)+' · '+esc(n.event)+'</div></div>'+
+    '</div>').join('');
+}
+async function markAllNotifRead(){
+  try { await call('POST','/notifications/read',{all:true}); loadNotifications(); toast('已全部标记为已读'); }
+  catch(e){ toast(e.message); }
+}
+async function clearNotifications(){
+  if (!confirm('确认清空所有通知？')) return;
+  try { await call('POST','/notifications/clear',{}); notifCache=[]; renderNotifList(); loadNotifications(); toast('通知已清空'); }
+  catch(e){ toast(e.message); }
+}
+
 async function call(method, path, body){
   const opt = { method, headers:{'Content-Type':'application/json'} };
   if (token) opt.headers['Authorization'] = 'Bearer ' + token;
@@ -50,6 +129,8 @@ async function call(method, path, body){
 function showLogin(){
   document.getElementById('loginView').classList.remove('hidden');
   document.getElementById('mainView').classList.add('hidden');
+  const sb = document.getElementById('statusBar');
+  if (sb) sb.classList.add('hidden');
   const mfa = document.getElementById('mfaStep');
   if (mfa) mfa.classList.add('hidden');
   mfaTicket = '';
@@ -58,6 +139,8 @@ function showLogin(){
 function showMain(){
   document.getElementById('loginView').classList.add('hidden');
   document.getElementById('mainView').classList.remove('hidden');
+  const sb = document.getElementById('statusBar');
+  if (sb) sb.classList.remove('hidden');
   const saved = localStorage.getItem('np_user');
   document.getElementById('sideUser').textContent = saved ? '已登录：' + saved : '';
   switchView('overview'); loadOverview(); loadProcesses(); loadApps();
@@ -65,6 +148,7 @@ function showMain(){
   loadMFAStatus(); loadRemoteBackupSettings(); loadCron();
   overviewTimer = setInterval(()=>{ if(currentView()==='overview') loadOverview(); }, 5000);
   metricsTimer = setInterval(()=>{ if(currentView()==='overview') loadMetrics(); }, 60000);
+  initStatusBar();
   // 进入面板后自动检查一次更新；延迟执行，避免与首屏数据请求争抢。
   setTimeout(autoUpdateCheck, 1500);
 }
@@ -862,7 +946,7 @@ async function testMirrors(){
         return '<tr'+(isCur?' class="mirror-cur"':'')+'>'+
           '<td><b>'+esc(r.name)+'</b>'+(isCur?' <span class="cur-tag">当前</span>':'')+(isBest?' <span class="best-tag">最快</span>':'')+'</td>'+
           '<td><span class="state-tag '+(r.ok?'st-ok':'st-off')+'">'+(r.ok?'可用':'不可用')+'</span></td>'+
-          '<td class="mono">'+(r.ok && r.latency ? Number(r.latency).toFixed(0)+' ms' : '—')+'</td>'+
+          '<td class="mono">'+(r.ok && r.latency_ms ? Number(r.latency_ms).toFixed(1)+' ms' : '—')+'</td>'+
           '<td style="color:var(--gray)">'+esc(r.status || '-')+'</td></tr>';
       }).join('')+'</tbody></table>';
   } catch(e){
@@ -1415,6 +1499,7 @@ async function checkUpdate(){
       return;
     }
     if (u.has_update){
+      npLatestVer = u.latest_version || '';
       status.innerHTML = '发现新版本 <b style="color:var(--green)">'+esc(fmtVersion(u.latest_version))+
         '</b> · <a href="'+esc(u.release_url||'#')+'" target="_blank" rel="noopener">查看发布 ↗</a>';
       if (btn) btn.style.display = '';
@@ -1426,27 +1511,131 @@ async function checkUpdate(){
   }
 }
 
-async function applyUpdate(skipConfirm){
+/* ===== 升级实时日志（强制展示，不可中途关闭） ===== */
+let upgrading = false;
+let npLatestVer = '';
+function updLogAppend(line){
+  const pre = document.getElementById('updLogOutput');
+  if (!pre) return;
+  pre.textContent += line + '\n';
+  pre.scrollTop = pre.scrollHeight;
+}
+function updLogState(text, color){
+  const st = document.getElementById('updLogState');
+  if (!st) return;
+  st.textContent = text;
+  st.style.color = color || 'var(--gray)';
+}
+function openUpdateLog(ver){
+  const mask = document.getElementById('updLogMask');
+  const pre = document.getElementById('updLogOutput');
+  if (!mask || !pre) return;
+  pre.textContent = '';
+  const label = document.getElementById('updLogVer');
+  if (label) label.textContent = ver ? ('→ v'+fmtVersion(ver)) : '';
+  const node = document.getElementById('updLogNode');
+  if (node) node.textContent = '';
+  const acts = document.getElementById('updLogActions');
+  if (acts) acts.style.display = 'none';
+  updLogState('正在连接…');
+  mask.classList.remove('hidden');
+}
+function closeUpdateLogDlg(){
+  const mask = document.getElementById('updLogMask');
+  if (mask) mask.classList.add('hidden');
+}
+function reloadPage(){ location.reload(); }
+function finishUpdateLog(){
+  const acts = document.getElementById('updLogActions');
+  if (acts) acts.style.display = '';
+}
+// 由后端日志驱动界面阶段与当前节点，避免另开一套状态协议。
+function trackUpdateState(line){
+  if (/探测结果|正在探测/.test(line)) updLogState('探测下载节点');
+  else if (/正在从 .* 下载|进度 /.test(line)) {
+    updLogState('下载中', 'var(--blue)');
+    const m = line.match(/正在从\s+(.+?)\s+下载/);
+    if (m) {
+      const el = document.getElementById('updLogNode');
+      if (el) el.textContent = '当前节点: ' + m[1];
+    }
+  }
+  else if (/校验/.test(line)) updLogState('校验中');
+  else if (/解压|替换|安装成功/.test(line)) updLogState('安装中');
+  else if (/重启/.test(line)) updLogState('即将重启', '#d38b1d');
+}
+
+async function applyUpdate(skipConfirm, targetVer){
+  if (upgrading) return;
   const status = document.getElementById('updateStatus');
   if (!skipConfirm && !confirm('确定升级到最新版本？升级前会自动备份当前版本，面板将重启。')) return;
+  upgrading = true;
+  openUpdateLog(targetVer || npLatestVer);
+  updLogAppend('[' + new Date().toLocaleTimeString() + '] 已提交升级请求');
   try {
-    const d = await call('POST','/update/apply');
-    const u = d || {};
-    if (u.status === 'uptodate'){
-      if (status) status.textContent = '已是最新版本';
-      toast('已是最新版本');
+    const res = await fetch(API+'/update/apply/stream',
+      { method:'POST', headers:{'Authorization':'Bearer '+token} });
+    if (res.status === 401){
+      token=''; localStorage.removeItem('np_token'); showLogin();
+      toast('登录已过期，请重新登录'); return;
+    }
+    const ct = res.headers.get('Content-Type') || '';
+    if (ct.indexOf('text/event-stream') < 0){
+      let d = {}; try { d = await res.json(); } catch(e){}
+      updLogAppend(d.err || ('HTTP ' + res.status));
+      updLogState('请求失败', '#d70015');
+      finishUpdateLog();
       return;
     }
-    if (u.status === 'unreachable'){
-      if (status) status.textContent = u.msg || '无法连接更新源';
-      toast(u.msg || '无法连接更新源');
-      return;
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    for(;;){
+      const r = await reader.read();
+      if (r.done) break;
+      buf += dec.decode(r.value, {stream:true});
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) >= 0){
+        const chunk = buf.slice(0, idx); buf = buf.slice(idx+2);
+        const dl = chunk.split('\n').find(l=>l.indexOf('data:')===0);
+        if (!dl) continue;
+        let m; try { m = JSON.parse(dl.slice(5).trim()); } catch(e){ continue; }
+        if (m.event === 'log'){
+          updLogAppend(m.line);
+          trackUpdateState(m.line);
+        } else if (m.event === 'status'){
+          if (m.phase === 'checking') updLogState('检查版本中');
+          else if (m.phase === 'rebooting') updLogState('即将重启', '#d38b1d');
+        } else if (m.event === 'done'){
+          if (m.ok && m.status === 'updating'){
+            updLogState('升级完成 · 即将重启', '#1a9e44');
+            const label = document.getElementById('updLogVer');
+            if (label && m.latest) label.textContent = '→ v'+fmtVersion(m.latest);
+            if (status) status.textContent = '升级完成，面板即将重启…';
+            finishUpdateLog();
+            setTimeout(() => location.reload(), 6000);
+          } else if (m.ok && m.status === 'uptodate'){
+            updLogState('已是最新版本', '#1a9e44');
+            if (status) status.textContent = '已是最新版本';
+            finishUpdateLog();
+          } else {
+            updLogState('升级失败', '#d70015');
+            if (m.msg) updLogAppend('失败原因: ' + m.msg);
+            if (status) status.textContent = '升级失败：' + (m.msg||'');
+            finishUpdateLog();
+          }
+          return;
+        }
+      }
     }
-    toast('升级已开始，面板将在数秒后重启');
-    if (status) status.textContent = '正在升级到 '+(fmtVersion(u.latest_version)||'最新版本')+'，面板即将重启…';
+    updLogState('连接中断', '#d70015');
+    finishUpdateLog();
   } catch(e){
-    toast(e.message);
-    if (status) status.textContent = '升级失败：'+e.message;
+    updLogAppend(e.message);
+    updLogState('失败', '#d70015');
+    finishUpdateLog();
+  } finally {
+    upgrading = false;
   }
 }
 
@@ -1494,8 +1683,10 @@ function closeUpdateDlg(){
 }
 
 function applyUpdateFromDlg(){
+  const latest = document.getElementById('updLatest');
+  const ver = latest && latest.dataset.ver;
   closeUpdateDlg();
-  return applyUpdate(true);
+  return applyUpdate(true, ver);
 }
 
 loadHealth();
@@ -1772,6 +1963,16 @@ const INLINE_ACTIONS = {
   "closeActDlg()": () => closeActDlg(),
   // 自动更新提示弹窗
   "applyUpdateFromDlg()": () => applyUpdateFromDlg(),
+  "closeUpdateLogDlg()": () => closeUpdateLogDlg(),
+  "reloadPage()": () => reloadPage(),
+  "toggleNotifPanel()": () => toggleNotifPanel(),
+  "markAllNotifRead()": () => markAllNotifRead(),
+  "clearNotifications()": () => clearNotifications(),
+  "filterNotif('all')": () => filterNotif('all'),
+  "filterNotif('danger')": () => filterNotif('danger'),
+  "filterNotif('warn')": () => filterNotif('warn'),
+  "filterNotif('success')": () => filterNotif('success'),
+  "filterNotif('info')": () => filterNotif('info'),
   "closeUpdateDlg()": () => closeUpdateDlg(),
   "if(event.target===this)closeUpdateDlg()": (ev, el) => { if (ev.target === el) closeUpdateDlg(); },
 };

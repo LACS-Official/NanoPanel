@@ -144,6 +144,12 @@ func (s *Server) readInstalledVersion(id string) string {
 func (s *Server) ListApps(w http.ResponseWriter, r *http.Request) {
 	m, err := s.loadManifest()
 	if err != nil {
+		// 清单文件尚未生成（新安装、Windows 开发环境、应用商店未初始化）时返回空列表，
+		// 让页面正常显示空状态；真正的配置错误才回 500。
+		if os.IsNotExist(err) {
+			ok(w, []AppMeta{})
+			return
+		}
 		fail(w, http.StatusInternalServerError, "读取应用清单失败: "+err.Error())
 		return
 	}

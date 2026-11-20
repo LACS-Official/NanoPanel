@@ -38,6 +38,8 @@ func eventEnabled(events []string, event string) bool {
 // 面板操作不应该被慢速的 webhook 端点拖住，因此始终异步执行；
 // 发送失败时按指数退避自动重试，缓解端点抖动导致的通知丢失。
 func (s *Server) notifyAsync(event, title, content string) {
+	// 无论是否配置了 webhook，事件都记入面板内通知中心（底部状态栏可见）。
+	s.pushNotify(event, title, content)
 	url, format, events := s.webhookSnapshot()
 	if url == "" || !eventEnabled(events, event) {
 		return

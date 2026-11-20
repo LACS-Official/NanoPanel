@@ -120,14 +120,13 @@ const callMock = async () => JSON.parse(JSON.stringify(payload));
     assert.strictEqual(nodes.updateMask.classList.contains('hidden'), false, '弹窗未显示');
   });
 
-  check('弹窗为强制升级：无“稍后再说”/“不再提示”/遮罩关闭', () => {
+  check('更新提示弹窗可关闭：有“稍后再说”且可点遮罩关闭', () => {
     const mask = html.match(/<div class="modal-mask[^"]*" id="updateMask"[^>]*>/);
     assert(mask, '未找到 updateMask');
-    assert(!/data-act/.test(mask[0]), '遮罩仍可点击关闭');
+    assert(/data-act="if\(event\.target===this\)closeUpdateDlg\(\)"/.test(mask[0]), '遮罩应可点击关闭');
     const start = html.indexOf('id="updateMask"');
     const block = html.slice(start, html.indexOf('<script src="chart.js"', start));
-    assert(!block.includes('updSkip'), '仍存在“不再提示该版本”');
-    assert(!block.includes('closeUpdateDlg'), '仍存在“稍后再说”');
+    assert(block.includes('closeUpdateDlg()'), '缺少“稍后再说”按钮');
     assert(block.includes('applyUpdateFromDlg()'), '缺少“立即升级”按钮');
   });
 

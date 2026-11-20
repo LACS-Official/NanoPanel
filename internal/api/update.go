@@ -180,38 +180,58 @@ func parseSemver(v string) [3]int {
 	return r
 }
 
-// downloadReleaseAsset 从更新源（带镜像回退）下载指定 Release 资产到 dest。
-// 任一源成功即返回；全部失败返回错误。
-func (s *Server) downloadReleaseAsset(tag, asset, dest string) error {
+// downloadReleaseAsset 从已按延迟排序的节点依次下载指定 Release 资产到 dest。
+// 单个节点失败（连接失败、非 200、传输中断）会自动切换下一个；返回实际使用的节点名。
+func (s *Server) downloadReleaseAsset(tag, asset, dest string, nodes []updateNode, logf updateLogf) (string, error) {
 	client := &http.Client{Timeout: 300 * time.Second}
-	for _, base := range updateBases() {
-		url := base + "/" + updateRepo + "/releases/download/" + tag + "/" + asset
+	for _, n := range nodes {
+		url := n.Base + "/" + updateRepo + "/releases/download/" + tag + "/" + asset
 		req, rerr := http.NewRequest(http.MethodGet, url, nil)
 		if rerr != nil {
+			if logf != nil {
+				logf("节点 %s 请求构造失败，切换下一个", n.Name)
+			}
 			continue
 		}
 		req.Header.Set("User-Agent", "NanoPanel/"+version.Version)
 		resp, derr := client.Do(req)
 		if derr != nil {
+			if logf != nil {
+				logf("节点 %s 连接失败（%v），切换下一个", n.Name, derr)
+			}
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
+			code := resp.StatusCode
 			resp.Body.Close()
+			if logf != nil {
+				logf("节点 %s 返回 HTTP %d，切换下一个", n.Name, code)
+			}
 			continue
+		}
+		if logf != nil {
+			logf("正在从 %s 下载 %s（%s）...", n.Name, asset, fmtBytes(resp.ContentLength))
 		}
 		f, ferr := os.Create(dest)
 		if ferr != nil {
 			resp.Body.Close()
-			continue
+			return "", fmt.Errorf("创建临时文件失败: %w", ferr)
 		}
-		_, cerr := io.Copy(f, resp.Body)
+		pw := &updateProgress{w: f, total: resp.ContentLength, logf: logf}
+		_, cerr := io.Copy(pw, resp.Body)
 		resp.Body.Close()
 		f.Close()
 		if cerr != nil {
 			os.Remove(dest)
+			if logf != nil {
+				logf("节点 %s 下载中断（%v），切换下一个", n.Name, cerr)
+			}
 			continue
 		}
-		return nil
+		if logf != nil {
+			logf("下载完成，使用节点 %s", n.Name)
+		}
+		return n.Name, nil
 	}
-	return fmt.Errorf("下载失败，请检查网络或稍后重试")
+	return "", fmt.Errorf("所有下载节点均失败，请检查网络或稍后重试")
 }

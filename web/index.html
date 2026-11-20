@@ -661,6 +661,40 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- 底部状态栏：常驻显示面板状态与最新通知，点击展开分档通知列表 -->
+<div class="statusbar hidden" id="statusBar">
+  <div class="sb-inner">
+    <button type="button" class="sb-item sb-notify" data-act="toggleNotifPanel()" title="查看通知">
+      <span class="sb-dot" id="sbDot"></span>
+      <span id="sbLatest">暂无通知</span>
+      <span class="sb-badge hidden" id="sbUnread">0</span>
+    </button>
+    <div class="sb-right">
+      <span class="sb-item" id="sbHealth" title="面板运行状态">● 运行中</span>
+      <span class="sb-item mono" id="sbClock">--:--:--</span>
+      <span class="sb-item mono" id="sbVer"></span>
+    </div>
+  </div>
+  <div class="notif-panel hidden" id="notifPanel">
+    <div class="np-head">
+      <b>通知中心</b>
+      <div class="row-flex" style="gap:6px">
+        <button class="btn sm gray" data-act="markAllNotifRead()">全部已读</button>
+        <button class="btn sm gray" data-act="clearNotifications()">清空</button>
+        <button class="btn sm" data-act="toggleNotifPanel()">收起</button>
+      </div>
+    </div>
+    <div class="np-filters" id="notifFilters">
+      <button type="button" class="sm active" data-act="filterNotif('all')">全部</button>
+      <button type="button" class="sm" data-act="filterNotif('danger')">告警</button>
+      <button type="button" class="sm" data-act="filterNotif('warn')">注意</button>
+      <button type="button" class="sm" data-act="filterNotif('success')">成功</button>
+      <button type="button" class="sm" data-act="filterNotif('info')">提示</button>
+    </div>
+    <div class="np-list" id="notifList"><div class="empty-tip">暂无通知</div></div>
+  </div>
+</div>
+
 <div class="modal-mask hidden" id="appCfgMask" data-act="if(event.target===this)closeAppCfg()">
   <div class="modal">
     <h2 id="appCfgTitle">应用配置</h2>
@@ -713,9 +747,9 @@
   </div>
 </div>
 
-<div class="modal-mask hidden" id="updateMask">
+<div class="modal-mask hidden" id="updateMask" data-act="if(event.target===this)closeUpdateDlg()">
   <div class="modal">
-    <h2>发现新版本，请升级</h2>
+    <h2>发现新版本</h2>
     <div class="field"><div class="fl">当前版本</div><div id="updCurrent" class="mono">-</div></div>
     <div class="field"><div class="fl">最新版本</div>
       <div id="updLatest" class="mono" style="color:var(--green);font-weight:600">-</div></div>
@@ -725,6 +759,25 @@
     </div>
     <div class="modal-actions">
       <button class="btn" data-act="applyUpdateFromDlg()">立即升级</button>
+      <button class="btn gray" data-act="closeUpdateDlg()">稍后再说</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask hidden" id="updLogMask">
+  <div class="modal" style="max-width:720px">
+    <h2>升级 NanoPanel <span id="updLogVer" class="mono" style="font-size:13px;color:var(--gray)"></span></h2>
+    <div class="row-flex" style="margin-bottom:10px;gap:10px;flex-wrap:wrap">
+      <span class="state-tag" id="updLogState">准备中…</span>
+      <span id="updLogNode" style="font-size:12px;color:var(--gray)"></span>
+    </div>
+    <div style="font-size:12px;color:var(--gray);margin-bottom:8px">
+      升级过程中面板会重启，请勿关闭页面；完成后将自动刷新。
+    </div>
+    <pre id="updLogOutput" style="max-height:420px"></pre>
+    <div class="modal-actions" id="updLogActions" style="display:none">
+      <button class="btn" id="updLogClose" data-act="closeUpdateLogDlg()">关闭</button>
+      <button class="btn gray" data-act="reloadPage()">立即刷新</button>
     </div>
   </div>
 </div>

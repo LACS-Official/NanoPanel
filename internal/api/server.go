@@ -67,6 +67,10 @@ type Server struct {
 	// updateMu 防止后台自动更新与手动升级并发操作二进制。
 	updateMu sync.Mutex
 
+	// notifyMu 与 notifies 保存应用内通知中心（底部状态栏）的环形缓冲。
+	notifyMu sync.Mutex
+	notifies []notifyItem
+
 	// termMu 保护内置终端的一次性票据与活跃会话表。
 	termMu       sync.Mutex
 	termTickets  map[string]terminalTicket
