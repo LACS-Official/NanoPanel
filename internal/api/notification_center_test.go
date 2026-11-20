@@ -81,7 +81,9 @@ func TestNotificationCenterAPI(t *testing.T) {
 	}
 	rec = httptest.NewRecorder()
 	srv.Notifications(rec, httptest.NewRequest(http.MethodGet, "/api/v1/notifications", nil))
-	json.Unmarshal(rec.Body.Bytes(), &resp)
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
 	if resp.Data.Unread != 0 {
 		t.Fatalf("全部已读后未读数应为 0: %d", resp.Data.Unread)
 	}

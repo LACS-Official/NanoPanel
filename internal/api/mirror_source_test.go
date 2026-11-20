@@ -31,23 +31,27 @@ func TestProbeMirrorSubMillis(t *testing.T) {
 
 // TestProbeMirrorCountsBodyTransfer 延迟必须计入真实响应体传输，
 // 否则本地代理缓存命中时只读 header 会得到接近 0 的假延迟。
+// 用 server 在写完 header 后固定延迟再吐 body，避免依赖机器快慢的脆弱时间阈值。
 func TestProbeMirrorCountsBodyTransfer(t *testing.T) {
-	const payloadSize = 1 << 20 // 1MB，传输耗时足以与纯 header 区分
-	body := bytes.Repeat([]byte("x"), payloadSize)
+	const bodyDelay = 80 * time.Millisecond
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(body)
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush() // 先把 header 发出去，确保计时起点早于 body
+		}
+		time.Sleep(bodyDelay)
+		_, _ = w.Write(bytes.Repeat([]byte("x"), 16<<10))
 	}))
 	defer srv.Close()
 
 	res := probeMirror(&http.Client{Timeout: 5 * time.Second},
-		mirrorCandidate{ID: "slow", Name: "带响应体", Probe: srv.URL})
+		mirrorCandidate{ID: "slow", Name: "慢响应", Probe: srv.URL})
 	if !res.OK {
 		t.Fatalf("节点应可用: %+v", res)
 	}
-	// 读取 8KB 的往返通常 >0.1ms；这里只要求明显不是被 0.1ms 下限兜住即可。
-	if res.Latency < 0.5 {
-		t.Fatalf("延迟应包含响应体传输时间，实际 %vms（疑似只读 header）", res.Latency)
+	// 若只读 header 就结算，延迟会远小于 bodyDelay；读 body 则应覆盖它。
+	if time.Duration(res.Latency*float64(time.Millisecond)) < bodyDelay/2 {
+		t.Fatalf("延迟应包含响应体传输时间（≥%v），实际 %vms（疑似只读 header）", bodyDelay, res.Latency)
 	}
 }
 
