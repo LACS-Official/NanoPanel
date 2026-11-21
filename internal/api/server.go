@@ -60,6 +60,9 @@ type Server struct {
 	// tlsDir 仅用于测试注入，为空时使用默认证书目录。
 	tlsDir string
 
+	// ledsRoot 仅用于测试注入，为空时使用 /sys/class/leds。
+	ledsRoot string
+
 	// actionMu 与 runningActions 防止同一应用并发执行安装/卸载脚本。
 	actionMu       sync.Mutex
 	runningActions map[string]bool

@@ -540,6 +540,26 @@
             <div style="font-size:12px;color:var(--gray);margin-top:10px" id="tlsHint"></div>
           </div>
           <div class="card">
+            <h2>指示灯（LED）</h2>
+            <div style="font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:12px">
+              读取 <span class="mono">/sys/class/leds</span>，可直接开关板载指示灯。
+              关闭时会同时解除内核触发器（如 heartbeat），避免指示灯被自动重新点亮；
+              「全部关闭」默认保留电源指示灯。写入需要面板以 root 权限运行。
+            </div>
+            <div class="row-flex" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">
+              <button type="button" class="btn sm" data-act="loadLEDs()">刷新</button>
+              <button type="button" class="btn sm gray" data-act="setAllLEDs(false)">全部关闭（保留电源灯）</button>
+              <button type="button" class="btn sm gray" data-act="setAllLEDs(true)">全部开启</button>
+            </div>
+            <div class="table-wrap">
+              <table class="mirror-table">
+                <thead><tr><th>指示灯</th><th>亮度</th><th>触发器</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+                <tbody id="ledBody"></tbody>
+              </table>
+            </div>
+            <div id="ledHint" class="empty-tip"></div>
+          </div>
+          <div class="card">
             <h2>系统操作</h2>
             <div style="font-size:12px;color:var(--gray);margin-bottom:12px">重启会中断所有正在运行的服务，请谨慎操作。</div>
             <button class="btn danger" style="background:#ff3b30;color:#fff" data-act="doReboot()">重启系统</button>

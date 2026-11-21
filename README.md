@@ -36,6 +36,7 @@
 - **`npctl` 管理工具**：查看账号、重置密码、启停服务、查看镜像源、卸载
 - **WSL / systemd 自适应**：WSL2 Ubuntu 可直接安装；无 systemd 时自动回退为进程守护
 - 系统概览、进程管理（含内存占用、CPU 占用、即时搜索与用途说明）、日志中心、Ping、磁盘管理、文件管理、应用商店（含可升级检测与应用页面直达）、系统重启、修改密码
+- **指示灯（LED）控制**：在「设置 → 系统」枚举 `/sys/class/leds` 并单灯开关、一键全部关闭（保留电源灯）/ 全部开启；关闭时自动解除内核触发器，无需再 SSH 手动写 brightness
 - **资源历史趋势**：后台每 60 秒采样 CPU / 内存 / 磁盘 / 温度 / 网卡流量，JSONL 落盘保留 7 天；概览页零依赖 SVG 折线图支持 1 小时 / 6 小时 / 24 小时 / 7 天切换、曲线显隐与悬停读数，磁盘不可写时自动降级为纯内存
 - **资源阈值告警**：CPU / 内存 / 磁盘分别设阈值，持续超阈值达到设定时长才通知，回落滞回 5 个百分点判定恢复并带 30 分钟冷却；可设每日免打扰时段（支持跨午夜），静默期只记审计不推送；复用 Webhook 与审计日志，温度沿用原有超温告警
 - **趋势图导出 CSV**：按当前时间窗导出全部原始采样点为 CSV，含中文表头与 UTF-8 BOM，Excel 直接打开
@@ -272,6 +273,9 @@ make build-all    # 交叉编译三个 Linux 架构
 | POST | `/terminal/settings` | 修改终端开关与 Shell 路径 |
 | POST | `/terminal/session` | 签发 30 秒一次性 WebSocket 连接票据 |
 | GET | `/terminal/ws?ticket=` | WebSocket 升级，双向转发 PTY 字节流（二进制帧为 I/O，文本帧为控制消息） |
+| GET | `/leds` | 枚举板载指示灯（名称 / 亮度 / 触发器 / 可写 / 是否电源灯）；无 sysfs 时返回 `supported:false` |
+| POST | `/leds/set` | 单灯开关 `{"name":"blue:heartbeat","on":false}`，关闭时先解除触发器 |
+| POST | `/leds/all` | 批量开关 `{"on":false,"keep_power":true}`，`keep_power` 为真时跳过电源灯 |
 
 ## 应用商店约定
 

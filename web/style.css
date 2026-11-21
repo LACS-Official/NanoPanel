@@ -150,6 +150,11 @@
   .mirror-table { width:100%; font-size:12.5px; }
   .mirror-table th { font-size:11.5px; }
   .mirror-table tr.mirror-cur { background:var(--blue-weak); }
+  /* 指示灯（LED）状态 */
+  .led-state { display:inline-flex; align-items:center; gap:6px; font-size:12px; white-space:nowrap; }
+  .led-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--line); }
+  .led-dot.on { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .led-power { font-size:11px; padding:1px 7px; border-radius:980px; background:var(--blue-weak); color:var(--blue); margin-left:6px; white-space:nowrap; }
   .cur-tag, .best-tag { font-size:10px; padding:1px 6px; border-radius:980px; margin-left:4px; font-weight:600; }
   .cur-tag { background:var(--blue-weak); color:var(--blue); }
   .best-tag { background:var(--green-weak); color:var(--green); }

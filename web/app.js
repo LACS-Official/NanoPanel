@@ -257,7 +257,7 @@ function setSub(v,k){
   document.querySelectorAll('#view-'+v+' .subpane').forEach(p=>p.classList.toggle('hidden', p.dataset.sub!==k));
   if (v==='logs') (k==='system') ? loadLogs() : loadPanelLogs();
   if (v==='apps' && k==='store') loadMirrorSettings();
-  if (v==='settings' && k==='system') loadTLS();
+  if (v==='settings' && k==='system'){ loadTLS(); loadLEDs(); }
   if (v==='settings' && k==='security') loadTerminalSettings();
   if (v==='settings' && k==='maintain') loadCron();
 }
@@ -904,6 +904,67 @@ document.getElementById('view-apps').addEventListener('click', async e=>{
 // ===== 应用设置：下载源选择与测速 =====
 let mirrorCandidatesCache = [];
 let mirrorCurrentId = '';
+/* ===== 指示灯（LED）控制 ===== */
+let ledCache = [];
+async function loadLEDs(){
+  const body = document.getElementById('ledBody');
+  const hint = document.getElementById('ledHint');
+  if (!body || !hint) return;
+  try {
+    const d = await call('GET','/leds');
+    ledCache = d.leds || [];
+    if (d.supported === false) {
+      body.innerHTML = '';
+      hint.textContent = d.message || '当前系统未提供 LED 控制接口（需 Linux 且存在 /sys/class/leds）';
+      hint.style.display = '';
+      return;
+    }
+    if (!ledCache.length) {
+      body.innerHTML = '';
+      hint.textContent = '未发现可控制的指示灯';
+      hint.style.display = '';
+      return;
+    }
+    hint.style.display = 'none';
+    body.innerHTML = ledCache.map(l=>{
+      const on = Number(l.brightness) > 0;
+      const action = l.writable
+        ? '<button type="button" class="btn sm'+(on?' gray':'')+'" data-led="'+esc(l.name)+'" data-on="'+(!on)+'">'+(on?'关闭':'开启')+'</button>'
+        : '<span style="font-size:12px;color:var(--gray)">只读</span>';
+      return '<tr>'+
+        '<td><span class="mono">'+esc(l.name)+'</span>'+(l.is_power?'<span class="led-power">电源灯</span>':'')+'</td>'+
+        '<td class="mono">'+esc(l.brightness)+' / '+esc(l.max_brightness)+'</td>'+
+        '<td class="mono">'+esc(l.trigger || '—')+'</td>'+
+        '<td><span class="led-state"><i class="led-dot'+(on?' on':'')+'"></i>'+(on?'亮':'灭')+'</span></td>'+
+        '<td style="text-align:right">'+action+'</td>'+
+      '</tr>';
+    }).join('');
+  } catch(e){
+    body.innerHTML = '';
+    hint.textContent = '读取指示灯失败：' + e.message;
+    hint.style.display = '';
+  }
+}
+async function setLED(name, on){
+  try { await call('POST','/leds/set',{name,on}); toast((on?'已开启 ':'已关闭 ')+name); await loadLEDs(); }
+  catch(e){ toast(e.message); }
+}
+async function setAllLEDs(on){
+  try {
+    const d = await call('POST','/leds/all',{on, keep_power:!on});
+    const failed = (d && Array.isArray(d.failed)) ? d.failed.length : 0;
+    toast(failed ? ('操作完成，'+failed+' 个指示灯失败（多为只读或权限不足）')
+                 : (on ? '已开启全部指示灯' : '已关闭其他指示灯，电源灯保留'));
+    await loadLEDs();
+  } catch(e){ toast(e.message); }
+}
+const ledBodyEl = document.getElementById('ledBody');
+if (ledBodyEl) ledBodyEl.addEventListener('click', async e=>{
+  const b = e.target.closest('button[data-led]');
+  if (!b) return;
+  await setLED(b.dataset.led, b.dataset.on === 'true');
+});
+
 async function loadMirrorSettings(){
   try {
     const d = await call('GET','/settings/mirror');
@@ -1956,6 +2017,10 @@ const INLINE_ACTIONS = {
   "checkUpdate()": () => checkUpdate(),
   "applyUpdate()": () => applyUpdate(),
   "saveUpdateSettings()": () => saveUpdateSettings(),
+  // 指示灯（LED）
+  "loadLEDs()": () => loadLEDs(),
+  "setAllLEDs(false)": () => setAllLEDs(false),
+  "setAllLEDs(true)": () => setAllLEDs(true),
   // 挂载弹窗 / 动作弹窗
   "doMount()": () => doMount(),
   "closeMountDlg()": () => closeMountDlg(),

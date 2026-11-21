@@ -123,6 +123,10 @@ func main() {
 	mux.HandleFunc("GET /api/v1/processes", srv.AuthMiddleware(srv.ListProcesses))
 	mux.HandleFunc("POST /api/v1/process/kill", srv.AuthMiddleware(srv.KillProcess))
 	mux.HandleFunc("POST /api/v1/reboot", srv.AuthMiddleware(srv.Reboot))
+	// 指示灯（LED）控制：枚举 / 单灯开关 / 批量开关（可保留电源灯）
+	mux.HandleFunc("GET /api/v1/leds", srv.AuthMiddleware(srv.ListLEDs))
+	mux.HandleFunc("POST /api/v1/leds/set", srv.AuthMiddleware(srv.SetLED))
+	mux.HandleFunc("POST /api/v1/leds/all", srv.AuthMiddleware(srv.SetAllLEDs))
 	mux.HandleFunc("GET /api/v1/ping", srv.AuthMiddleware(srv.Ping))
 	mux.HandleFunc("GET /api/v1/net/traffic", srv.AuthMiddleware(srv.TrafficStats))
 	mux.HandleFunc("GET /api/v1/logs", srv.AuthMiddleware(srv.Logs))
